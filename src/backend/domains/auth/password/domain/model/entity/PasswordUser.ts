@@ -1,10 +1,11 @@
 // src/domains/auth/password/domain/model/entity/PasswordUser.ts
 
-import type { HashedPassword } from '@/domains/auth/authShared/model/valueObject/HashedPassword';
-import type { PlainPassword } from '@/domains/auth/authShared/model/valueObject/PlainPassword';
-import type { IPasswordHasher } from '@/domains/auth/authShared/service/security/IPasswordHasher';
-import type { EmailAddress } from '@/domains/domainShared/model/valueObject/EmailAddress';
-import { UserId } from '@/domains/domainShared/model/valueObject/UserId';
+import type { HashedPassword } from "@/backend/domains/auth/sharedAuth/model/valueObject/HashedPassword";
+import type { PlainPassword } from "@/backend/domains/auth/sharedAuth/model/valueObject/PlainPassword";
+import type { IPasswordHasher } from "@/backend/domains/auth/sharedAuth/service/security/IPasswordHasher";
+import type { EmailAddress } from "@/backend/domains/sharedDomains/model/valueObject/EmailAddress";
+import type { UserId } from "@/backend/domains/sharedDomains/model/valueObject/UserId";
+
 
 /**
  * パスワード認証ユーザーを表すエンティティ。
