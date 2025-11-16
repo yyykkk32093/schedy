@@ -1,0 +1,5 @@
+
+・Busはコンテキスト単位に分けて一括登録するようにする。 
+・コンテキスト間で連携したい時はIntegreation Busを作ります。 
+・DomainEventからAuditEventに変換してDBに残すSubscriberもやりたい。 　
+　まずはPasswordUserLoggedInEvent.tsを変換してみますか。

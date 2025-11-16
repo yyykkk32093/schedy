@@ -2,7 +2,7 @@
 import bcrypt from 'bcrypt';
 import { HashedPassword } from '../../model/valueObject/HashedPassword.js';
 import { PlainPassword } from '../../model/valueObject/PlainPassword.js';
-import type { IPasswordHasher } from '../../service/security/IPasswordHasher.js';
+import { IPasswordHasher } from '../../service/security/IPasswordHasher.js';
 
 /**
  * bcryptによるパスワードハッシュ化サービス。
@@ -15,7 +15,7 @@ export class BcryptPasswordHasher implements IPasswordHasher {
      * 平文パスワードをハッシュ化
      */
     async hash(plainPassword: PlainPassword): Promise<HashedPassword> {
-        const hashed = await bcrypt.hash(plainPassword.value, BcryptPasswordHasher.SALT_ROUNDS);
+        const hashed = await bcrypt.hash(plainPassword.getValue(), BcryptPasswordHasher.SALT_ROUNDS);
         return new HashedPassword(hashed);
     }
 
@@ -23,6 +23,6 @@ export class BcryptPasswordHasher implements IPasswordHasher {
      * 平文とハッシュの一致判定
      */
     async compare(plainPassword: PlainPassword, hashedPassword: HashedPassword): Promise<boolean> {
-        return await bcrypt.compare(plainPassword.value, hashedPassword.value);
+        return await bcrypt.compare(plainPassword.getValue(), hashedPassword.getValue());
     }
 }

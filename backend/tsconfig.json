@@ -1,3 +1,12 @@
+// backend/tsconfig.json
 {
-    "extends": "./tsconfig.server.json"
+    "files": [],
+    "references": [
+        {
+            "path": "./tsconfig.server.json"
+        },
+        {
+            "path": "./tsconfig.test.json"
+        }
+    ]
 }

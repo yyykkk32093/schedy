@@ -3,7 +3,7 @@ import { EmailAddress } from '@/domains/sharedDomains/model/valueObject/EmailAdd
 import { UserId } from '@/domains/sharedDomains/model/valueObject/UserId.js';
 import { HashedPassword } from '../../../sharedAuth/model/valueObject/HashedPassword.js';
 import { PasswordUser } from '../../domain/model/entity/PasswordUser.js';
-import type { IPasswordUserRepository } from '../../domain/repository/IPasswordUserRepository.js';
+import { IPasswordUserRepository } from '../../domain/repository/IPasswordUserRepository.js';
 
 /**
  * パスワード認証ユーザーのインメモリ実装。

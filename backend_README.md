@@ -109,3 +109,5 @@ API起動：
 backend % npx tsc -p tsconfig.server.json
 backend % NODE_ENV=local node dist/api/server.js
 
+ローカルDB起動：
+brew services start postgresql@14

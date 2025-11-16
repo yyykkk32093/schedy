@@ -1,24 +1,10 @@
-// src/domains/auth/authShared/model/valueObject/HashedPassword.ts
+import { ValueObject } from '@/domains/sharedDomains/model/valueObject/ValueObject.js'
 
-export class HashedPassword {
-    private readonly _value: string;
-
+export class HashedPassword extends ValueObject<string> {
     constructor(value: string) {
         if (!value || (!value.startsWith('$2a$') && !value.startsWith('$2b$'))) {
-            throw new Error('Invalid hashed password format');
+            throw new Error('Invalid hashed password format')
         }
-        this._value = value;
-    }
-
-    get value(): string {
-        return this._value;
-    }
-
-    /**
-     * 値オブジェクト同士の等価性比較
-     */
-    equals(other: HashedPassword): boolean {
-        if (!other) return false;
-        return this._value === other.value;
+        super(value)
     }
 }
