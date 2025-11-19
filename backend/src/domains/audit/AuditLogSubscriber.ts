@@ -7,7 +7,7 @@ export class AuditLogSubscriber
     implements DomainEventSubscriber<PasswordUserLoggedInEvent> {
     constructor(private readonly auditRepo: AuditRepository) { }
 
-    eventName(): string {
+    subscribedTo(): string {
         return 'PasswordUserLoggedInEvent'
     }
 

@@ -1,5 +1,4 @@
 // src/application/auth/password/usecase/LoginPasswordUserUseCase.ts
-// auth/password/application/usecase/LoginPasswordUserUseCase.ts
 import type { IPasswordUserRepository } from '@/domains/auth/password/domain/repository/IPasswordUserRepository.js'
 import { PlainPassword } from '@/domains/auth/sharedAuth/model/valueObject/PlainPassword.js'
 import type { IPasswordHasher } from '@/domains/auth/sharedAuth/service/security/IPasswordHasher.js'

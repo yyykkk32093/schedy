@@ -7,12 +7,14 @@ export class OutboxEvent {
     readonly occurredAt: Date
     readonly publishedAt?: Date | null
     readonly status: 'PENDING' | 'PUBLISHED' | 'FAILED'
+    readonly routingKey: string
 
     constructor(params: {
         id: string
         eventName: string
         aggregateId: string
         payload: Record<string, unknown>
+        routingKey: string
         occurredAt?: Date
         publishedAt?: Date | null
         status?: 'PENDING' | 'PUBLISHED' | 'FAILED'
@@ -21,6 +23,7 @@ export class OutboxEvent {
         this.eventName = params.eventName
         this.aggregateId = params.aggregateId
         this.payload = params.payload
+        this.routingKey = params.routingKey
         this.occurredAt = params.occurredAt ?? new Date()
         this.publishedAt = params.publishedAt ?? null
         this.status = params.status ?? 'PENDING'

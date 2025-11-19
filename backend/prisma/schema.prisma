@@ -27,13 +27,14 @@ datasource db {
 
 // ---- OutboxEvent テーブル定義 ----
 model OutboxEvent {
-  id           String   @id @default(uuid())
-  eventName    String
-  aggregateId  String
-  payload      String
-  status       String   @default("PENDING")
-  occurredAt   DateTime @default(now())
-  publishedAt  DateTime?
+  id          String   @id
+  eventName   String
+  aggregateId String
+  payload     String
+  routingKey  String
+  occurredAt  DateTime
+  publishedAt DateTime?
+  status      String
 }
 
 model AuditLog {

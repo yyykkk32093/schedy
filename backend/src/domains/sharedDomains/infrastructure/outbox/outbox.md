@@ -67,3 +67,112 @@
 - 各BC設計書に「トランザクション境界」「イベント連携種別」「整合性保証方式」を明記する。
 - Outbox実装部分は共通コンポーネント化（OutboxRepository, EventDispatcherなど）。
 - 内部ドメインイベント（集約間連携）はメモリ内EventBusを共通利用する。
+
+
+② 役割まとめ（あなたの構造に完全対応した整理）
+
+あなたが今作ってる非同期アーキテクチャには、
+5つの役割が登場していて、これが理解できればもう迷わない。
+
+🌟 1. Subscriber（サブスクライバー）
+✔ ドメインイベントを拾う担当
+
+Auth のドメインイベントが発行されたとき（ログイン成功 / 失敗など）
+それを受け取り、IntegrationEvent に変換して Outbox に保存する。
+
+例：
+PublishAuthIntegrationSubscriber
+
+async handle(event: AuthDomainEvent) {
+    const integrationEvent = mapper.map(event)
+    await outboxRepository.save(integrationEvent)
+}
+
+
+📌 Subscriber は “Outbox に置く” だけ。送信はしない。
+
+🌟 2. Publisher（パブリッシャー）
+✔ Outbox に溜まった「送るべきイベント」を取り出し、Dispatcher に渡す
+
+Publisher はポーリングで動くワーカー（Express と別プロセス）で、
+
+findPending → dispatcher.dispatch()
+
+
+を繰り返す。
+
+例：
+OutboxPublisher
+
+Publisher は 送信方法（URLなど）を知らない
+→ だから疎結合でスケールしやすい。
+
+🌟 3. Dispatcher（ディスパッチャー）
+✔ routingKey → handler をルーティングするだけの本当に細い役割
+dispatcher.dispatch('audit.record-auth-log', payload)
+
+
+dispatcher は“配送先担当者を見つけるだけ”。
+
+例：
+IntegrationDispatcher
+
+📌 Publisher は Dispatcher に渡すだけ。Dispatcher は Handler を呼ぶだけ。
+
+🌟 4. Handler（ハンドラー）
+✔ 実際に「どこに送るか」を知っている層
+
+（HTTP / Kafka / SQS / Webhook など）
+
+今回の例では HTTP 送信。
+
+例：
+AuditLogIntegrationHandler
+
+await axios.post('http://localhost:3000/system/audit/log', payload)
+
+
+📌 Handler が唯一 “送信方法” を知っている場所。
+
+🌟 5. Registry（レジスター）
+✔ Dispatcher に「どの routingKey にどの Handler を割り当てるか」を登録する
+
+例：
+
+dispatcher.register('audit.record-auth-log', new AuditLogIntegrationHandler())
+
+
+これは DI コンテナと同じ役割。
+
+📌 レジスターだけ変更すれば、新しい連携先を追加できる。
+Publisher、Subscriber、ドメイン側には何も影響しない。
+→ 完全に OCP（開放閉鎖原則）。
+
+🔥 全体まとめ（図で理解）
+[Auth Domain Event]
+      │
+      ▼
+[PublishAuthIntegrationSubscriber]
+      │
+      ▼
+[OutboxRepository.save()]  ← DB に PENDING イベントを積む
+      │
+      ▼ (別プロセス)
+[OutboxPublisher (polling)]
+      │
+      ▼
+[IntegrationDispatcher]  ← routingKey を見て振り分け
+      │
+      ▼
+[IntegrationHandler]      ← HTTP / Kafka / SQS など実送信
+      │
+      ▼
+[Audit API]
+
+
+この分割により：
+
+✔ Subscriber と Handler が“お互いに存在を知らなくても動く”
+✔ Publisher は“配送方法を知らずにイベントを投げる”
+✔ Dispatcher は“routingKey だけで handler をルーティング”
+✔ Registry だけいじれば新連携先が増やせる（Handlerは実装必要）

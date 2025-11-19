@@ -1,7 +1,7 @@
 // src/application/audit/log/usecase/RecordAuthAuditLogUseCase.ts
 import { AuditLog } from '@/domains/audit/log/domain/model/entity/AuditLog.js'
 import { AuditLogRepository } from '@/domains/audit/log/infrastructure/repository/AuditLogRepositoryImpl.js'
-import { UuidGenerator } from '@/domains/sharedDomains/infrastructure/outbox/id/UuidGenerator.js'
+import { UuidGenerator } from '@/domains/sharedDomains/infrastructure/id/UuidGenerator.js'
 
 /**
  * 🔹 Outbox経由で受信したAuthイベントを監査ログとして記録するユースケース。

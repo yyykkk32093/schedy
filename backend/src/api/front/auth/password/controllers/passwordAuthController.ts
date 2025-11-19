@@ -1,13 +1,5 @@
+import { usecaseFactory } from '@/api/_usecaseFactory.js';
 import type { Request, Response } from 'express';
-import { LoginPasswordUserUseCase } from '../../../../application/auth/password/usecase/LoginPasswordUserUseCase.js';
-import { PasswordUserRepositoryImpl } from '../../../../domains/auth/password/infrastructure/repository/PasswordUserRepositoryImpl.js';
-import { BcryptPasswordHasher } from '../../../../domains/auth/sharedAuth/infrastructure/security/BcryptPasswordHasher.js';
-
-// UseCaseインスタンスを初期化
-const useCase = new LoginPasswordUserUseCase(
-    new PasswordUserRepositoryImpl(),
-    new BcryptPasswordHasher()
-);
 
 export const passwordAuthController = {
     /**
@@ -17,7 +9,7 @@ export const passwordAuthController = {
     async login(req: Request, res: Response) {
         try {
             const { email, password } = req.body;
-
+            const useCase = usecaseFactory.createLoginPasswordUserUseCase()
             const result = await useCase.execute({ email, password });
 
             res.status(200).json({

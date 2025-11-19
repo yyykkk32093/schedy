@@ -8,14 +8,16 @@ export class UserLoggedInIntegrationEvent extends OutboxEvent {
         authMethod: string
         ipAddress?: string
         occurredAt: Date
+        routingKey: string   // ← 追加（必須）
     }) {
         super({
             id: crypto.randomUUID(),
             eventName: 'UserLoggedInIntegrationEvent',
             aggregateId: params.userId,
+            routingKey: params.routingKey,    // ← 絶対必要
             payload: {
                 userId: params.userId,
-                email: params.email,           // ← OK
+                email: params.email,
                 authMethod: params.authMethod,
                 ipAddress: params.ipAddress,
             },

@@ -7,6 +7,7 @@ import { PasswordUser } from '@/domains/auth/password/domain/model/entity/Passwo
 import { authDomainEventBus } from '@/domains/auth/sharedAuth/domain/event/AuthDomainEventBus.js'
 import { registerAuthDomainSubscribers } from '@/domains/auth/sharedAuth/domain/event/AuthEventRegistry.js'
 import { HashedPassword } from '@/domains/auth/sharedAuth/model/valueObject/HashedPassword.js'
+import { IOutboxRepository } from '@/domains/sharedDomains/domain/integration/IOutboxRepository.js'
 import { EmailAddress } from '@/domains/sharedDomains/model/valueObject/EmailAddress.js'
 import { UserId } from '@/domains/sharedDomains/model/valueObject/UserId.js'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
@@ -15,7 +16,16 @@ const mockUserRepository = { findByEmail: vi.fn() }
 const mockHasher = { compare: vi.fn() }
 
 beforeAll(() => {
-    registerAuthDomainSubscribers()
+    // Outbox はこのテストでは「呼ばれても何もせんダミー」でOK
+    const dummyOutboxRepository: IOutboxRepository = {
+        save: vi.fn().mockResolvedValue(undefined),
+        findPending: vi.fn().mockResolvedValue([]),
+        markAsPublished: vi.fn().mockResolvedValue(undefined),
+        markAsFailed: vi.fn().mockResolvedValue(undefined),
+    }
+
+
+    registerAuthDomainSubscribers(dummyOutboxRepository)
 })
 
 describe('LoginPasswordUserUseCase Integration', () => {

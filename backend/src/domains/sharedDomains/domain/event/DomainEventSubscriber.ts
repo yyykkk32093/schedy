@@ -1,14 +1,12 @@
-// src/sharedDomains/domain/event/DomainEventSubscriber.ts
+// src/domains/sharedDomains/domain/event/DomainEventSubscriber.ts
 import { BaseDomainEvent } from './BaseDomainEvent.js'
 
 /**
- * DomainEventを購読するSubscriberの共通インターフェース。
- * 各イベントごとに対応するSubscriberを実装する。
+ * ドメインイベントのSubscriber共通インターフェース。
+ * - 1つのイベントだけ購読する場合は string
+ * - 複数のイベントを購読したい場合は string[]
  */
 export interface DomainEventSubscriber<T extends BaseDomainEvent> {
-    /** 購読対象のイベント名 */
-    eventName(): string
-
-    /** イベント受信時のハンドリング処理 */
+    subscribedTo(): string | string[]
     handle(event: T): Promise<void> | void
 }

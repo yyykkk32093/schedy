@@ -7,7 +7,7 @@ import { PasswordUserLoginFailedEvent } from '../PasswordUserLoginFailedEvent.js
  */
 export class PasswordUserLoginFailedSubscriber
     implements DomainEventSubscriber<PasswordUserLoginFailedEvent> {
-    eventName(): string {
+    subscribedTo(): string {
         return 'PasswordUserLoginFailedEvent'
     }
 

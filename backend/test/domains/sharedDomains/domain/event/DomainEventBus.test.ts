@@ -19,7 +19,7 @@ class TestEvent extends BaseDomainEvent {
 class TestSubscriber implements DomainEventSubscriber<TestEvent> {
     public handle = vi.fn()
 
-    eventName(): string {
+    subscribedTo(): string {
         return 'TestEvent'
     }
 }

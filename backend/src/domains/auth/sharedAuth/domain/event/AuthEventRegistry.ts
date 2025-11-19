@@ -1,20 +1,21 @@
 // domains/auth/sharedAuth/domain/event/AuthEventRegistry.ts
 import { PasswordUserLoggedInSubscriber } from '@/domains/auth/password/domain/event/subscriber/PasswordUserLoggedInSubscriber.js'
 import { PasswordUserLoginFailedSubscriber } from '@/domains/auth/password/domain/event/subscriber/PasswordUserLoginFailedSubscriber.js'
-import { OutboxRepository } from '@/domains/sharedDomains/infrastructure/outbox/OutboxRepository.js'
+import { IOutboxRepository } from '@/domains/sharedDomains/domain/integration/IOutboxRepository.js'
 import { authDomainEventBus } from './AuthDomainEventBus.js'
-import { PublishAuthIntegrationSubscriber } from './subscriber/PublishAuthIntegrationSubscriber.js'
+import { PublishAuthIntegrationSubscriber } from './integration/PublishAuthIntegrationSubscriber.js'
+import { AuthIntegrationEventMapper } from './mapper/AuthIntegrationEventMapper.js'
 
-export function registerAuthDomainSubscribers() {
-    //
-    // ① パスワード認証関連イベント（ドメインローカル処理）
-    //
+export function registerAuthDomainSubscribers(
+    outboxRepository: IOutboxRepository
+) {
     authDomainEventBus.subscribe(new PasswordUserLoggedInSubscriber())
     authDomainEventBus.subscribe(new PasswordUserLoginFailedSubscriber())
 
-    //
-    // ② Outbox連携用Subscriber（IntegrationEvent変換）
-    //
-    const outboxRepo = new OutboxRepository()
-    authDomainEventBus.subscribe(new PublishAuthIntegrationSubscriber(outboxRepo))
+    // Outbox連携（DIでoutboxRepositoryを注入）
+    const mapper = new AuthIntegrationEventMapper()
+
+    authDomainEventBus.subscribe(
+        new PublishAuthIntegrationSubscriber(outboxRepository)
+    )
 }

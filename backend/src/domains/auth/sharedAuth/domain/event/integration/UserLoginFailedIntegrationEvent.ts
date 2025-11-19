@@ -9,14 +9,16 @@ export class UserLoginFailedIntegrationEvent extends OutboxEvent {
         reason: string
         ipAddress?: string
         occurredAt: Date
+        routingKey: string
     }) {
         super({
             id: crypto.randomUUID(),
             eventName: 'UserLoginFailedIntegrationEvent',
             aggregateId: params.userId,
+            routingKey: params.routingKey,
             payload: {
                 userId: params.userId,
-                email: params.email,           // ← ここもOK
+                email: params.email,
                 authMethod: params.authMethod,
                 reason: params.reason,
                 ipAddress: params.ipAddress,
