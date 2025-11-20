@@ -4,22 +4,27 @@ import { prisma } from '@/sharedTech/db/client.js'
 import { OutboxEvent } from './OutboxEvent.js'
 
 export class OutboxRepository implements IOutboxRepository {
+
     async save(event: OutboxEvent): Promise<void> {
         await prisma.outboxEvent.create({
             data: {
                 id: event.id,
-                eventName: event.eventName,
                 aggregateId: event.aggregateId,
-                payload: JSON.stringify(event.payload),
+                eventName: event.eventName,
+                eventType: event.eventType,
                 routingKey: event.routingKey,
+                payload: JSON.parse(JSON.stringify(event.payload)),
                 occurredAt: event.occurredAt,
                 publishedAt: event.publishedAt,
                 status: event.status,
+                retryCount: event.retryCount,
+                maxRetries: event.maxRetries,
+                retryInterval: event.retryInterval,
             },
         })
     }
 
-    async findPending(limit = 100): Promise<OutboxEvent[]> {
+    async findPending(limit = 50): Promise<OutboxEvent[]> {
         const rows = await prisma.outboxEvent.findMany({
             where: { status: 'PENDING' },
             orderBy: { occurredAt: 'asc' },
@@ -30,16 +35,21 @@ export class OutboxRepository implements IOutboxRepository {
             (r) =>
                 new OutboxEvent({
                     id: r.id,
-                    eventName: r.eventName,
                     aggregateId: r.aggregateId,
-                    payload: JSON.parse(r.payload),
+                    eventName: r.eventName,
+                    eventType: r.eventType,
                     routingKey: r.routingKey,
+                    payload: JSON.parse(JSON.stringify(r.payload)),
                     occurredAt: r.occurredAt,
                     publishedAt: r.publishedAt,
-                    status: r.status as 'PENDING' | 'PUBLISHED' | 'FAILED',
+                    status: r.status,
+                    retryCount: r.retryCount,
+                    maxRetries: r.maxRetries,
+                    retryInterval: r.retryInterval,
                 }),
         )
     }
+
 
     async markAsPublished(id: string): Promise<void> {
         await prisma.outboxEvent.update({
@@ -57,6 +67,15 @@ export class OutboxRepository implements IOutboxRepository {
             data: {
                 status: 'FAILED',
                 publishedAt: new Date(),
+            },
+        })
+    }
+
+    async incrementRetryCount(id: string): Promise<void> {
+        await prisma.outboxEvent.update({
+            where: { id },
+            data: {
+                retryCount: { increment: 1 },
             },
         })
     }

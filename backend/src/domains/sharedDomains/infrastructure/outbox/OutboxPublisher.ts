@@ -1,59 +1,41 @@
+// src/domains/sharedDomains/infrastructure/outbox/OutboxPublisher.ts
 import { IOutboxRepository } from '@/domains/sharedDomains/domain/integration/IOutboxRepository.js'
-import { IntegrationDispatcher } from '@/domains/sharedDomains/infrastructure/integration/IntegrationDispatcher.js'
+import { sleep } from '@/sharedTech/util/sleep.js'
+import { IntegrationDispatcher } from '../integration/IntegrationDispatcher.js'
+import { OutboxRepository } from './OutboxRepository.js'
 
 export class OutboxPublisher {
     constructor(
-        private readonly outboxRepository: IOutboxRepository,
-        private readonly dispatcher: IntegrationDispatcher
+        private readonly repo: IOutboxRepository = new OutboxRepository(),
+        private readonly dispatcher: IntegrationDispatcher = new IntegrationDispatcher(),
     ) { }
 
-    async publishPending() {
-        const pending = await this.outboxRepository.findPending()
+    registerHandler(routingKey: string, handler: any) {
+        this.dispatcher.register(routingKey, handler)
+    }
 
-        for (const event of pending) {
+    async publishPending() {
+        const events = await this.repo.findPending(50)
+
+        for (const ev of events) {
             try {
-                await this.dispatcher.dispatch(event.eventName, event.payload)
-                await this.outboxRepository.markAsPublished(event.id)
+                console.log(`[OutboxPublisher] dispatch id=${ev.id} routingKey=${ev.routingKey}`)
+
+                await this.dispatcher.dispatch(ev.routingKey, ev)
+
+                await this.repo.markAsPublished(ev.id)
             } catch (err) {
-                console.error('[OutboxPublisher] Error:', err)
-                await this.outboxRepository.markAsFailed(event.id)
+                console.error('[OutboxPublisher] dispatch error:', err)
+
+                const willFail = ev.retryCount + 1 >= ev.maxRetries
+
+                if (willFail) {
+                    await this.repo.markAsFailed(ev.id)
+                } else {
+                    await sleep(ev.retryInterval)
+                    await this.repo.incrementRetryCount(ev.id)
+                }
             }
         }
     }
 }
-
-
-// import { OutboxEvent } from './OutboxEvent.js'
-// import { OutboxRepository } from './OutboxRepository.js'
-
-// /**
-//  * OutboxPublisher
-//  * 
-//  * OutboxEventをDBに保存し、後続の送信処理（外部システムやキュー）に渡すための簡易版。
-//  * 現時点では「保存 → ログ出力 → 成功/失敗のマーク」だけ行う。
-//  */
-// export class OutboxPublisher {
-//     constructor(private readonly repo: OutboxRepository) { }
-
-//     /**
-//      * イベントをOutboxテーブルに登録し、即時publishする
-//      */
-//     async publish(event: OutboxEvent): Promise<void> {
-//         try {
-//             // 1️⃣ Outboxテーブルに登録
-//             await this.repo.save(event)
-
-//             // 2️⃣ Publish（現段階ではconsole出力）
-//             console.log(`[OutboxPublisher] Published event: ${event.eventName}`, {
-//                 id: event.id,
-//                 aggregateId: event.aggregateId,
-//             })
-
-//             // 3️⃣ 成功時にステータス更新
-//             await this.repo.markAsPublished(event.id)
-//         } catch (error) {
-//             console.error(`[OutboxPublisher] Failed to publish event: ${event.id}`, error)
-//             await this.repo.markAsFailed(event.id)
-//         }
-//     }
-// }

@@ -176,3 +176,80 @@ Publisher、Subscriber、ドメイン側には何も影響しない。
 ✔ Publisher は“配送方法を知らずにイベントを投げる”
 ✔ Dispatcher は“routingKey だけで handler をルーティング”
 ✔ Registry だけいじれば新連携先が増やせる（Handlerは実装必要）
+
+🟩 routingKey / eventType の最終ルール（完全版）
+■ 1. routingKey：内部ルーティングのためのキー
+※ “Node.js backend 内で handler を選ぶためだけに存在する”
+🔥 使用者
+
+IntegrationDispatcher（あなたの Worker）
+
+IntegrationHandler（内部ロジック）
+
+🔥 用途
+
+Worker 内でどの Handler に渡すかを決める
+
+🔥 粒度の決め方
+
+内部の事情に合わせて自由
+
+eventType と同じでもいい
+
+eventType より細かくてもいい
+
+eventType より粗くてもいい
+
+🔥 値の例（内部都合）
+auth.login.success.password
+auth.login.success.oauth
+auth.login.success.biometric
+payment.charge.completed
+payment.refund.failed
+
+🔥 ポイント
+
+外部 API（Audit）は routingKey を理解する必要は一切ない
+
+あくまで “あなたの backend 内のルーティングキー”
+
+■ 2. eventType：外部 API のためのイベント名
+🔥 使用者
+
+Audit API（あなたの Integration API）
+
+他ドメイン（User, Billing など将来拡張）
+
+将来的に別サービスに独立してもそのまま利用可能
+
+🔥 用途
+
+外部 API が理解する “契約上の名前”
+
+イベントの意味を外部へ伝える
+
+🔥 粒度の決め方
+
+外部 API が理解できる単位
+
+外部の都合で粒度が変わり得る
+
+routingKey と必ずしも一致しなくてよい
+
+🔥 値の例（外部 API 都合）
+auth.login.success
+auth.login.failed
+user.created
+user.password.reset
+profile.updated
+payment.completed
+
+🧠 routingKey / eventType の関係性
+情報粒度	routingKey	eventType
+内部の方が細かいケース	◎ よくある	○ 外部用に単純化
+外部の方が細かいケース	○ 必要なら合わせる	◎ 外部 API の要求
+同じ粒度	◎ 合意すればそれもOK	◎ 問題なし
+🎯 最重要ポイント（設計原則）
+✔ routingKey と eventType を “役割で分離” しておくことで
+→ 外部 API の仕様変更が内部構造に侵食しない
+→ 内部の handler 構造を自由に再構築できる

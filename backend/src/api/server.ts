@@ -28,7 +28,10 @@ console.log('🌿 dotenv-flow loaded. NODE_ENV =', process.env.NODE_ENV);
 // 🧩 tsconfig-paths
 // backend/tsconfig.json を厳密に参照する
 // ============================================================
-const projectRoot = path.resolve(__dirname, '..'); // backend/
+// const projectRoot = path.resolve(__dirname, '..'); // backend/
+// const tsConfig = loadConfig(projectRoot);
+
+const projectRoot = path.resolve(__dirname, '../..');
 const tsConfig = loadConfig(projectRoot);
 
 if (tsConfig.resultType === 'success') {
@@ -67,7 +70,8 @@ const loadRoutes = async (dir: string) => {
             continue;
         }
 
-        if (entry.isFile() && entry.name.endsWith('Routes.ts')) {
+        if (entry.isFile() && (entry.name.endsWith('Routes.js') || entry.name.endsWith('Routes.ts'))) {
+            // if (entry.isFile() && entry.name.endsWith('Routes.ts')) {
             console.log(`📦 Importing route: ${fullPath}`);
 
             try {

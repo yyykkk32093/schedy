@@ -26,22 +26,39 @@ datasource db {
 }
 
 // ---- OutboxEvent テーブル定義 ----
+
+
 model OutboxEvent {
-  id          String   @id
-  eventName   String
-  aggregateId String
-  payload     String
-  routingKey  String
-  occurredAt  DateTime
-  publishedAt DateTime?
-  status      String
+  id            String   @id
+  aggregateId   String
+  eventName     String
+  eventType     String
+  routingKey    String
+  payload       Json
+  occurredAt    DateTime
+  publishedAt   DateTime?
+  status        String   // PENDING | PUBLISHED | FAILED
+
+  retryCount    Int       @default(0)
+  maxRetries    Int       @default(5)
+  retryInterval Int       @default(5000) // ms
+
+  @@index([status, occurredAt])
 }
 
+enum OutboxStatus {
+  PENDING
+  PUBLISHED
+  FAILED
+}
+
+
 model AuditLog {
-  id          String   @id
-  eventName   String
-  userId      String
-  authMethod  String
-  occurredAt  DateTime
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  eventType  String
+  userId     String
+  authMethod String
+  detail     String?
+  occurredAt DateTime
+  createdAt  DateTime @default(now())
 }

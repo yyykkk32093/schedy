@@ -1,26 +1,22 @@
-// src/domains/sharedDomains/infrastructure/outbox/dispatcher/IntegrationDispatcher.ts
-
-import { IntegrationHandler } from "./IntegrationHandler.js"
-
-/**
- * routingKey → handler のマッピング制御
- */
+// src/domains/sharedDomains/infrastructure/integration/dispatcher/IntegrationDispatcher.ts
+import { OutboxEvent } from '../outbox/OutboxEvent.js'
+import { IntegrationHandler } from './IntegrationHandler.js'
 
 export class IntegrationDispatcher {
-    private handlers: Map<string, IntegrationHandler> = new Map()
+    private handlers = new Map<string, IntegrationHandler>()
 
     register(routingKey: string, handler: IntegrationHandler) {
         this.handlers.set(routingKey, handler)
     }
 
-    async dispatch(routingKey: string, payload: Record<string, unknown>) {
+    async dispatch(routingKey: string, event: OutboxEvent) {
         const handler = this.handlers.get(routingKey)
+
         if (!handler) {
             console.warn(`[Dispatcher] No handler for routingKey=${routingKey}`)
             return
         }
 
-        await handler.handle(payload)
+        await handler.handle(event)
     }
 }
-

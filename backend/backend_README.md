@@ -287,3 +287,147 @@ DDD上の「Core/Supporting/Generic」は
 　コードレビューやアーキ設計ドキュメントで説明する概念。
 
 フォルダ構造はあくまで “Bounded Context単位” に並べる方が長生きする。
+
+
+ーーーーーーーーーーーーーーーーーーー
+ーーーーーーーーーーーーーーーーーーー
+📘 ESM + TypeScript + dist 実行でエイリアスが効かない問題の解決記録
+🎯 結論（最終的な解決策）
+
+TypeScript を ESM で運用しつつ Node.js で dist を実行する場合、
+tsconfig のパスエイリアス（@/xxx）は Node.js の実行時に解決されない。
+
+そのため、
+
+🔧 → tsc-alias を採用し、ビルド後に import パスを書き換えることが必須
+🔥 問題の症状
+
+サーバー起動時に、以下のエラーが発生：
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@/domains'
+ imported from /backend/dist/application/auth/password/usecase/LoginPasswordUserUseCase.js
+
+
+また、Express のルート自動読み込みも失敗：
+
+❌ Failed to import route: passwordAuthRoutes.js
+
+
+これは結果的に：
+
+全 API が 404 になる
+
+OutboxPublisher も叩けない
+
+ルートは dist 上で1つも登録されず死ぬ
+
+という状態。
+
+🔍 原因1：dist 実行では TypeScript のパスエイリアスが無効になる
+
+server.ts 内で tsconfig-paths を登録していたが：
+
+register({
+  baseUrl: tsConfig.absoluteBaseUrl,
+  paths: tsConfig.paths,
+});
+
+
+これは ts-node（TypeScript のまま実行）では有効
+しかし、Node.js で .js を ESM として実行すると無効。
+
+理由：
+
+tsconfig-paths は “ts-node 用”
+
+Node.js（ESM）は tsconfig の paths を知らない
+
+import のパス解決は Node が担当
+
+Node は "@/domains" の存在を知らない
+
+🔍 原因2：dist 側で server.js が src の tsconfig を参照していなかった
+
+修正前：
+
+const projectRoot = path.resolve(__dirname, '..'); 
+
+
+dist/api/server.js の __dirname は:
+
+backend/dist/api
+
+
+.. すると：
+
+backend/dist
+
+
+つまり dist 配下の tsconfig を参照していた
+（存在しない or baseUrl 無効）
+
+→ これでも alias は解決されない。
+
+🔥 最終原因（もっとも致命的）
+
+Node.js の ESM は パスエイリアスそのものを解決できない仕様。
+
+つまり正しく tsconfig を読んだとしても 動かない。
+
+🧠 採用した最適解：tsc-alias でエイリアスを相対パスに置換
+
+ビルド後の dist の import 文：
+
+import { X } from '@/domains/auth/...';
+
+
+これを tsc-alias が自動で：
+
+import { X } from '../../domains/auth/...';
+
+
+のように Node.js が直接解決できる相対パスに書き換えてくれる。
+
+これにより：
+
+dist 実行でもエイリアスが働く
+
+server がすべての routes を正常に import
+
+API ルートが正しく登録
+
+すべて正常化。
+
+🔧 導入手順（正式版）
+
+tsc-alias を追加
+
+pnpm add -D tsc-alias
+
+
+package.json の build を変更
+
+"scripts": {
+  "build": "tsc -p tsconfig.server.json && tsc-alias -p tsconfig.server.json"
+}
+
+
+tsconfig.server.json に baseUrl と paths を維持
+（あなたの現状の設定のままで OK）
+
+ビルド → dist
+
+pnpm build
+
+
+起動
+
+NODE_ENV=local node dist/api/server.js
+
+
+→ エラー消えた。
+→ curl が通るようになった。
+ーーーーーーーーーーーーーーーーーーー
+
+HTTP通信に使うライブラリ
+undici

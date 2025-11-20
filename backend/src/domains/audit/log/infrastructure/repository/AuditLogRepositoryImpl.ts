@@ -1,20 +1,17 @@
 // src/domains/audit/log/infrastructure/repository/AuditLogRepositoryImpl.ts
-import { AuditLog } from '@/domains/audit/log/domain/model/entity/AuditLog.js'
 import { prisma } from '@/sharedTech/db/client.js'
+import { AuditLog } from '../../domain/model/entity/AuditLog.js'
 import { IAuditLogRepository } from '../../domain/repository/IAuditLogRepository.js'
 
-/**
- * 🔹 Prisma実装によるAuditLogRepository。
- * 個人情報を扱わず、ログイベントの基本情報のみ保存。
- */
-export class AuditLogRepository implements IAuditLogRepository {
+export class AuditLogRepositoryImpl implements IAuditLogRepository {
     async save(log: AuditLog): Promise<void> {
         await prisma.auditLog.create({
             data: {
                 id: log.id,
-                eventName: log.eventName,
+                eventType: log.eventType,
                 userId: log.userId,
                 authMethod: log.authMethod,
+                detail: log.detail,
                 occurredAt: log.occurredAt,
                 createdAt: log.createdAt,
             },
@@ -26,15 +23,18 @@ export class AuditLogRepository implements IAuditLogRepository {
             where: { userId },
             orderBy: { occurredAt: 'desc' },
         })
+
+        // 既存IDを維持したままドメインエンティティに戻す
         return rows.map(
             (r) =>
                 new AuditLog(
-                    { generate: () => r.id }, // IDは既存のものをそのまま保持
+                    { generate: () => r.id }, // IIdGenerator っぽいものを即席で実装
                     {
                         id: r.id,
-                        eventName: r.eventName,
+                        eventType: r.eventType,
                         userId: r.userId,
                         authMethod: r.authMethod,
+                        detail: r.detail,
                         occurredAt: r.occurredAt,
                         createdAt: r.createdAt,
                     },
