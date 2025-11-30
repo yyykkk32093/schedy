@@ -66,6 +66,8 @@ export class OutboxRepository implements IOutboxRepository {
     }
 
     async markAsPublished(outboxEventId: string): Promise<void> {
+        logger.debug({ outboxEventId: outboxEventId }, "markAsPublished called")
+
         try {
             await prisma.outboxEvent.update({
                 where: { id: outboxEventId },

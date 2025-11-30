@@ -1,4 +1,5 @@
 import { usecaseFactory } from '@/api/_usecaseFactory.js';
+import { logger } from '@/sharedTech/logger/logger.js';
 import type { Request, Response } from 'express';
 
 export const passwordAuthController = {
@@ -17,7 +18,7 @@ export const passwordAuthController = {
                 accessToken: result.accessToken,
             });
         } catch (error) {
-            console.error('Login Error:', error);
+            logger.error({ error: error }, "[PasswordAuth Error]")
             res.status(401).json({ message: (error as Error).message });
         }
     },

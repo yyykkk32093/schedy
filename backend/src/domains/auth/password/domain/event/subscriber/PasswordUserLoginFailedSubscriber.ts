@@ -1,5 +1,6 @@
 // src/domains/auth/password/domain/event/subscriber/PasswordUserLoginFailedSubscriber.ts
 import { DomainEventSubscriber } from '@/domains/sharedDomains/domain/event/DomainEventSubscriber.js'
+import { logger } from '@/sharedTech/logger/logger.js'
 import { PasswordUserLoginFailedEvent } from '../PasswordUserLoginFailedEvent.js'
 
 /**
@@ -12,8 +13,9 @@ export class PasswordUserLoginFailedSubscriber
     }
 
     handle(event: PasswordUserLoginFailedEvent): void {
-        console.warn(
-            `[Subscriber] ログイン失敗: aggregateId=${event.aggregateId ?? 'unknown'}`
-        )
+
+        logger.warn({ aggregateId: event.aggregateId }, "[PasswordUserLoginFailedSubscriber] ログイン失敗（パスワード認証）")
+
+
     }
 }

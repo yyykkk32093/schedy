@@ -46,3 +46,18 @@ model AuditLog {
   occurredAt     DateTime
   createdAt      DateTime @default(now())
 }
+
+model OutboxDeadLetter {
+  id String @id @default(uuid())
+
+  outboxEventId String
+  routingKey    String
+  eventType     String
+
+  payload      Json
+  errorMessage String?
+  errorStack   String?
+
+  occurredAt DateTime // 元イベントの発生時刻
+  failedAt   DateTime @default(now())
+}

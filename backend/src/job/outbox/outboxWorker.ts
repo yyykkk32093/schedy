@@ -1,28 +1,26 @@
-// src/domains/sharedDomains/infrastructure/outbox/OutboxWorker.ts
-
-import { AuditLogIntegrationHandler } from '@/domains/sharedDomains/infrastructure/integration/handler/AuditLogIntegrationHandler.js'
-import { IntegrationDispatcher } from '@/domains/sharedDomains/infrastructure/integration/IntegrationDispatcher.js'
-import { OutboxRepository } from '@/domains/sharedDomains/infrastructure/outbox/OutboxRepository.js'
-import { OutboxRetryPolicyRepository } from '@/domains/sharedDomains/infrastructure/outbox/OutboxRetryPolicyRepository.js'
+// src/job/outbox/OutboxWorker.ts
 
 import { logger } from '@/sharedTech/logger/logger.js'
 import { computeEqualJitterDelay } from '@/sharedTech/util/retry.js'
 import { sleep } from '@/sharedTech/util/sleep.js'
 
+import { IOutboxDeadLetterRepository } from '@/domains/sharedDomains/domain/integration/IOutboxDeadLetterRepository.js'
+import type { IOutboxRepository } from '@/domains/sharedDomains/domain/integration/IOutboxRepository.js'
+import { IOutboxRetryPolicyRepository } from '@/domains/sharedDomains/domain/integration/IOutboxRetryPolicyRepository.js'
+import type { IntegrationDispatcher } from '@/domains/sharedDomains/infrastructure/integration/IntegrationDispatcher.js'
+
 
 export class OutboxWorker {
-
-    private readonly repo = new OutboxRepository()
-    private readonly retryPolicyRepo = new OutboxRetryPolicyRepository()
-    private readonly dispatcher = new IntegrationDispatcher()
 
     private isShuttingDown = false
     private isProcessing = false
 
-    constructor() {
-        // routingKey → handler を登録
-        this.dispatcher.register("audit.log", new AuditLogIntegrationHandler())
-    }
+    constructor(
+        private readonly repo: IOutboxRepository,
+        private readonly retryPolicyRepo: IOutboxRetryPolicyRepository,
+        private readonly dispatcher: IntegrationDispatcher,
+        private readonly dlqRepo: IOutboxDeadLetterRepository,
+    ) { }
 
     requestShutdown() {
         this.isShuttingDown = true
@@ -56,35 +54,38 @@ export class OutboxWorker {
     private async processEvent(ev: any): Promise<void> {
         const ctx = { outboxEventId: ev.outboxEventId, routingKey: ev.routingKey }
 
-        // 🔥 routingKey ごとに retryPolicy 参照
+        // RetryPolicy fetch
         const policy = await this.retryPolicyRepo.findByRoutingKey(ev.routingKey)
+        if (!policy) {
+            logger.error(ctx, "No retry policy found → marking FAILED")
+            await this.repo.markAsFailed(ev.outboxEventId)
+            return
+        }
 
         try {
+            // dispatch
             await this.dispatcher.dispatch(ev.routingKey, ev)
 
             await this.repo.markAsPublished(ev.outboxEventId)
             logger.info(ctx, "Event published")
         }
         catch (err) {
-
             logger.error({ ...ctx, error: err }, "Event dispatch failed")
 
             const nextRetry = ev.retryCount + 1
 
-            // 🔥 最大リトライ回数チェック
             if (nextRetry >= policy.maxRetries) {
+                await this.dlqRepo.save(ev, err)
                 await this.repo.markAsFailed(ev.outboxEventId)
                 logger.error(ctx, "Event FAILED (max retries exceeded)")
                 return
             }
 
-            // 🔥 ジッター計算：baseInterval / maxInterval
             const delay = computeEqualJitterDelay(
                 policy.baseInterval,
                 ev.retryCount,
                 policy.maxInterval
             )
-
             const nextTime = new Date(Date.now() + delay)
 
             await this.repo.updateNextRetryAt(ev.outboxEventId, nextTime)
@@ -112,7 +113,6 @@ export class OutboxWorker {
 
         while (!this.isShuttingDown) {
             logger.debug("OutboxWorker polling tick")
-
             await this.runOnce()
             await sleep(intervalMs)
         }

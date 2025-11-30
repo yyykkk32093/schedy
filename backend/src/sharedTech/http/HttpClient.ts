@@ -1,7 +1,8 @@
 // src/sharedTech/http/HttpClient.ts
 import { fetch } from 'undici'
+import { IHttpClient } from './IHttpClient.js'
 
-export class HttpClient {
+export class HttpClient implements IHttpClient {
     async post(url: string, body: any, headers: Record<string, string> = {}) {
         const res = await fetch(url, {
             method: 'POST',

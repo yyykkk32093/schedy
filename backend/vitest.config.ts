@@ -11,6 +11,6 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['test/**/*.test.ts'], // ← テストディレクトリを反映
+    include: ['test/**/*.test.ts']
   },
 })

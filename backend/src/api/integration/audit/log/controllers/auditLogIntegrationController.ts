@@ -1,6 +1,7 @@
 // src/api/integration/audit/logs/controllers/auditLogIntegrationController.ts
-import { RecordAuditLogUseCase } from '@/application/audit/log/usecase/RecordAuditLogUseCase.js'
-import type { Request, Response } from 'express'
+import { RecordAuditLogUseCase } from '@/application/audit/log/usecase/RecordAuditLogUseCase.js';
+import { logger } from '@/sharedTech/logger/logger.js';
+import type { Request, Response } from 'express';
 
 class AuditLogIntegrationController {
     private readonly usecase = new RecordAuditLogUseCase()
@@ -26,7 +27,9 @@ class AuditLogIntegrationController {
 
             return res.status(200).json({ status: 'ok' })
         } catch (e) {
-            console.error('[AuditLogIntegrationController] Error:', e)
+
+
+            logger.error({ error: e }, "[AuditLogIntegration Error]")
             return res.status(500).json({ message: 'Internal Server Error' })
         }
     }

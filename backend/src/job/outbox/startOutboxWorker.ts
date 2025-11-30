@@ -1,12 +1,12 @@
 // src/job/outbox/startOutboxWorker.ts
-import dotenv from 'dotenv-flow'
+import dotenv from 'dotenv-flow';
 dotenv.config({ node_env: process.env.NODE_ENV || 'local', path: 'env' })
 
-import { logger } from '@/sharedTech/logger/logger.js'
-import { OutboxWorker } from './outboxWorker.js'
+import { OutboxWorkerRegistrar } from '@/bootstrap/outboxWorkerRegistrar.js';
+import { logger } from '@/sharedTech/logger/logger.js';
 
-const worker = new OutboxWorker()
-
+// const worker = new OutboxWorker()
+const worker = OutboxWorkerRegistrar.createWorker();
 process.on('SIGINT', async () => {
     logger.warn("🛑 SIGINT received (Ctrl+C)")
     worker.requestShutdown()

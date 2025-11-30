@@ -1,6 +1,6 @@
 // src/sharedTech/logger/logger.ts
 
-import pino from "pino"
+import pino from "pino";
 
 /**
  * ログ設定
@@ -34,9 +34,6 @@ export const logger = pino({
         }
         : undefined,
 })
-
-
-
 
 // logLevel
 // level	numeric

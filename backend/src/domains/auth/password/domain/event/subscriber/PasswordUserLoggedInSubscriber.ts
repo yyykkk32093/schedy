@@ -1,5 +1,6 @@
 // src/domains/auth/password/domain/event/subscriber/PasswordUserLoggedInSubscriber.ts
 import { DomainEventSubscriber } from '@/domains/sharedDomains/domain/event/DomainEventSubscriber.js'
+import { logger } from '@/sharedTech/logger/logger.js'
 import { PasswordUserLoggedInEvent } from '../PasswordUserLoggedInEvent.js'
 
 export class PasswordUserLoggedInSubscriber
@@ -9,8 +10,7 @@ export class PasswordUserLoggedInSubscriber
     }
 
     handle(event: PasswordUserLoggedInEvent): void {
-        console.log(
-            `[Subscriber] ユーザーがログインしました: aggregateId=${event.aggregateId}`
-        )
+
+        logger.info({ aggregateId: event.aggregateId }, "[PasswordUserLoggedInSubscriber] ユーザーがログインしました（パスワード認証）")
     }
 }
