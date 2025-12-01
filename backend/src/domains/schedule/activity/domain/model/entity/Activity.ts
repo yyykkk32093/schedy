@@ -4,6 +4,7 @@ import { AggregateRoot } from '@/domains/sharedDomains/model/entity/AggregateRoo
 import { ActivityCreatedEvent } from '../../event/ActivityCreatedEvent.js'
 
 import { UserId } from '@/domains/sharedDomains/model/valueObject/UserId.js'
+import { ActivityCancelledEvent } from '../../event/ActivityCancelledEvent.js'
 import { ActivityDescription } from '../valueObject/ActivityDescription.js'
 import { ActivityId } from '../valueObject/ActivityId.js'
 import { ActivityLocation } from '../valueObject/ActivityLocation.js'
@@ -78,7 +79,35 @@ export class Activity extends AggregateRoot {
 
     cancel(by: UserId) {
         this.status = 'CANCELLED'
-        // ActivityCancelledEvent を作るならここ
+
+        this.addDomainEvent(
+            new ActivityCancelledEvent(
+                this.id,
+                this.title,
+                this.timeRange,
+                by
+            )
+        )
+    }
+
+    static reconstruct(params: {
+        id: ActivityId
+        title: ActivityTitle
+        description: ActivityDescription | null
+        timeRange: ActivityTimeRange
+        location: ActivityLocation | null
+        createdBy: UserId
+        status: ActivityStatus
+    }): Activity {
+        return new Activity(
+            params.id,
+            params.title,
+            params.description,
+            params.timeRange,
+            params.location,
+            params.createdBy,
+            params.status
+        )
     }
 
     // -------------------------
