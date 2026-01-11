@@ -12,7 +12,6 @@ export class DisplayName extends ValueObject<string> {
             throw new Error('DisplayName must not be empty')
         }
         if (trimmed.length > 50) {
-            // 必要なら上限はプロジェクト仕様に合わせて変更してOK
             throw new Error('DisplayName must be 50 characters or less')
         }
         return new DisplayName(trimmed)
@@ -21,5 +20,10 @@ export class DisplayName extends ValueObject<string> {
     static createNullable(value: string | null | undefined): DisplayName | null {
         if (value == null) return null
         return DisplayName.create(value)
+    }
+
+    static reconstruct(value: string): DisplayName {
+        // DBの値は信頼
+        return new DisplayName(value)
     }
 }

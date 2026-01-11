@@ -1,15 +1,18 @@
 // src/application/auth/subscriber/PublishAuthIntegrationSubscriber.ts
 
 import { logger } from '@/_sharedTech/logger/logger.js'
-import { AuthIntegrationEventMapper } from '@/integration/auth/mapper/AuthIntegrationEventMapper.js'
 import { IntegrationSource } from '@/integration/IntegrationSource.js'
 import { IntegrationSubscriber } from '@/integration/IntegrationSubscriber.js'
 import { IOutboxRepository } from '@/integration/outbox/repository/IOutboxRepository.js'
 
-export class PublishAuthIntegrationSubscriber
+import { AuthApplicationEventIntegrationMapper } from '@/integration/auth/mapper/AuthApplicationEventIntegrationMapper.js'
+import { AuthDomainEventIntegrationMapper } from '@/integration/auth/mapper/AuthDomainEventIntegrationMapper.js'
+
+export class AuthIntegrationOutboxSubscriber
     implements IntegrationSubscriber {
 
-    private readonly mapper = new AuthIntegrationEventMapper()
+    private readonly appEventMapper = new AuthApplicationEventIntegrationMapper()
+    private readonly domainEventMapper = new AuthDomainEventIntegrationMapper()
 
     constructor(
         private readonly outboxRepository: IOutboxRepository
@@ -17,19 +20,24 @@ export class PublishAuthIntegrationSubscriber
 
     subscribedTo(): string[] {
         return [
+            // ApplicationEvent
             'UserLoginSucceededEvent',
             'UserLoginFailedEvent',
-            // DomainEvent もここに追加
+
+            // DomainEvent
         ]
     }
 
     async handle(event: IntegrationSource): Promise<void> {
         logger.info(
             { eventName: event.eventName },
-            '[PublishAuthIntegrationSubscriber] IntegrationSource → Outbox'
+            '[AuthIntegrationOutboxSubscriber] IntegrationSource → Outbox'
         )
 
-        const outboxEvent = this.mapper.tryMap(event)
+        const outboxEvent =
+            this.appEventMapper.tryMap(event)
+            ?? this.domainEventMapper.tryMap(event)
+
         if (!outboxEvent) return
 
         await this.outboxRepository.save(outboxEvent)

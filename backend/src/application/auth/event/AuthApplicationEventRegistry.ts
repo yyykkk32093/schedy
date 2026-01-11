@@ -1,7 +1,7 @@
 // src/application/auth/event/AuthApplicationEventRegistry.ts
 
 import { ApplicationEventBus } from '@/application/_sharedApplication/event/ApplicationEventBus.js'
-import { PublishAuthIntegrationSubscriber } from '@/integration/auth/event/subscriber/PublishAuthIntegrationSubscriber.js'
+import { AuthIntegrationOutboxSubscriber } from '@/integration/auth/event/subscriber/AuthIntegrationOutboxSubscriber.js'
 import { IOutboxRepository } from '@/integration/outbox/repository/IOutboxRepository.js'
 import { UserLoginFailedSubscriber } from './subscriber/UserLoginFailedSubscriber.js'
 import { UserLoginSucceededSubscriber } from './subscriber/UserLoginSucceededSubscriber.js'
@@ -23,5 +23,5 @@ export function registerAuthApplicationSubscribers(params: {
     appEventBus.subscribe(new UserLoginFailedSubscriber())
 
     // Outbox連携（成功だけ飛ばす等のポリシーは Subscriber 側に閉じる）
-    appEventBus.subscribe(new PublishAuthIntegrationSubscriber(outboxRepository))
+    appEventBus.subscribe(new AuthIntegrationOutboxSubscriber(outboxRepository))
 }

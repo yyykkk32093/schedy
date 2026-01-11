@@ -11,9 +11,6 @@ export class UserRepositoryImpl implements IUserRepository {
     async findById(id: string): Promise<User | null> {
         const record = await prisma.user.findUnique({
             where: { id },
-            include: {
-                passwordCredential: true,
-            },
         })
 
         if (!record) return null
@@ -23,9 +20,6 @@ export class UserRepositoryImpl implements IUserRepository {
     async findByEmail(email: string): Promise<User | null> {
         const record = await prisma.user.findUnique({
             where: { email },
-            include: {
-                passwordCredential: true,
-            },
         })
 
         if (!record) return null
@@ -39,7 +33,6 @@ export class UserRepositoryImpl implements IUserRepository {
 
         const data = this.toPersistence(user)
 
-        // User 本体をアップサート
         await prisma.user.upsert({
             where: { id: data.id },
             update: {
@@ -65,25 +58,6 @@ export class UserRepositoryImpl implements IUserRepository {
                 updatedAt: data.updatedAt,
             },
         })
-
-        // PasswordCredential の upsert
-        const cred = data.passwordCredential
-
-        if (cred) {
-            await prisma.passwordCredential.upsert({
-                where: { userId: data.id },
-                update: {
-                    hashedPassword: cred.hashedPassword,
-                    updatedAt: new Date(),
-                },
-                create: {
-                    userId: data.id,
-                    hashedPassword: cred.hashedPassword,
-                    createdAt: cred.createdAt,
-                    updatedAt: cred.updatedAt,
-                }
-            })
-        }
     }
 
     // ============================================================
@@ -92,13 +66,12 @@ export class UserRepositoryImpl implements IUserRepository {
     private toPersistence(user: User) {
 
         const n = user.getNotificationSetting().getValue()
-        const credential = user.getPasswordCredential()
 
         return {
             id: user.getId().getValue(),
-            displayName: user.getDisplayName(),
+            displayName: user.getDisplayName()?.getValue() ?? null,
             role: user.getRole().getValue(),
-            email: user.getEmail(),
+            email: user.getEmail()?.getValue() ?? null,
             phone: user.getPhone()?.getValue() ?? null,
             biography: user.getBiography()?.getValue() ?? null,
             avatarUrl: user.getAvatarUrl()?.getValue() ?? null,
@@ -109,15 +82,6 @@ export class UserRepositoryImpl implements IUserRepository {
                 activityReminderEnabled: n.activityReminderEnabled,
                 quietHours: n.quietHours,
             },
-
-            // persistence 用に sub-object として返す
-            passwordCredential: credential
-                ? {
-                    hashedPassword: credential.getHashedPassword().getValue(),
-                    createdAt: credential.getCreatedAt(),
-                    updatedAt: credential.getUpdatedAt(),
-                }
-                : null,
 
             createdAt: user.getCreatedAt(),
             updatedAt: user.getUpdatedAt(),
@@ -139,14 +103,6 @@ export class UserRepositoryImpl implements IUserRepository {
             avatarUrl: record.avatarUrl,
 
             notification: record.notificationSetting,
-
-            passwordCredential: record.passwordCredential
-                ? {
-                    hashedPassword: record.passwordCredential.hashedPassword,
-                    createdAt: record.passwordCredential.createdAt,
-                    updatedAt: record.passwordCredential.updatedAt,
-                }
-                : null,
 
             createdAt: record.createdAt,
             updatedAt: record.updatedAt,

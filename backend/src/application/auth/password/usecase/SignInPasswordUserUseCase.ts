@@ -5,6 +5,7 @@ import { JwtTokenService } from '@/_sharedTech/security/JwtTokenService.js'
 import { ApplicationEventPublisher } from '@/application/_sharedApplication/event/ApplicationEventPublisher.js'
 import { UserLoginFailedEvent } from '@/application/auth/event/UserLoginFailedEvent.js'
 import { UserLoginSucceededEvent } from '@/application/auth/event/UserLoginSucceededEvent.js'
+import { EmailAddress } from '@/domains/_sharedDomains/model/valueObject/EmailAddress.js'
 import { PlainPassword } from '@/domains/auth/_sharedAuth/model/valueObject/PlainPassword.js'
 import { IPasswordHasher } from '@/domains/auth/_sharedAuth/service/security/IPasswordHasher.js'
 import { IPasswordCredentialRepository } from '@/domains/auth/password/domain/repository/IPasswordCredentialRepository.js'
@@ -35,7 +36,7 @@ export class SignInPasswordUserUseCase {
         if (!user) {
             await this.eventPublisher.publish(
                 new UserLoginFailedEvent({
-                    email: input.email,
+                    email: EmailAddress.create(input.email),
                     reason: 'USER_NOT_FOUND',
                     method: SignInPasswordUserUseCase.AUTH_METHOD,
                     ipAddress: input.ipAddress,
@@ -56,7 +57,7 @@ export class SignInPasswordUserUseCase {
                     email: user.getEmail()!,
                     reason: 'CREDENTIAL_NOT_FOUND',
                     method: SignInPasswordUserUseCase.AUTH_METHOD,
-                    userId: user.getId().getValue(),
+                    userId: user.getId(),
                     ipAddress: input.ipAddress,
                 })
             )
@@ -64,8 +65,6 @@ export class SignInPasswordUserUseCase {
             throw new Error('Credential not found')
         }
 
-
-        logger.info('Credential found')
         // 3️⃣ パスワード検証
         const ok = await credential.verify(
             PlainPassword.create(input.password),
@@ -78,18 +77,16 @@ export class SignInPasswordUserUseCase {
                     email: user.getEmail()!,
                     reason: 'INVALID_CREDENTIALS',
                     method: SignInPasswordUserUseCase.AUTH_METHOD,
-                    userId: user.getId().getValue(),
+                    userId: user.getId(),
                     ipAddress: input.ipAddress,
                 })
             )
             throw new Error('Invalid credentials')
         }
-
-        logger.info('valid credentials');
         // 4️⃣ 認証成功 → JWT発行
         const accessToken = this.jwtTokenService.generate(
             user.getId().getValue(),
-            user.getEmail()!
+            user.getEmail()?.getValue()!
         )
 
 
@@ -98,14 +95,13 @@ export class SignInPasswordUserUseCase {
         // 5️⃣ ApplicationEvent（成功）
         await this.eventPublisher.publish(
             new UserLoginSucceededEvent({
-                userId: user.getId().getValue(),
+                userId: user.getId(),
                 email: user.getEmail()!,
                 method: SignInPasswordUserUseCase.AUTH_METHOD,
                 ipAddress: input.ipAddress,
             })
         )
 
-        logger.info('UserLoginSucceededEvent published');
 
         return {
             userId: user.getId().getValue(),

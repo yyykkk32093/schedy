@@ -1,10 +1,12 @@
 // src/domains/user/domain/model/entity/User.ts
 
 import { AggregateRoot } from '@/domains/_sharedDomains/model/entity/AggregateRoot.js'
+import { EmailAddress } from '@/domains/_sharedDomains/model/valueObject/EmailAddress.js'
 import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
-import { PasswordCredential } from '@/domains/auth/password/domain/model/entity/PasswordCredential.js'
+import { UserRegisteredEvent } from '../../event/UserRegisteredEvent.js'
 import { AvatarUrl } from '../valueObject/AvatarUrl.js'
 import { Biography } from '../valueObject/Biography.js'
+import { DisplayName } from '../valueObject/DisplayName.js'
 import { PhoneNumber } from '../valueObject/PhoneNumber.js'
 import { QuietHours, UserNotificationSetting } from '../valueObject/UserNotificationSetting.js'
 import { UserRole } from '../valueObject/UserRole.js'
@@ -13,14 +15,13 @@ export class User extends AggregateRoot {
 
     private constructor(
         private readonly id: UserId,
-        private displayName: string | null,
+        private displayName: DisplayName | null,
         private role: UserRole,
-        private email: string | null,
+        private email: EmailAddress | null,
         private phone: PhoneNumber | null,
         private biography: Biography | null,
         private avatarUrl: AvatarUrl | null,
         private notificationSetting: UserNotificationSetting,
-        private passwordCredential: PasswordCredential | null,
         private readonly createdAt: Date,
         private updatedAt: Date
     ) {
@@ -28,27 +29,61 @@ export class User extends AggregateRoot {
     }
 
     // =====================================================
-    // Factory: create（新規作成）
+    // Factory: register（新規登録）
+    // =====================================================
+    static register(params: {
+        userId: UserId
+        email: EmailAddress
+        displayName?: DisplayName | null
+    }): User {
+
+        const now = new Date()
+
+        const user = new User(
+            params.userId,
+            params.displayName ?? null,
+            UserRole.create('MEMBER'),
+            params.email,
+            null,
+            null,
+            null,
+            UserNotificationSetting.create(),
+            now,
+            now
+        )
+
+        user.addDomainEvent(
+            new UserRegisteredEvent({
+                userId: params.userId,
+                email: params.email,
+            })
+        )
+
+        return user
+    }
+
+    // =====================================================
+    // Factory: create
     // =====================================================
     static create(params: {
         id: string
         displayName?: string | null
         role?: UserRole
         email?: string | null
-        passwordCredential?: PasswordCredential | null
     }): User {
+        const now = new Date()
+
         return new User(
             UserId.create(params.id),
-            params.displayName ?? null,
+            params.displayName ? DisplayName.create(params.displayName) : null,
             params.role ?? UserRole.create('MEMBER'),
-            params.email ?? null,
+            params.email ? EmailAddress.create(params.email) : null,
             null,
             null,
             null,
             UserNotificationSetting.create(),
-            params.passwordCredential ?? null,
-            new Date(),
-            new Date()
+            now,
+            now
         )
     }
 
@@ -69,34 +104,19 @@ export class User extends AggregateRoot {
             activityReminderEnabled: boolean
             quietHours: QuietHours | null
         }
-        passwordCredential: {
-            hashedPassword: string
-            createdAt: Date
-            updatedAt: Date
-        } | null
         createdAt: Date
         updatedAt: Date
     }): User {
 
         return new User(
             UserId.create(params.id),
-            params.displayName,
+            params.displayName ? DisplayName.reconstruct(params.displayName) : null,
             UserRole.reconstruct(params.role),
-            params.email,
+            params.email ? EmailAddress.reconstruct(params.email) : null,
             params.phone ? PhoneNumber.reconstruct(params.phone) : null,
             params.biography ? Biography.reconstruct(params.biography) : null,
             params.avatarUrl ? AvatarUrl.reconstruct(params.avatarUrl) : null,
             UserNotificationSetting.reconstruct(params.notification),
-
-            params.passwordCredential
-                ? PasswordCredential.reconstruct({
-                    userId: params.id,
-                    hashedPassword: params.passwordCredential.hashedPassword,
-                    createdAt: params.passwordCredential.createdAt,
-                    updatedAt: params.passwordCredential.updatedAt,
-                })
-                : null,
-
             params.createdAt,
             params.updatedAt
         )
@@ -113,14 +133,30 @@ export class User extends AggregateRoot {
         biography?: string | null
         avatarUrl?: string | null
     }) {
-        if (profile.displayName !== undefined) this.displayName = profile.displayName
-        if (profile.email !== undefined) this.email = profile.email
+        if (profile.displayName !== undefined)
+            this.displayName = profile.displayName
+                ? DisplayName.create(profile.displayName)
+                : null
+
+        if (profile.email !== undefined)
+            this.email = profile.email
+                ? EmailAddress.create(profile.email)
+                : null
+
         if (profile.phone !== undefined)
-            this.phone = profile.phone ? PhoneNumber.create(profile.phone) : null
+            this.phone = profile.phone
+                ? PhoneNumber.create(profile.phone)
+                : null
+
         if (profile.biography !== undefined)
-            this.biography = profile.biography ? Biography.create(profile.biography) : null
+            this.biography = profile.biography
+                ? Biography.create(profile.biography)
+                : null
+
         if (profile.avatarUrl !== undefined)
-            this.avatarUrl = profile.avatarUrl ? AvatarUrl.create(profile.avatarUrl) : null
+            this.avatarUrl = profile.avatarUrl
+                ? AvatarUrl.create(profile.avatarUrl)
+                : null
 
         this.updatedAt = new Date()
     }
@@ -140,11 +176,6 @@ export class User extends AggregateRoot {
         this.updatedAt = new Date()
     }
 
-    attachPasswordCredential(credential: PasswordCredential) {
-        this.passwordCredential = credential
-        this.updatedAt = new Date()
-    }
-
     // =====================================================
     // Getter
     // =====================================================
@@ -157,7 +188,6 @@ export class User extends AggregateRoot {
     getAvatarUrl() { return this.avatarUrl }
     getRole() { return this.role }
     getNotificationSetting() { return this.notificationSetting }
-    getPasswordCredential() { return this.passwordCredential }
     getCreatedAt() { return this.createdAt }
     getUpdatedAt() { return this.updatedAt }
 }

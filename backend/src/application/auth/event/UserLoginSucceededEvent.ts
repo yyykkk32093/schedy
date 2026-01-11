@@ -2,20 +2,22 @@
 
 import { ApplicationEvent } from '@/application/_sharedApplication/event/ApplicationEvent.js'
 import { AuthMethod } from '@/application/auth/model/AuthMethod.js'
+import { EmailAddress } from '@/domains/_sharedDomains/model/valueObject/EmailAddress.js'
+import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
 import { IntegrationSource } from '@/integration/IntegrationSource.js'
 
 /**
  * ユーザーログイン成功（Application Event）
  */
 export class UserLoginSucceededEvent extends ApplicationEvent implements IntegrationSource {
-    readonly userId: string
-    readonly email: string
+    readonly userId: UserId
+    readonly email: EmailAddress
     readonly method: AuthMethod
     readonly ipAddress?: string
 
     constructor(params: {
-        userId: string
-        email: string
+        userId: UserId
+        email: EmailAddress
         method: AuthMethod
         ipAddress?: string
     }) {

@@ -20,95 +20,58 @@ import { UserLoginFailedIntegrationEvent } from '../event/UserLoginFailedIntegra
  *   - switch(event.eventName) に case を足す
  *   - Subscriber / UseCase には触らない
  */
-export class AuthIntegrationEventMapper {
-
+export class AuthApplicationEventIntegrationMapper {
     tryMap(event: IntegrationSource): OutboxEvent | null {
 
         switch (event.eventName) {
 
-            // ============================
-            // ApplicationEvent: Login Success
-            // ============================
             case 'UserLoginSucceededEvent': {
                 const e = event as UserLoginSucceededEvent
 
                 const integration = new UserLoggedInIntegrationEvent({
-                    aggregateId: e.userId,
-                    userId: e.userId,
-                    email: e.email,
+                    aggregateId: e.userId.getValue(),
+                    userId: e.userId.getValue(),
+                    email: e.email.getValue(),
                     authMethod: e.method,
                     ipAddress: e.ipAddress,
                 })
-
-                const payload: Record<string, unknown> = {
-                    ...integration.payload,
-                }
 
                 return this.createOutboxEvent(
                     e,
                     integration.aggregateId,
                     'auth.login.success',
                     'audit.log',
-                    payload
+                    integration.payload
                 )
             }
 
-            // ============================
-            // ApplicationEvent: Login Failed
-            // ============================
             case 'UserLoginFailedEvent': {
                 const e = event as UserLoginFailedEvent
-                const aggregateId = e.userId ?? 'unknown'
+                const aggregateId = e.userId?.getValue() ?? 'unknown'
 
                 const integration = new UserLoginFailedIntegrationEvent({
                     aggregateId,
                     userId: aggregateId,
-                    email: e.email,
+                    email: e.email.getValue(),
                     authMethod: e.method,
                     reason: e.reason,
                     ipAddress: e.ipAddress,
                 })
-
-                const payload: Record<string, unknown> = {
-                    ...integration.payload,
-                }
 
                 return this.createOutboxEvent(
                     e,
                     aggregateId,
                     'auth.login.failed',
                     'audit.log',
-                    payload
+                    integration.payload
                 )
             }
-
-            // ============================
-            // 📝 DomainEvent が増えたらここに追加
-            // ============================
-            // case 'UserRegisteredEvent': {
-            //     const e = event as UserRegisteredEvent
-            //     const payload: Record<string, unknown> = {
-            //         userId: e.userId,
-            //         email: e.email,
-            //     }
-            //
-            //     return this.createOutboxEvent(
-            //         e,
-            //         e.userId,
-            //         'auth.user.registered',
-            //         'audit.log',
-            //         payload
-            //     )
-            // }
 
             default:
                 return null
         }
     }
 
-    // ----------------------------
-    // 共通 OutboxEvent 生成
-    // ----------------------------
     private createOutboxEvent(
         source: IntegrationSource,
         aggregateId: string,
