@@ -1,12 +1,17 @@
 import { prisma } from '@/_sharedTech/db/client.js'
 import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
+import type { Prisma, PrismaClient } from '@prisma/client'
 import { PasswordCredential } from '../../domain/model/entity/PasswordCredential.js'
 import { IPasswordCredentialRepository } from '../../domain/repository/IPasswordCredentialRepository.js'
 
 export class PasswordCredentialRepositoryImpl implements IPasswordCredentialRepository {
 
+    constructor(
+        private readonly db: PrismaClient | Prisma.TransactionClient = prisma
+    ) { }
+
     async findByUserId(userId: UserId): Promise<PasswordCredential | null> {
-        const record = await prisma.passwordCredential.findUnique({
+        const record = await this.db.passwordCredential.findUnique({
             where: { userId: userId.getValue() },
         })
 
@@ -22,7 +27,7 @@ export class PasswordCredentialRepositoryImpl implements IPasswordCredentialRepo
 
     async save(cred: PasswordCredential): Promise<void> {
 
-        await prisma.passwordCredential.upsert({
+        await this.db.passwordCredential.upsert({
             where: { userId: cred.getUserId() },
             update: {
                 hashedPassword: cred.getHashedPassword().getValue(),

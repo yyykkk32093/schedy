@@ -1,17 +1,34 @@
-// // src/bootstrap/domainEventBootstrap.ts
-// import { authDomainEventBus } from '@/domains/auth/_sharedAuth/domain/event/AuthDomainEventBus.js'
-// import { registerAuthDomainSubscribers } from '@/domains/auth/_sharedAuth/domain/event/AuthEventRegistry.js'
-// import { OutboxRepository } from '@/integration/outbox/repository/OutboxRepository.js'
+import { DomainEventBus } from '@/domains/_sharedDomains/domain/event/DomainEventBus.js'
+import { registerAuthDomainSubscribers } from '@/domains/auth/_sharedAuth/domain/event/AuthDomainSubscribersRegistrar.js'
+import { registerUserDomainSubscribers } from '@/domains/user/domain/event/UserDomainSubscribersRegistrar.js'
 
-// export class DomainEventBootstrap {
-//     static bootstrap() {
-//         const outboxRepository = new OutboxRepository()
+/**
+ * DomainEventBootstrap
+ *
+ * - DomainEventBus は singleton とする
+ * - 登録（subscribe）は明示的に bootstrap 関数経由で行う
+ * - commit後flush（publish-only）は UseCase 側の責務
+ */
+export class DomainEventBootstrap {
+    private static domainEventBus: DomainEventBus | null = null
 
-//         // Auth Domain Event
-//         registerAuthDomainSubscribers(outboxRepository)
+    static bootstrap(): void {
+        if (this.domainEventBus) return
 
-//         // 将来
-//         // registerReservationDomainSubscribers(outboxRepository)
-//         // registerPaymentDomainSubscribers(outboxRepository)
-//     }
-// }
+        const bus = new DomainEventBus()
+
+        registerUserDomainSubscribers(bus)
+        registerAuthDomainSubscribers(bus)
+
+        this.domainEventBus = bus
+    }
+
+    static getEventBus(): DomainEventBus {
+        if (!this.domainEventBus) {
+            throw new Error(
+                'DomainEventBus is not initialized. Call DomainEventBootstrap.bootstrap() first.'
+            )
+        }
+        return this.domainEventBus
+    }
+}

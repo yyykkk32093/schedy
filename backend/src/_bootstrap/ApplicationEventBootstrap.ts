@@ -1,7 +1,7 @@
 // src/bootstrap/applicationEventBootstrap.ts
 import { ApplicationEventBus } from '@/application/_sharedApplication/event/ApplicationEventBus.js'
 import { registerAuthApplicationSubscribers } from '@/application/auth/event/AuthApplicationEventRegistry.js'
-import { OutboxRepository } from '@/integration/outbox/repository/OutboxRepository.js'
+import { registerUserApplicationSubscribers } from '@/application/user/event/UserApplicationEventRegistry.js'
 
 export class ApplicationEventBootstrap {
     private static appEventBus: ApplicationEventBus | null = null
@@ -15,11 +15,13 @@ export class ApplicationEventBootstrap {
         }
 
         const appEventBus = new ApplicationEventBus()
-        const outboxRepository = new OutboxRepository()
 
         registerAuthApplicationSubscribers({
             appEventBus,
-            outboxRepository,
+        })
+
+        registerUserApplicationSubscribers({
+            appEventBus,
         })
 
         this.appEventBus = appEventBus

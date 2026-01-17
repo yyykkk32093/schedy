@@ -1,6 +1,7 @@
 // src/server.ts
 
 import { ApplicationEventBootstrap } from '@/_bootstrap/ApplicationEventBootstrap.js';
+import { DomainEventBootstrap } from '@/_bootstrap/DomainEventBootstrap.js';
 import cors from 'cors';
 import dotenvFlow from 'dotenv-flow';
 import express from 'express';
@@ -103,6 +104,7 @@ try {
     // 🔔  EventSubscriber 登録
     // ===========================================================
     ApplicationEventBootstrap.bootstrap()
+    DomainEventBootstrap.bootstrap()
 
 
     app.get('/health', (_req, res) => {

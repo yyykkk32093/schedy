@@ -2,14 +2,12 @@
 
 import { BaseDomainEvent } from '@/domains/_sharedDomains/domain/event/BaseDomainEvent.js'
 import { DomainEventBus } from '@/domains/_sharedDomains/domain/event/DomainEventBus.js'
-import { AggregateRoot } from '@/domains/_sharedDomains/model/entity/AggregateRoot.js'
 
 /**
  * DomainEventFlusher
  *
  * 【役割】
- * - Aggregate に蓄積された DomainEvent をまとめて回収し
- * - DomainEventBus へ publish する責務を持つ
+ * - DomainEventBus へ publish する責務を持つ（publish-only）
  *
  * 【なぜ UseCase から直接 publish しないか】
  * - 永続化（UnitOfWork）とイベント伝播の責務を分離するため
@@ -49,27 +47,8 @@ export class DomainEventFlusher {
         // private readonly suppressEventPublish: boolean = false
     ) { }
 
-    async flushFrom(aggregates: AggregateRoot[]): Promise<void> {
-
-        // ----------------------------------------
-        // Job / Batch 実行時はイベント抑制
-        // ----------------------------------------
-        // if (this.suppressEventPublish) {
-        //     // DomainEvent は pull だけして破棄
-        //     for (const aggregate of aggregates) {
-        //         aggregate.pullDomainEvents()
-        //     }
-        //     return
-        // }
-
-        const events: BaseDomainEvent[] = []
-
-        for (const aggregate of aggregates) {
-            events.push(...aggregate.pullDomainEvents())
-        }
-
+    async publish(events: BaseDomainEvent[]): Promise<void> {
         if (events.length === 0) return
-
         await this.domainEventBus.publishAll(events)
     }
 }

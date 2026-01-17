@@ -18,3 +18,25 @@ ON CONFLICT ("routingKey") DO UPDATE SET
     "baseInterval" = EXCLUDED."baseInterval",
     "maxInterval" = EXCLUDED."maxInterval",
     "updatedAt" = NOW();
+
+
+INSERT INTO "OutboxRetryPolicy" (
+    "routingKey",
+    "maxRetries",
+    "baseInterval",
+    "maxInterval",
+    "createdAt",
+    "updatedAt"
+) VALUES (
+    'user.lifecycle.audit',
+    5,
+    3000,
+    60000,
+    NOW(),
+    NOW()
+)
+ON CONFLICT ("routingKey") DO UPDATE SET
+    "maxRetries" = EXCLUDED."maxRetries",
+    "baseInterval" = EXCLUDED."baseInterval",
+    "maxInterval" = EXCLUDED."maxInterval",
+    "updatedAt" = NOW();

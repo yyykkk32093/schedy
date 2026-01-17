@@ -3,13 +3,18 @@
 import { prisma } from "@/_sharedTech/db/client.js"
 import { logger } from "@/_sharedTech/logger/logger.js"
 import { IOutboxRepository } from "@/integration/outbox/repository/IOutboxRepository.js"
+import type { Prisma, PrismaClient } from '@prisma/client'
 import { OutboxEvent } from "../model/entity/OutboxEvent.js"
 
 export class OutboxRepository implements IOutboxRepository {
 
+    constructor(
+        private readonly db: PrismaClient | Prisma.TransactionClient = prisma
+    ) { }
+
     async save(event: OutboxEvent): Promise<void> {
         try {
-            await prisma.outboxEvent.create({
+            await this.db.outboxEvent.create({
                 data: {
                     id: event.outboxEventId,
                     aggregateId: event.aggregateId,
@@ -30,9 +35,34 @@ export class OutboxRepository implements IOutboxRepository {
         }
     }
 
+    async saveMany(events: OutboxEvent[]): Promise<void> {
+        if (events.length === 0) return
+
+        try {
+            await this.db.outboxEvent.createMany({
+                data: events.map((event) => ({
+                    id: event.outboxEventId,
+                    aggregateId: event.aggregateId,
+                    eventName: event.eventName,
+                    eventType: event.eventType,
+                    routingKey: event.routingKey,
+                    payload: event.payload as any,
+                    occurredAt: event.occurredAt,
+                    publishedAt: event.publishedAt,
+                    status: event.status,
+                    retryCount: event.retryCount,
+                    nextRetryAt: event.nextRetryAt,
+                })),
+            })
+        } catch (err) {
+            logger.error({ error: err, count: events.length }, "Failed to saveMany OutboxEvent")
+            throw err
+        }
+    }
+
     async findPending(limit = 50): Promise<OutboxEvent[]> {
         try {
-            const rows = await prisma.outboxEvent.findMany({
+            const rows = await this.db.outboxEvent.findMany({
                 where: {
                     status: "PENDING",
                     nextRetryAt: { lte: new Date() },
@@ -69,7 +99,7 @@ export class OutboxRepository implements IOutboxRepository {
         logger.debug({ outboxEventId: outboxEventId }, "markAsPublished called")
 
         try {
-            await prisma.outboxEvent.update({
+            await this.db.outboxEvent.update({
                 where: { id: outboxEventId },
                 data: {
                     status: "PUBLISHED",
@@ -84,7 +114,7 @@ export class OutboxRepository implements IOutboxRepository {
 
     async markAsFailed(outboxEventId: string): Promise<void> {
         try {
-            await prisma.outboxEvent.update({
+            await this.db.outboxEvent.update({
                 where: { id: outboxEventId },
                 data: {
                     status: "FAILED",
@@ -99,7 +129,7 @@ export class OutboxRepository implements IOutboxRepository {
 
     async incrementRetryCount(outboxEventId: string): Promise<void> {
         try {
-            await prisma.outboxEvent.update({
+            await this.db.outboxEvent.update({
                 where: { id: outboxEventId },
                 data: { retryCount: { increment: 1 } }
             })
@@ -111,7 +141,7 @@ export class OutboxRepository implements IOutboxRepository {
 
     async updateNextRetryAt(outboxEventId: string, nextRetryAt: Date): Promise<void> {
         try {
-            await prisma.outboxEvent.update({
+            await this.db.outboxEvent.update({
                 where: { id: outboxEventId },
                 data: { nextRetryAt }
             })

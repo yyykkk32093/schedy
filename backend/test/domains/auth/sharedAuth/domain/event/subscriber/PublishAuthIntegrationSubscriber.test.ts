@@ -1,72 +1,59 @@
-import { IOutboxRepository } from '@/domains/_sharedDomains/domain/integration/IOutboxRepository.js'
-import { AuthDomainEvent } from '@/domains/auth/sharedAuth/domain/event/AuthDomainEvent.js'
-import { PublishAuthIntegrationSubscriber } from '@/domains/auth/sharedAuth/domain/event/integration/PublishAuthIntegrationSubscriber.js'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-// ---- ダミーイベント（テスト用のFake） ----
-class FakeSuccessEvent extends AuthDomainEvent {
-    readonly outcome = 'SUCCESS'
-    readonly userId = 'u001'
-    readonly email = 'user@example.com'
-    readonly authMethod = 'password'
-    readonly ipAddress = '127.0.0.1'
+import { OutboxEventFactory } from '@/application/_sharedApplication/outbox/OutboxEventFactory.js'
+import { UserLoginFailedEvent } from '@/application/auth/event/UserLoginFailedEvent.js'
+import { UserLoginSucceededEvent } from '@/application/auth/event/UserLoginSucceededEvent.js'
+import { EmailAddress } from '@/domains/_sharedDomains/model/valueObject/EmailAddress.js'
+import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
 
-    constructor() {
-        super('PasswordUserLoggedInEvent', 'u001')
-    }
-}
+describe('OutboxEventFactory (auth login contract)', () => {
+    it('UserLoginSucceededEvent を OutboxEvent に変換できる（現行互換）', async () => {
+        const factory = new OutboxEventFactory()
+        const event = new UserLoginSucceededEvent({
+            userId: UserId.create('u001'),
+            email: EmailAddress.create('user@example.com'),
+            method: 'password',
+            ipAddress: '127.0.0.1',
+        })
 
-class FakeFailureEvent extends AuthDomainEvent {
-    readonly outcome = 'FAILURE'
-    readonly userId = 'u002'
-    readonly email = 'user@example.com'
-    readonly authMethod = 'password'
-    readonly ipAddress = '127.0.0.1'
-    readonly reason = 'INVALID_CREDENTIALS'
+        const outboxEvents = factory.createManyFrom(event)
 
-    constructor() {
-        super('PasswordUserLoginFailedEvent', 'u002')
-    }
-}
-
-describe('PublishAuthIntegrationSubscriber', () => {
-    it('SUCCESSイベントをOutboxに保存する', async () => {
-        const saveSpy = vi.fn()
-        const repo: IOutboxRepository = {
-            save: saveSpy,
-            findPending: vi.fn(),
-            markAsPublished: vi.fn(),
-            markAsFailed: vi.fn(),
-        }
-
-        const subscriber = new PublishAuthIntegrationSubscriber(repo)
-        const event = new FakeSuccessEvent()
-
-        await subscriber.handle(event)
-
-        expect(saveSpy).toHaveBeenCalledTimes(1)
-        const savedEvent = saveSpy.mock.calls[0][0]
-
-        expect(savedEvent.eventName).toBe('UserLoggedInIntegrationEvent')
+        expect(outboxEvents).toHaveLength(1)
+        const outboxEvent = outboxEvents[0]
+        expect(outboxEvent.eventName).toBe('UserLoginSucceededEvent')
+        expect(outboxEvent.eventType).toBe('auth.login.success')
+        expect(outboxEvent.routingKey).toBe('audit.log')
+        expect(outboxEvent.payload).toMatchObject({
+            userId: 'u001',
+            email: 'user@example.com',
+            authMethod: 'password',
+            ipAddress: '127.0.0.1',
+        })
     })
 
-    it('FAILUREイベントをOutboxに保存する', async () => {
-        const saveSpy = vi.fn()
-        const repo: IOutboxRepository = {
-            save: saveSpy,
-            findPending: vi.fn(),
-            markAsPublished: vi.fn(),
-            markAsFailed: vi.fn(),
-        }
+    it('UserLoginFailedEvent を OutboxEvent に変換できる（現行互換）', async () => {
+        const factory = new OutboxEventFactory()
+        const event = new UserLoginFailedEvent({
+            email: EmailAddress.create('user@example.com'),
+            reason: 'INVALID_CREDENTIALS',
+            method: 'password',
+            userId: UserId.create('u002'),
+            ipAddress: '127.0.0.1',
+        })
 
-        const subscriber = new PublishAuthIntegrationSubscriber(repo)
-        const event = new FakeFailureEvent()
+        const outboxEvents = factory.createManyFrom(event)
 
-        await subscriber.handle(event)
-
-        expect(saveSpy).toHaveBeenCalledTimes(1)
-        const savedEvent = saveSpy.mock.calls[0][0]
-
-        expect(savedEvent.eventName).toBe('UserLoginFailedIntegrationEvent')
+        expect(outboxEvents).toHaveLength(1)
+        const outboxEvent = outboxEvents[0]
+        expect(outboxEvent.eventName).toBe('UserLoginFailedEvent')
+        expect(outboxEvent.eventType).toBe('auth.login.failed')
+        expect(outboxEvent.routingKey).toBe('audit.log')
+        expect(outboxEvent.payload).toMatchObject({
+            userId: 'u002',
+            email: 'user@example.com',
+            authMethod: 'password',
+            reason: 'INVALID_CREDENTIALS',
+            ipAddress: '127.0.0.1',
+        })
     })
 })

@@ -1,20 +1,15 @@
-// // domains/auth/sharedAuth/domain/event/AuthEventRegistry.ts
-// import { PasswordUserLoggedInSubscriber } from '@/domains/auth/password/domain/event/subscriber/PasswordUserLoggedInSubscriber.js'
-// import { PasswordUserLoginFailedSubscriber } from '@/domains/auth/password/domain/event/subscriber/PasswordUserLoginFailedSubscriber.js'
-// import { IOutboxRepository } from '@/integration/outbox/repository/IOutboxRepository.js'
-// import { authDomainEventBus } from './AuthDomainEventBus.js'
-// import { PublishAuthIntegrationSubscriber } from './integration/PublishAuthIntegrationSubscriber.js'
+import { DomainEventBus } from '@/domains/_sharedDomains/domain/event/DomainEventBus.js'
 
-// export function registerAuthDomainSubscribers(
-//     outboxRepository: IOutboxRepository
-// ) {
+import { PasswordSignInFailedSubscriber } from '@/domains/auth/password/domain/event/subscriber/PasswordSignInFailedSubscriber.js'
+import { PasswordSignInSucceededSubscriber } from '@/domains/auth/password/domain/event/subscriber/PasswordSignInSucceededSubscriber.js'
 
-//     authDomainEventBus.subscribe(new PasswordUserLoggedInSubscriber())
-//     authDomainEventBus.subscribe(new PasswordUserLoginFailedSubscriber())
-
-//     // Outbox連携（DIでoutboxRepositoryを注入）
-
-//     authDomainEventBus.subscribe(
-//         new PublishAuthIntegrationSubscriber(outboxRepository)
-//     )
-// }
+/**
+ * AuthDomainSubscribersRegistrar
+ *
+ * - DomainEventBus（shared）へ subscribe する
+ * - Outbox永続化は行わない（Outboxはtx内で確定させるのが正）
+ */
+export function registerAuthDomainSubscribers(bus: DomainEventBus): void {
+    bus.subscribe(new PasswordSignInSucceededSubscriber())
+    bus.subscribe(new PasswordSignInFailedSubscriber())
+}

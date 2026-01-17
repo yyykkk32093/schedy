@@ -8,10 +8,11 @@ import { TestFailHandler } from "./handlers/TestFailHandler.js";
 import { OutboxWorkerTestRegistrar } from "./OutboxWorkerTestRegistrar.js";
 import app from "./serverForTest.js";
 
-// logger.info("TEST LOGGER DIRECT CALL");
+const describeE2E = process.env.DATABASE_URL
+    ? describe.sequential
+    : describe.skip;
 
-describe.sequential("Auth → Outbox → AuditLog E2E", () => {
-
+describeE2E('Auth → Outbox → AuditLog E2E', () => {
     let worker: OutboxWorker;
 
     async function debugDump(label: string) {

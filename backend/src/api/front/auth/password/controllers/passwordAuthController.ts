@@ -1,5 +1,6 @@
 import { logger } from '@/_sharedTech/logger/logger.js';
 import { usecaseFactory } from '@/api/_usecaseFactory.js';
+import { AuthenticationFailedError } from '@/application/auth/error/AuthenticationFailedError.js';
 import type { Request, Response } from 'express';
 
 export const passwordAuthController = {
@@ -18,6 +19,14 @@ export const passwordAuthController = {
                 accessToken: result.accessToken,
             });
         } catch (error) {
+            if (error instanceof AuthenticationFailedError) {
+                res.status(error.statusCode).json({
+                    code: error.reason,
+                    message: error.message,
+                })
+                return
+            }
+
             logger.error({ error: error }, "[PasswordAuth Error]")
             res.status(401).json({ message: (error as Error).message });
         }

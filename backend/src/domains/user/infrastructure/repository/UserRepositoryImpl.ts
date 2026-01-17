@@ -1,15 +1,20 @@
 import { prisma } from '@/_sharedTech/db/client.js'
+import type { Prisma, PrismaClient } from '@prisma/client'
 
 import { User } from '../../domain/model/entity/User.js'
 import { IUserRepository } from '../../domain/repository/IUserRepository.js'
 
 export class UserRepositoryImpl implements IUserRepository {
 
+    constructor(
+        private readonly db: PrismaClient | Prisma.TransactionClient = prisma
+    ) { }
+
     // ============================================================
     // Find
     // ============================================================
     async findById(id: string): Promise<User | null> {
-        const record = await prisma.user.findUnique({
+        const record = await this.db.user.findUnique({
             where: { id },
         })
 
@@ -18,7 +23,7 @@ export class UserRepositoryImpl implements IUserRepository {
     }
 
     async findByEmail(email: string): Promise<User | null> {
-        const record = await prisma.user.findUnique({
+        const record = await this.db.user.findUnique({
             where: { email },
         })
 
@@ -33,7 +38,7 @@ export class UserRepositoryImpl implements IUserRepository {
 
         const data = this.toPersistence(user)
 
-        await prisma.user.upsert({
+        await this.db.user.upsert({
             where: { id: data.id },
             update: {
                 displayName: data.displayName,
