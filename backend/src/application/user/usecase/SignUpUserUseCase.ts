@@ -16,6 +16,7 @@ import { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnit
 import { BaseDomainEvent } from '@/domains/_sharedDomains/domain/event/BaseDomainEvent.js'
 import { IIdGenerator } from '@/domains/_sharedDomains/domain/service/IIdGenerator.js'
 import { PlainPassword } from '@/domains/auth/_sharedAuth/model/valueObject/PlainPassword.js'
+import { IntegrationEventFactory } from '@/integration/IntegrationEventFactory.js'
 
 export type SignUpUserTxRepositories = {
     user: IUserRepository
@@ -29,6 +30,7 @@ export class SignUpUserUseCase {
         private readonly passwordHasher: IPasswordHasher,
         private readonly idGenerator: IIdGenerator,
         private readonly unitOfWork: IUnitOfWorkWithRepos<SignUpUserTxRepositories>,
+        private readonly integrationEventFactory: IntegrationEventFactory,
         private readonly outboxEventFactory: OutboxEventFactory,
         private readonly domainEventFlusher: DomainEventFlusher,
         private readonly applicationEventPublisher: ApplicationEventPublisher,
@@ -87,10 +89,14 @@ export class SignUpUserUseCase {
             // DomainEvent pull（回収＋クリア）
             const domainEvents = user.pullDomainEvents()
 
-            // Outbox化（IntegrationSourceを実装したイベントのみ、Factory側の契約で決める）
-            const outboxEvents = domainEvents.flatMap((e) =>
-                this.outboxEventFactory.createManyFrom(e)
+            // DomainEvent -> IntegrationEvent（契約生成 + fan-out）
+            const integrationEvents = domainEvents.flatMap((e) =>
+                this.integrationEventFactory.createManyFrom(e)
             )
+
+            // IntegrationEvent -> OutboxEvent（配送レコード化）
+            const outboxEvents =
+                this.outboxEventFactory.createManyFrom(integrationEvents)
 
             await repos.outbox.saveMany(outboxEvents)
 

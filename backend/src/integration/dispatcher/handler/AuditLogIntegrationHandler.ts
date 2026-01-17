@@ -20,7 +20,7 @@ export class AuditLogIntegrationHandler extends IntegrationHandler {
 
         // ★契約通り idempotencyKey を dto に入れる！
         const dto = {
-            idempotencyKey: event.outboxEventId,
+            idempotencyKey: event.idempotencyKey,
             eventType: event.eventType,
             payload: event.payload,
             occurredAt: event.occurredAt.toISOString(),
@@ -31,7 +31,7 @@ export class AuditLogIntegrationHandler extends IntegrationHandler {
             dto,
             {
                 // header でも要求されるなら追加
-                "Idempotency-Key": event.outboxEventId,
+                "Idempotency-Key": event.idempotencyKey,
             }
         );
     }

@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { OutboxEventFactory } from '@/application/_sharedApplication/outbox/OutboxEventFactory.js'
 import { UserLoginFailedEvent } from '@/application/auth/event/UserLoginFailedEvent.js'
 import { UserLoginSucceededEvent } from '@/application/auth/event/UserLoginSucceededEvent.js'
 import { EmailAddress } from '@/domains/_sharedDomains/model/valueObject/EmailAddress.js'
 import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
+import { IntegrationEventFactory } from '@/integration/IntegrationEventFactory.js'
 
-describe('OutboxEventFactory (auth login contract)', () => {
-    it('UserLoginSucceededEvent を OutboxEvent に変換できる（現行互換）', async () => {
-        const factory = new OutboxEventFactory()
+describe('IntegrationEventFactory (auth login contract)', () => {
+    it('UserLoginSucceededEvent を IntegrationEvent に変換できる（現行互換）', async () => {
+        const factory = new IntegrationEventFactory()
         const event = new UserLoginSucceededEvent({
             userId: UserId.create('u001'),
             email: EmailAddress.create('user@example.com'),
@@ -16,14 +16,18 @@ describe('OutboxEventFactory (auth login contract)', () => {
             ipAddress: '127.0.0.1',
         })
 
-        const outboxEvents = factory.createManyFrom(event)
+        const integrationEvents = factory.createManyFrom(event)
 
-        expect(outboxEvents).toHaveLength(1)
-        const outboxEvent = outboxEvents[0]
-        expect(outboxEvent.eventName).toBe('UserLoginSucceededEvent')
-        expect(outboxEvent.eventType).toBe('auth.login.success')
-        expect(outboxEvent.routingKey).toBe('audit.log')
-        expect(outboxEvent.payload).toMatchObject({
+        expect(integrationEvents).toHaveLength(1)
+        const integrationEvent = integrationEvents[0]
+        expect(integrationEvent.sourceEventName).toBe('UserLoginSucceededEvent')
+        expect(integrationEvent.sourceEventId).toBe(event.id)
+        expect(integrationEvent.eventType).toBe('auth.login.success')
+        expect(integrationEvent.routingKey).toBe('audit.log')
+        expect(integrationEvent.idempotencyKey).toBe(
+            `${event.id}:audit.log:auth.login.success`
+        )
+        expect(integrationEvent.payload).toMatchObject({
             userId: 'u001',
             email: 'user@example.com',
             authMethod: 'password',
@@ -31,8 +35,8 @@ describe('OutboxEventFactory (auth login contract)', () => {
         })
     })
 
-    it('UserLoginFailedEvent を OutboxEvent に変換できる（現行互換）', async () => {
-        const factory = new OutboxEventFactory()
+    it('UserLoginFailedEvent を IntegrationEvent に変換できる（現行互換）', async () => {
+        const factory = new IntegrationEventFactory()
         const event = new UserLoginFailedEvent({
             email: EmailAddress.create('user@example.com'),
             reason: 'INVALID_CREDENTIALS',
@@ -41,14 +45,18 @@ describe('OutboxEventFactory (auth login contract)', () => {
             ipAddress: '127.0.0.1',
         })
 
-        const outboxEvents = factory.createManyFrom(event)
+        const integrationEvents = factory.createManyFrom(event)
 
-        expect(outboxEvents).toHaveLength(1)
-        const outboxEvent = outboxEvents[0]
-        expect(outboxEvent.eventName).toBe('UserLoginFailedEvent')
-        expect(outboxEvent.eventType).toBe('auth.login.failed')
-        expect(outboxEvent.routingKey).toBe('audit.log')
-        expect(outboxEvent.payload).toMatchObject({
+        expect(integrationEvents).toHaveLength(1)
+        const integrationEvent = integrationEvents[0]
+        expect(integrationEvent.sourceEventName).toBe('UserLoginFailedEvent')
+        expect(integrationEvent.sourceEventId).toBe(event.id)
+        expect(integrationEvent.eventType).toBe('auth.login.failed')
+        expect(integrationEvent.routingKey).toBe('audit.log')
+        expect(integrationEvent.idempotencyKey).toBe(
+            `${event.id}:audit.log:auth.login.failed`
+        )
+        expect(integrationEvent.payload).toMatchObject({
             userId: 'u002',
             email: 'user@example.com',
             authMethod: 'password',

@@ -17,17 +17,18 @@ export class OutboxRepository implements IOutboxRepository {
             await this.db.outboxEvent.create({
                 data: {
                     id: event.outboxEventId,
+                    idempotencyKey: event.idempotencyKey,
                     aggregateId: event.aggregateId,
                     eventName: event.eventName,
                     eventType: event.eventType,
                     routingKey: event.routingKey,
-                    payload: event.payload as any,
+                    payload: event.payload as Prisma.InputJsonValue,
                     occurredAt: event.occurredAt,
                     publishedAt: event.publishedAt,
                     status: event.status,
                     retryCount: event.retryCount,
                     nextRetryAt: event.nextRetryAt,
-                }
+                },
             })
         } catch (err) {
             logger.error({ outboxEventId: event.outboxEventId, error: err }, "Failed to save OutboxEvent")
@@ -42,11 +43,12 @@ export class OutboxRepository implements IOutboxRepository {
             await this.db.outboxEvent.createMany({
                 data: events.map((event) => ({
                     id: event.outboxEventId,
+                    idempotencyKey: event.idempotencyKey,
                     aggregateId: event.aggregateId,
                     eventName: event.eventName,
                     eventType: event.eventType,
                     routingKey: event.routingKey,
-                    payload: event.payload as any,
+                    payload: event.payload as Prisma.InputJsonValue,
                     occurredAt: event.occurredAt,
                     publishedAt: event.publishedAt,
                     status: event.status,
@@ -76,14 +78,15 @@ export class OutboxRepository implements IOutboxRepository {
             return rows.map(r =>
                 new OutboxEvent({
                     outboxEventId: r.id,
+                    idempotencyKey: r.idempotencyKey,
                     aggregateId: r.aggregateId,
                     eventName: r.eventName,
                     eventType: r.eventType,
                     routingKey: r.routingKey,
-                    payload: r.payload as any,
+                    payload: r.payload as Record<string, unknown>,
                     occurredAt: r.occurredAt,
                     publishedAt: r.publishedAt,
-                    status: r.status as any,
+                    status: r.status as OutboxEvent["status"],
                     retryCount: r.retryCount,
                     nextRetryAt: r.nextRetryAt,
                 })

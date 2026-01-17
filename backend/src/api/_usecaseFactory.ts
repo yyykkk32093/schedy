@@ -14,6 +14,7 @@ import { UuidGenerator } from '@/domains/_sharedDomains/infrastructure/id/UuidGe
 import { BcryptPasswordHasher } from '@/domains/auth/_sharedAuth/infrastructure/security/BcryptPasswordHasher.js'
 import { PasswordCredentialRepositoryImpl } from '@/domains/auth/password/infrastructure/repository/PasswordCredentialRepositoryImpl.js'
 import { UserRepositoryImpl } from '@/domains/user/infrastructure/repository/UserRepositoryImpl.js'
+import { IntegrationEventFactory } from '@/integration/IntegrationEventFactory.js'
 import { OutboxRepository } from '@/integration/outbox/repository/OutboxRepository.js'
 
 export const usecaseFactory = {
@@ -27,6 +28,7 @@ export const usecaseFactory = {
         return new SignInPasswordUserUseCase(
             new BcryptPasswordHasher(),
             unitOfWork,
+            new IntegrationEventFactory(),
             new OutboxEventFactory(),
             ApplicationEventBootstrap.getEventBus(),
             new JwtTokenService(process.env.JWT_SECRET ?? 'dev-secret')
@@ -47,6 +49,7 @@ export const usecaseFactory = {
             new BcryptPasswordHasher(),
             new UuidGenerator(),
             unitOfWork,
+            new IntegrationEventFactory(),
             new OutboxEventFactory(),
             new DomainEventFlusher(DomainEventBootstrap.getEventBus()),
             ApplicationEventBootstrap.getEventBus()

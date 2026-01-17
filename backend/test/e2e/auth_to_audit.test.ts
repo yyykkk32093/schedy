@@ -121,6 +121,7 @@ describeE2E('Auth → Outbox → AuditLog E2E', () => {
         await prisma.outboxEvent.create({
             data: {
                 id: "test-ev-001",
+                idempotencyKey: "test-ev-001:audit.log.fail:test.failed",
                 aggregateId: "u001",
                 eventName: "TestEvent",
                 eventType: "test.failed",

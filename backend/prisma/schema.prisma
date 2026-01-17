@@ -10,15 +10,16 @@ datasource db {
 // ---- OutboxEvent テーブル定義 ----
 
 model OutboxEvent {
-  id          String    @id
-  aggregateId String
-  eventName   String
-  eventType   String
-  routingKey  String
-  payload     Json
-  occurredAt  DateTime
-  publishedAt DateTime?
-  status      String    @default("PENDING")
+  id             String    @id
+  idempotencyKey String    @unique
+  aggregateId    String
+  eventName      String
+  eventType      String
+  routingKey     String
+  payload        Json
+  occurredAt     DateTime
+  publishedAt    DateTime?
+  status         String    @default("PENDING")
 
   retryCount  Int      @default(0)
   nextRetryAt DateTime @default(now())

@@ -4,7 +4,6 @@ import { ApplicationEvent } from '@/application/_sharedApplication/event/Applica
 import { AuthMethod } from '@/application/auth/model/AuthMethod.js'
 import { EmailAddress } from '@/domains/_sharedDomains/model/valueObject/EmailAddress.js'
 import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
-import { IntegrationSource } from '@/integration/IntegrationSource.js'
 
 /**
  * ユーザーログイン失敗（Application Event）
@@ -12,7 +11,7 @@ import { IntegrationSource } from '@/integration/IntegrationSource.js'
  * - 認証方式ごとの失敗（password / line / google / apple）
  * - userId は特定できない場合があるため optional
  */
-export class UserLoginFailedEvent extends ApplicationEvent implements IntegrationSource {
+export class UserLoginFailedEvent extends ApplicationEvent {
     readonly email: EmailAddress
     readonly reason: string
     readonly method: AuthMethod

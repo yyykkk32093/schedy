@@ -16,6 +16,7 @@ import { PlainPassword } from '@/domains/auth/_sharedAuth/model/valueObject/Plai
 import { IPasswordHasher } from '@/domains/auth/_sharedAuth/service/security/IPasswordHasher.js'
 import { IPasswordCredentialRepository } from '@/domains/auth/password/domain/repository/IPasswordCredentialRepository.js'
 import { IUserRepository } from '@/domains/user/domain/repository/IUserRepository.js'
+import { IntegrationEventFactory } from '@/integration/IntegrationEventFactory.js'
 import { IOutboxRepository } from '@/integration/outbox/repository/IOutboxRepository.js'
 import { AuthMethod } from '../../model/AuthMethod.js'
 import {
@@ -35,6 +36,7 @@ export class SignInPasswordUserUseCase {
     constructor(
         private readonly passwordHasher: IPasswordHasher,
         private readonly unitOfWork: IUnitOfWorkWithRepos<SignInPasswordUserTxRepositories>,
+        private readonly integrationEventFactory: IntegrationEventFactory,
         private readonly outboxEventFactory: OutboxEventFactory,
         private readonly eventPublisher: ApplicationEventPublisher,
         private readonly jwtTokenService: JwtTokenService
@@ -68,9 +70,11 @@ export class SignInPasswordUserUseCase {
                     ipAddress: input.ipAddress,
                 })
 
-                await repos.outbox.saveMany(
-                    this.outboxEventFactory.createManyFrom(failed)
-                )
+                const integrationEvents =
+                    this.integrationEventFactory.createManyFrom(failed)
+                const outboxEvents =
+                    this.outboxEventFactory.createManyFrom(integrationEvents)
+                await repos.outbox.saveMany(outboxEvents)
 
                 appEvent = failed
                 failureReason = 'USER_NOT_FOUND'
@@ -89,9 +93,11 @@ export class SignInPasswordUserUseCase {
                     ipAddress: input.ipAddress,
                 })
 
-                await repos.outbox.saveMany(
-                    this.outboxEventFactory.createManyFrom(failed)
-                )
+                const integrationEvents =
+                    this.integrationEventFactory.createManyFrom(failed)
+                const outboxEvents =
+                    this.outboxEventFactory.createManyFrom(integrationEvents)
+                await repos.outbox.saveMany(outboxEvents)
 
                 appEvent = failed
                 failureReason = 'CREDENTIAL_NOT_FOUND'
@@ -113,9 +119,11 @@ export class SignInPasswordUserUseCase {
                     ipAddress: input.ipAddress,
                 })
 
-                await repos.outbox.saveMany(
-                    this.outboxEventFactory.createManyFrom(failed)
-                )
+                const integrationEvents =
+                    this.integrationEventFactory.createManyFrom(failed)
+                const outboxEvents =
+                    this.outboxEventFactory.createManyFrom(integrationEvents)
+                await repos.outbox.saveMany(outboxEvents)
 
                 appEvent = failed
                 failureReason = 'INVALID_CREDENTIALS'
@@ -137,9 +145,11 @@ export class SignInPasswordUserUseCase {
                 ipAddress: input.ipAddress,
             })
 
-            await repos.outbox.saveMany(
-                this.outboxEventFactory.createManyFrom(succeeded)
-            )
+            const integrationEvents =
+                this.integrationEventFactory.createManyFrom(succeeded)
+            const outboxEvents =
+                this.outboxEventFactory.createManyFrom(integrationEvents)
+            await repos.outbox.saveMany(outboxEvents)
 
             appEvent = succeeded
             userId = user.getId().getValue()

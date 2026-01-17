@@ -2,6 +2,7 @@
 
 export class OutboxEvent {
     readonly outboxEventId: string
+    readonly idempotencyKey: string
     readonly aggregateId: string
 
     readonly eventName: string
@@ -19,6 +20,7 @@ export class OutboxEvent {
 
     constructor(params: {
         outboxEventId: string
+        idempotencyKey: string
         aggregateId: string
         eventName: string
         eventType: string
@@ -34,6 +36,7 @@ export class OutboxEvent {
         nextRetryAt?: Date
     }) {
         this.outboxEventId = params.outboxEventId
+        this.idempotencyKey = params.idempotencyKey
         this.aggregateId = params.aggregateId
 
         this.eventName = params.eventName
