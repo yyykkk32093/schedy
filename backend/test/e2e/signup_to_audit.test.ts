@@ -15,6 +15,28 @@ const describeE2E = process.env.DATABASE_URL
 describeE2E("Signup → Outbox → AuditLog E2E", () => {
     let worker: OutboxWorker;
 
+    async function ensureRetryPolicy(params: {
+        routingKey: string;
+        baseInterval: number;
+        maxInterval: number;
+        maxRetries: number;
+    }) {
+        await prisma.outboxRetryPolicy.upsert({
+            where: { routingKey: params.routingKey },
+            update: {
+                baseInterval: params.baseInterval,
+                maxInterval: params.maxInterval,
+                maxRetries: params.maxRetries,
+            },
+            create: {
+                routingKey: params.routingKey,
+                baseInterval: params.baseInterval,
+                maxInterval: params.maxInterval,
+                maxRetries: params.maxRetries,
+            },
+        });
+    }
+
     async function debugDump(label: string) {
         const outbox = await prisma.outboxEvent.findMany({});
         const audit = await prisma.auditLog.findMany({});
@@ -28,7 +50,6 @@ describeE2E("Signup → Outbox → AuditLog E2E", () => {
     beforeEach(async () => {
         await prisma.auditLog.deleteMany({});
         await prisma.outboxEvent.deleteMany({});
-        await prisma.outboxRetryPolicy.deleteMany({});
         await prisma.outboxDeadLetter.deleteMany({});
 
         // User 関連（ユニーク制約衝突の回避）
@@ -37,21 +58,18 @@ describeE2E("Signup → Outbox → AuditLog E2E", () => {
         await prisma.user.deleteMany({});
 
         // Signup(UserRegistered) は fan-out で2つ routingKey を生成するため両方のポリシーを用意
-        await prisma.outboxRetryPolicy.create({
-            data: {
-                routingKey: "audit.log",
-                baseInterval: 10,
-                maxInterval: 1000,
-                maxRetries: 3,
-            },
+        // ※ DB seed と衝突し得るため upsert で確実に上書きする
+        await ensureRetryPolicy({
+            routingKey: "audit.log",
+            baseInterval: 10,
+            maxInterval: 1000,
+            maxRetries: 3,
         });
-        await prisma.outboxRetryPolicy.create({
-            data: {
-                routingKey: "user.lifecycle.audit",
-                baseInterval: 10,
-                maxInterval: 1000,
-                maxRetries: 3,
-            },
+        await ensureRetryPolicy({
+            routingKey: "user.lifecycle.audit",
+            baseInterval: 10,
+            maxInterval: 1000,
+            maxRetries: 3,
         });
     });
 
@@ -124,8 +142,8 @@ describeE2E("Signup → Outbox → AuditLog E2E", () => {
             displayName: "Second",
         });
 
-        // 現状は controller が next(err) へ渡すだけで明示的なエラーハンドラが無いので 500 想定
-        expect(second.status).toBe(500);
+        expect(second.status).toBe(409);
+        expect(second.body?.code).toBe('EMAIL_ALREADY_IN_USE');
 
         const outboxAll = await prisma.outboxEvent.findMany({});
         expect(outboxAll.length).toBe(2);
@@ -138,22 +156,17 @@ describeE2E("Signup → Outbox → AuditLog E2E", () => {
         });
 
         // 即時リトライできるように delay を 0 に寄せる（base=1,max=1 → floor(0.5..1)=0）
-        await prisma.outboxRetryPolicy.deleteMany({});
-        await prisma.outboxRetryPolicy.create({
-            data: {
-                routingKey: "audit.log",
-                baseInterval: 1,
-                maxInterval: 1,
-                maxRetries: 2,
-            },
+        await ensureRetryPolicy({
+            routingKey: "audit.log",
+            baseInterval: 1,
+            maxInterval: 1,
+            maxRetries: 2,
         });
-        await prisma.outboxRetryPolicy.create({
-            data: {
-                routingKey: "user.lifecycle.audit",
-                baseInterval: 1,
-                maxInterval: 1,
-                maxRetries: 2,
-            },
+        await ensureRetryPolicy({
+            routingKey: "user.lifecycle.audit",
+            baseInterval: 1,
+            maxInterval: 1,
+            maxRetries: 2,
         });
 
         const res = await request(app).post("/v1/users").send({

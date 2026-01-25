@@ -1,6 +1,7 @@
 // test/e2e/serverForTest.ts
 import { ApplicationEventBootstrap } from "@/_bootstrap/ApplicationEventBootstrap.js";
 import { logger } from "@/_sharedTech/logger/logger.js";
+import { errorHandler } from "@/api/middleware/errorHandler.js";
 import { IntegrationDispatcher } from "@/integration/dispatcher/IntegrationDispatcher.js";
 import cors from "cors";
 import express from "express";
@@ -66,6 +67,9 @@ ApplicationEventBootstrap.bootstrap()
 
 // テスト用 Subscriber / Integration 登録
 EventTestRegistrar.registerAll(app)
+
+/* 7. error handler */
+app.use(errorHandler)
 
 /* 6. 本番の DomainEventRegistrar は絶対に呼ばない */
 export default app;

@@ -3,7 +3,6 @@ import { IPasswordCredentialRepository } from '@/domains/auth/password/domain/re
 import { IUserRepository } from '@/domains/user/domain/repository/IUserRepository.js'
 
 import { PasswordCredential } from '@/domains/auth/password/domain/model/entity/PasswordCredential.js'
-import { User } from '@/domains/user/domain/model/entity/User.js'
 
 import { EmailAddress } from '@/domains/_sharedDomains/model/valueObject/EmailAddress.js'
 import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
@@ -11,12 +10,11 @@ import { DisplayName } from '@/domains/user/domain/model/valueObject/DisplayName
 
 import { ApplicationEventPublisher } from '@/application/_sharedApplication/event/ApplicationEventPublisher.js'
 import { DomainEventFlusher } from '@/application/_sharedApplication/event/DomainEventFlusher.js'
-import { OutboxEventFactory } from '@/application/_sharedApplication/outbox/OutboxEventFactory.js'
 import { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnitOfWork.js'
+import { RegisterUserService } from '@/application/user/service/RegisterUserService.js'
 import { BaseDomainEvent } from '@/domains/_sharedDomains/domain/event/BaseDomainEvent.js'
 import { IIdGenerator } from '@/domains/_sharedDomains/domain/service/IIdGenerator.js'
 import { PlainPassword } from '@/domains/auth/_sharedAuth/model/valueObject/PlainPassword.js'
-import { IntegrationEventFactory } from '@/integration/IntegrationEventFactory.js'
 
 export type SignUpUserTxRepositories = {
     user: IUserRepository
@@ -30,8 +28,7 @@ export class SignUpUserUseCase {
         private readonly passwordHasher: IPasswordHasher,
         private readonly idGenerator: IIdGenerator,
         private readonly unitOfWork: IUnitOfWorkWithRepos<SignUpUserTxRepositories>,
-        private readonly integrationEventFactory: IntegrationEventFactory,
-        private readonly outboxEventFactory: OutboxEventFactory,
+        private readonly registerUserService: RegisterUserService,
         private readonly domainEventFlusher: DomainEventFlusher,
         private readonly applicationEventPublisher: ApplicationEventPublisher,
     ) { }
@@ -56,12 +53,6 @@ export class SignUpUserUseCase {
         // ================================
         // 4️⃣ Aggregate 生成
         // ================================
-        const user = User.register({
-            userId,
-            email,
-            displayName,
-        })
-
         const hashedPassword = await this.passwordHasher.hash(
             PlainPassword.create(input.password)
         )
@@ -77,30 +68,19 @@ export class SignUpUserUseCase {
         // 5️⃣ 永続化 + Outbox確定（同一トランザクション）
         // ================================
         await this.unitOfWork.run(async (repos) => {
-            // 既存ユーザチェック（tx内）
-            const exists = await repos.user.findByEmail(email.getValue())
-            if (exists) {
-                throw new Error('Email already registered')
-            }
-
-            await repos.user.save(user)
-            await repos.credential.save(credential)
-
-            // DomainEvent pull（回収＋クリア）
-            const domainEvents = user.pullDomainEvents()
-
-            // DomainEvent -> IntegrationEvent（契約生成 + fan-out）
-            const integrationEvents = domainEvents.flatMap((e) =>
-                this.integrationEventFactory.createManyFrom(e)
+            const { domainEvents } = await this.registerUserService.register(
+                {
+                    userId,
+                    email,
+                    displayName,
+                    authMethod: 'password',
+                },
+                repos,
+                async () => {
+                    await repos.credential.save(credential)
+                }
             )
 
-            // IntegrationEvent -> OutboxEvent（配送レコード化）
-            const outboxEvents =
-                this.outboxEventFactory.createManyFrom(integrationEvents)
-
-            await repos.outbox.saveMany(outboxEvents)
-
-            // commit後publish-only のために保持
             eventsToPublish = domainEvents
         })
 

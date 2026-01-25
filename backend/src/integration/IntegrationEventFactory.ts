@@ -36,7 +36,7 @@ export class IntegrationEventFactory {
 
         const payload = {
             userId: event.userId.getValue(),
-            email: event.email.getValue(),
+            email: event.email?.getValue() ?? null,
         }
 
         return routingKeys.map((routingKey) =>
@@ -58,7 +58,7 @@ export class IntegrationEventFactory {
 
         const payload = {
             userId: event.userId.getValue(),
-            email: event.email.getValue(),
+            email: event.email?.getValue() ?? null,
             authMethod: event.method,
             ipAddress: event.ipAddress,
         }
@@ -82,7 +82,7 @@ export class IntegrationEventFactory {
 
         const payload = {
             userId: aggregateId,
-            email: event.email.getValue(),
+            email: event.email?.getValue() ?? null,
             authMethod: event.method,
             reason: event.reason,
             ipAddress: event.ipAddress,

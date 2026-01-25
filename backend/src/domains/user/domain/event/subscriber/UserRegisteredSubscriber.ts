@@ -13,7 +13,8 @@ export class UserRegisteredSubscriber
         logger.info(
             {
                 userId: event.userId.getValue(),
-                email: event.email.getValue(),
+                email: event.email?.getValue() ?? null,
+                authMethod: event.authMethod,
             },
             '[UserRegisteredSubscriber] ユーザ登録'
         )

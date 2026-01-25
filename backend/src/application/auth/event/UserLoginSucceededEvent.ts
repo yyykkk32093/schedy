@@ -10,20 +10,20 @@ import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
  */
 export class UserLoginSucceededEvent extends ApplicationEvent {
     readonly userId: UserId
-    readonly email: EmailAddress
+    readonly email?: EmailAddress | null
     readonly method: AuthMethod
     readonly ipAddress?: string
 
     constructor(params: {
         userId: UserId
-        email: EmailAddress
+        email?: EmailAddress | null
         method: AuthMethod
         ipAddress?: string
     }) {
         super('UserLoginSucceededEvent')
 
         this.userId = params.userId
-        this.email = params.email
+        this.email = params.email ?? null
         this.method = params.method
         this.ipAddress = params.ipAddress
     }

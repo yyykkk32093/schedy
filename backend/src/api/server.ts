@@ -3,6 +3,7 @@
 import { ApplicationEventBootstrap } from '@/_bootstrap/ApplicationEventBootstrap.js';
 import { DomainEventBootstrap } from '@/_bootstrap/DomainEventBootstrap.js';
 import { loadEnv } from '@/_sharedTech/config/loadEnv.js';
+import { errorHandler } from '@/api/middleware/errorHandler.js';
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs/promises';
@@ -107,6 +108,11 @@ try {
     app.get('/health', (_req, res) => {
         res.status(200).json({ status: 'ok', env: process.env.NODE_ENV });
     });
+
+    // ============================================================
+    // 🧯 Error handler（routesの後に登録）
+    // ============================================================
+    app.use(errorHandler)
 
     const PORT = Number(process.env.PORT || 3000);
     app.listen(PORT, () => {

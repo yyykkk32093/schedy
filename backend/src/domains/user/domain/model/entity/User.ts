@@ -12,7 +12,6 @@ import { QuietHours, UserNotificationSetting } from '../valueObject/UserNotifica
 import { UserRole } from '../valueObject/UserRole.js'
 
 export class User extends AggregateRoot {
-
     private constructor(
         private readonly id: UserId,
         private displayName: DisplayName | null,
@@ -33,8 +32,9 @@ export class User extends AggregateRoot {
     // =====================================================
     static register(params: {
         userId: UserId
-        email: EmailAddress
+        email?: EmailAddress | null
         displayName?: DisplayName | null
+        authMethod: 'password' | 'google' | 'line' | 'apple'
     }): User {
 
         const now = new Date()
@@ -43,7 +43,7 @@ export class User extends AggregateRoot {
             params.userId,
             params.displayName ?? null,
             UserRole.create('MEMBER'),
-            params.email,
+            params.email ?? null,
             null,
             null,
             null,
@@ -55,7 +55,8 @@ export class User extends AggregateRoot {
         user.addDomainEvent(
             new UserRegisteredEvent({
                 userId: params.userId,
-                email: params.email,
+                email: params.email ?? null,
+                authMethod: params.authMethod,
             })
         )
 

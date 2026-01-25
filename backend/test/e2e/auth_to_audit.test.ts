@@ -15,6 +15,28 @@ const describeE2E = process.env.DATABASE_URL
 describeE2E('Auth → Outbox → AuditLog E2E', () => {
     let worker: OutboxWorker;
 
+    async function ensureRetryPolicy(params: {
+        routingKey: string;
+        baseInterval: number;
+        maxInterval: number;
+        maxRetries: number;
+    }) {
+        await prisma.outboxRetryPolicy.upsert({
+            where: { routingKey: params.routingKey },
+            update: {
+                baseInterval: params.baseInterval,
+                maxInterval: params.maxInterval,
+                maxRetries: params.maxRetries,
+            },
+            create: {
+                routingKey: params.routingKey,
+                baseInterval: params.baseInterval,
+                maxInterval: params.maxInterval,
+                maxRetries: params.maxRetries,
+            },
+        });
+    }
+
     async function debugDump(label: string) {
         const outbox = await prisma.outboxEvent.findMany({});
         const audit = await prisma.auditLog.findMany({});
@@ -40,16 +62,33 @@ describeE2E('Auth → Outbox → AuditLog E2E', () => {
     beforeEach(async () => {
         await prisma.auditLog.deleteMany({});
         await prisma.outboxEvent.deleteMany({});
-        await prisma.outboxRetryPolicy.deleteMany({});
         await prisma.outboxDeadLetter.deleteMany({});
-        await prisma.outboxRetryPolicy.create({
-            data: {
-                routingKey: "audit.log",
-                baseInterval: 10,
-                maxInterval: 1000,
-                maxRetries: 3,
-            },
+
+        // User 関連（ユニーク制約衝突の回避）
+        await prisma.passwordCredential.deleteMany({});
+        await prisma.authSecurityState.deleteMany({});
+        await prisma.user.deleteMany({});
+
+        // E2Eで使う routingKey は seed と衝突し得るため upsert で安定化
+        await ensureRetryPolicy({
+            routingKey: "audit.log",
+            baseInterval: 10,
+            maxInterval: 1000,
+            maxRetries: 3,
         });
+
+        // Login Success/Failed の前提ユーザーを作成（Signup時のOutboxは後でクリア）
+        const signup = await request(app).post("/v1/users").send({
+            email: "test@example.com",
+            password: "password123",
+            displayName: "Test",
+        });
+        expect(signup.status).toBe(201);
+
+        // Signup由来のOutbox/Auditはこのテストでは見ないのでクリア
+        await prisma.auditLog.deleteMany({});
+        await prisma.outboxEvent.deleteMany({});
+        await prisma.outboxDeadLetter.deleteMany({});
     });
 
     afterAll(async () => {
@@ -109,13 +148,11 @@ describeE2E('Auth → Outbox → AuditLog E2E', () => {
             dispatcher.register("audit.log.fail", new TestFailHandler());
         });
 
-        await prisma.outboxRetryPolicy.create({
-            data: {
-                routingKey: "audit.log.fail",
-                baseInterval: 1,
-                maxInterval: 5,
-                maxRetries: 3,
-            },
+        await ensureRetryPolicy({
+            routingKey: "audit.log.fail",
+            baseInterval: 1,
+            maxInterval: 5,
+            maxRetries: 3,
         });
 
         await prisma.outboxEvent.create({

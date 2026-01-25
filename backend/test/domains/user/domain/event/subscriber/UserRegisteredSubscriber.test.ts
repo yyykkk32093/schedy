@@ -18,6 +18,7 @@ describe('UserRegisteredSubscriber', () => {
         const event = new UserRegisteredEvent({
             userId: UserId.create('user-001'),
             email: EmailAddress.create('user@example.com'),
+            authMethod: 'password',
         })
 
         await bus.publish(event)

@@ -12,21 +12,21 @@ import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
  * - userId は特定できない場合があるため optional
  */
 export class UserLoginFailedEvent extends ApplicationEvent {
-    readonly email: EmailAddress
+    readonly email?: EmailAddress | null
     readonly reason: string
     readonly method: AuthMethod
     readonly userId?: UserId
     readonly ipAddress?: string
 
     constructor(params: {
-        email: EmailAddress
+        email?: EmailAddress | null
         reason: string
         method: AuthMethod
         userId?: UserId
         ipAddress?: string
     }) {
         super('UserLoginFailedEvent')
-        this.email = params.email
+        this.email = params.email ?? null
         this.reason = params.reason
         this.method = params.method
         this.userId = params.userId
