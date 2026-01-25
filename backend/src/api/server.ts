@@ -2,8 +2,8 @@
 
 import { ApplicationEventBootstrap } from '@/_bootstrap/ApplicationEventBootstrap.js';
 import { DomainEventBootstrap } from '@/_bootstrap/DomainEventBootstrap.js';
+import { loadEnv } from '@/_sharedTech/config/loadEnv.js';
 import cors from 'cors';
-import dotenvFlow from 'dotenv-flow';
 import express from 'express';
 import fs from 'fs/promises';
 import path, { dirname } from 'path';
@@ -17,13 +17,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // ============================================================
-// 🌱 dotenv-flow 環境変数ロード
-// backend/env を明確に指定
+// 🌱 env 読み込み（backend/env）
 // ============================================================
-dotenvFlow.config({
-    path: path.resolve(__dirname, '../env'),
-});
-console.log('🌿 dotenv-flow loaded. NODE_ENV =', process.env.NODE_ENV);
+loadEnv({ envDir: path.resolve(__dirname, '../../env') })
+console.log('🌿 env loaded. NODE_ENV =', process.env.NODE_ENV);
 
 // ============================================================
 // 🧩 tsconfig-paths

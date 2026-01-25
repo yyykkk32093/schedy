@@ -1,6 +1,8 @@
 // src/job/outbox/startOutboxWorker.ts
-import dotenv from 'dotenv-flow';
-dotenv.config({ node_env: process.env.NODE_ENV || 'local', path: 'env' })
+import { loadEnv } from '@/_sharedTech/config/loadEnv.js';
+import path from 'path';
+
+loadEnv({ envDir: path.resolve(process.cwd(), 'env') })
 
 import { OutboxWorkerRegistrar } from '@/_bootstrap/outboxWorkerRegistrar.js';
 import { logger } from '@/_sharedTech/logger/logger.js';

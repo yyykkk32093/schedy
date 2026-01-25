@@ -107,6 +107,36 @@ model User {
   googleCredential   GoogleCredential?
   lineCredential     LineCredential?
   appleCredential    AppleCredential?
+
+  authSecurityState AuthSecurityState?
+}
+
+model AuthSecurityState {
+  userId String @id @map("user_id")
+
+  /**
+   * 最後に成功した認証方式（例: password/google/line/apple）
+   */
+  authMethod String? @map("auth_method")
+
+  /**
+   * 最終ログイン成功時刻（結果整合の投影）
+   */
+  lastLoginAt DateTime? @map("last_login_at")
+
+  /**
+   * セキュリティ判定向け（最小）
+   */
+  failedSignInCount Int       @default(0) @map("failed_sign_in_count")
+  lockedUntil       DateTime? @map("locked_until")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([lockedUntil])
+  @@map("auth_security_states")
 }
 
 model PasswordCredential {

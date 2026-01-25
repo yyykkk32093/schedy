@@ -15,6 +15,7 @@ import { EmailAddress } from '@/domains/_sharedDomains/model/valueObject/EmailAd
 import { PlainPassword } from '@/domains/auth/_sharedAuth/model/valueObject/PlainPassword.js'
 import { IPasswordHasher } from '@/domains/auth/_sharedAuth/service/security/IPasswordHasher.js'
 import { IPasswordCredentialRepository } from '@/domains/auth/password/domain/repository/IPasswordCredentialRepository.js'
+import { IAuthSecurityStateRepository } from '@/domains/auth/security/domain/repository/IAuthSecurityStateRepository.js'
 import { IUserRepository } from '@/domains/user/domain/repository/IUserRepository.js'
 import { IntegrationEventFactory } from '@/integration/IntegrationEventFactory.js'
 import { IOutboxRepository } from '@/integration/outbox/repository/IOutboxRepository.js'
@@ -27,6 +28,7 @@ import {
 export type SignInPasswordUserTxRepositories = {
     user: IUserRepository
     credential: IPasswordCredentialRepository
+    authSecurityState: IAuthSecurityStateRepository
     outbox: IOutboxRepository
 }
 
@@ -78,6 +80,31 @@ export class SignInPasswordUserUseCase {
 
                 appEvent = failed
                 failureReason = 'USER_NOT_FOUND'
+                return
+            }
+
+            // 1.5️⃣ ロック状態チェック（結果整合の投影を参照）
+            const securityState = await repos.authSecurityState.findByUserId({
+                userId: user.getId().getValue(),
+            })
+
+            if (securityState?.lockedUntil && securityState.lockedUntil > new Date()) {
+                const failed = new UserLoginFailedEvent({
+                    email: user.getEmail()!,
+                    reason: 'LOCKED_ACCOUNT',
+                    method: SignInPasswordUserUseCase.AUTH_METHOD,
+                    userId: user.getId(),
+                    ipAddress: input.ipAddress,
+                })
+
+                const integrationEvents =
+                    this.integrationEventFactory.createManyFrom(failed)
+                const outboxEvents =
+                    this.outboxEventFactory.createManyFrom(integrationEvents)
+                await repos.outbox.saveMany(outboxEvents)
+
+                appEvent = failed
+                failureReason = 'LOCKED_ACCOUNT'
                 return
             }
 

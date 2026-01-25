@@ -13,15 +13,20 @@ import { SignUpUserTxRepositories, SignUpUserUseCase } from '@/application/user/
 import { UuidGenerator } from '@/domains/_sharedDomains/infrastructure/id/UuidGenerator.js'
 import { BcryptPasswordHasher } from '@/domains/auth/_sharedAuth/infrastructure/security/BcryptPasswordHasher.js'
 import { PasswordCredentialRepositoryImpl } from '@/domains/auth/password/infrastructure/repository/PasswordCredentialRepositoryImpl.js'
+import { AuthSecurityStateRepositoryImpl } from '@/domains/auth/security/infrastructure/repository/AuthSecurityStateRepositoryImpl.js'
 import { UserRepositoryImpl } from '@/domains/user/infrastructure/repository/UserRepositoryImpl.js'
 import { IntegrationEventFactory } from '@/integration/IntegrationEventFactory.js'
 import { OutboxRepository } from '@/integration/outbox/repository/OutboxRepository.js'
 
 export const usecaseFactory = {
     createSignInPasswordUserUseCase() {
+        DomainEventBootstrap.bootstrap()
+        ApplicationEventBootstrap.bootstrap()
+
         const unitOfWork = new PrismaUnitOfWork<SignInPasswordUserTxRepositories>((tx) => ({
             user: new UserRepositoryImpl(tx),
             credential: new PasswordCredentialRepositoryImpl(tx),
+            authSecurityState: new AuthSecurityStateRepositoryImpl(tx),
             outbox: new OutboxRepository(tx),
         }))
 

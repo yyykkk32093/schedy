@@ -4,6 +4,7 @@ export type AuthFailureReason =
     | 'USER_NOT_FOUND'
     | 'CREDENTIAL_NOT_FOUND'
     | 'INVALID_CREDENTIALS'
+    | 'LOCKED_ACCOUNT'
 
 /**
  * 認証失敗（API向け）

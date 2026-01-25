@@ -1,10 +1,8 @@
-import dotenvFlow from 'dotenv-flow';
+import { loadEnv } from '@/_sharedTech/config/loadEnv.js';
 import path from 'path';
 
-// backend/env ディレクトリから .env ファイル群を読み込む
-dotenvFlow.config({
-    path: path.resolve(__dirname, '../../../env'),
-});
+// backend/env ディレクトリから env ファイル群を読み込む
+loadEnv({ envDir: path.resolve(__dirname, '../../../env') })
 
 export const config = {
     app: {

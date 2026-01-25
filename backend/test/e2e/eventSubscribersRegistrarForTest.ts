@@ -8,9 +8,9 @@ export class EventTestRegistrar {
         const dispatcher: IntegrationDispatcher =
             app.get("integrationDispatcher")
 
-        dispatcher.register(
-            "audit.log",
-            new AuditLogIntegrationHandler(new FakeHttpClient(app))
-        )
+        const auditHandler = new AuditLogIntegrationHandler(new FakeHttpClient(app))
+
+        dispatcher.register('audit.log', auditHandler)
+        dispatcher.register('user.lifecycle.audit', auditHandler)
     }
 }
