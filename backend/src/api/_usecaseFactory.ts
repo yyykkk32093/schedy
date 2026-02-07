@@ -5,6 +5,7 @@ import { JwtTokenService } from '@/_sharedTech/security/JwtTokenService.js'
 import { DomainEventFlusher } from '@/application/_sharedApplication/event/DomainEventFlusher.js'
 import { OutboxEventFactory } from '@/application/_sharedApplication/outbox/OutboxEventFactory.js'
 import { PrismaUnitOfWork } from '@/application/_sharedApplication/uow/PrismaUnitOfWork.js'
+import type { AuthMethod } from '@/application/auth/model/AuthMethod.js'
 import {
     SignInOAuthUserTxRepositories,
     SignInOAuthUserUseCase,
@@ -26,10 +27,23 @@ import { UserRepositoryImpl } from '@/domains/user/infrastructure/repository/Use
 import { IntegrationEventFactory } from '@/integration/IntegrationEventFactory.js'
 import { AppleOAuthProviderClient } from '@/integration/oauth/AppleOAuthProviderClient.js'
 import { GoogleOAuthProviderClient } from '@/integration/oauth/GoogleOAuthProviderClient.js'
+import type { IOAuthProviderClient } from '@/integration/oauth/IOAuthProviderClient.js'
 import { LineOAuthProviderClient } from '@/integration/oauth/LineOAuthProviderClient.js'
 import { OutboxRepository } from '@/integration/outbox/repository/OutboxRepository.js'
 
+/**
+ * テスト用にオーバーライドできるOAuthプロバイダークライアント
+ * setOAuthProviderClients() でFakeクライアントを注入可能
+ */
+let oauthProviderClientsOverride: Record<AuthMethod, IOAuthProviderClient | undefined> | null = null
+
 export const usecaseFactory = {
+    /**
+     * テスト用: OAuthプロバイダークライアントをオーバーライド
+     */
+    setOAuthProviderClients(clients: Record<AuthMethod, IOAuthProviderClient | undefined> | null): void {
+        oauthProviderClientsOverride = clients
+    },
     createSignInPasswordUserUseCase() {
         DomainEventBootstrap.bootstrap()
         ApplicationEventBootstrap.bootstrap()
@@ -106,7 +120,7 @@ export const usecaseFactory = {
             outboxEventFactory,
             ApplicationEventBootstrap.getEventBus(),
             new JwtTokenService(process.env.JWT_SECRET ?? 'dev-secret'),
-            {
+            oauthProviderClientsOverride ?? {
                 password: undefined,
                 google: new GoogleOAuthProviderClient(),
                 line: new LineOAuthProviderClient(),

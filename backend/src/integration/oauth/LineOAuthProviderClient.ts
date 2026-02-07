@@ -1,3 +1,4 @@
+import { AppSecretsLoader } from '@/_sharedTech/config/AppSecretsLoader.js';
 import { OAuthHttpClient } from '@/_sharedTech/http/OAuthHttpClient.js';
 import type {
     IOAuthProviderClient,
@@ -10,13 +11,8 @@ export class LineOAuthProviderClient implements IOAuthProviderClient {
     constructor(private readonly http: OAuthHttpClient = new OAuthHttpClient()) { }
 
     async fetchProfile(params: { code: string; redirectUri?: string }): Promise<OAuthProfile> {
-        const clientId = process.env.LINE_CHANNEL_ID
-        const clientSecret = process.env.LINE_CHANNEL_SECRET
-        const redirectUri = params.redirectUri ?? process.env.LINE_REDIRECT_URI
-
-        if (!clientId || !clientSecret || !redirectUri) {
-            throw new Error('Missing LINE_CHANNEL_ID/LINE_CHANNEL_SECRET/LINE_REDIRECT_URI')
-        }
+        const config = AppSecretsLoader.getOAuth().line
+        const redirectUri = params.redirectUri ?? config.redirectUri
 
         const token = await this.http.postForm<{
             access_token: string
@@ -28,8 +24,8 @@ export class LineOAuthProviderClient implements IOAuthProviderClient {
             grant_type: 'authorization_code',
             code: params.code,
             redirect_uri: redirectUri,
-            client_id: clientId,
-            client_secret: clientSecret,
+            client_id: config.channelId,
+            client_secret: config.channelSecret,
         })
 
         const profile = await this.http.getJson<{
@@ -46,7 +42,7 @@ export class LineOAuthProviderClient implements IOAuthProviderClient {
                 email?: string
             }>('https://api.line.me/oauth2/v2.1/verify', {
                 id_token: token.id_token,
-                client_id: clientId,
+                client_id: config.channelId,
             })
 
             email = verified.email ?? null

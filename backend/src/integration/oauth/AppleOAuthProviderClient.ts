@@ -1,3 +1,4 @@
+import { AppSecretsLoader } from '@/_sharedTech/config/AppSecretsLoader.js'
 import { OAuthHttpClient } from '@/_sharedTech/http/OAuthHttpClient.js'
 import type {
     IOAuthProviderClient,
@@ -15,23 +16,18 @@ export class AppleOAuthProviderClient implements IOAuthProviderClient {
     constructor(private readonly http: OAuthHttpClient = new OAuthHttpClient()) { }
 
     async fetchProfile(params: { code: string; redirectUri?: string }): Promise<OAuthProfile> {
-        const clientId = process.env.APPLE_CLIENT_ID
-        const teamId = process.env.APPLE_TEAM_ID
-        const keyId = process.env.APPLE_KEY_ID
-        const privateKey = process.env.APPLE_PRIVATE_KEY
-        const redirectUri = params.redirectUri ?? process.env.APPLE_REDIRECT_URI
+        const config = AppSecretsLoader.getOAuth().apple
+        const redirectUri = params.redirectUri ?? config.redirectUri
 
-        if (!clientId || !teamId || !keyId || !privateKey || !redirectUri) {
-            throw new Error(
-                'Missing APPLE_CLIENT_ID/APPLE_TEAM_ID/APPLE_KEY_ID/APPLE_PRIVATE_KEY/APPLE_REDIRECT_URI'
-            )
+        if (!config.privateKey) {
+            throw new Error('Apple private key is not configured')
         }
 
         const clientSecret = await this.createClientSecret({
-            clientId,
-            teamId,
-            keyId,
-            privateKey,
+            clientId: config.clientId,
+            teamId: config.teamId,
+            keyId: config.keyId,
+            privateKey: config.privateKey,
         })
 
         const token = await this.http.postForm<{
@@ -43,13 +39,13 @@ export class AppleOAuthProviderClient implements IOAuthProviderClient {
             grant_type: 'authorization_code',
             code: params.code,
             redirect_uri: redirectUri,
-            client_id: clientId,
+            client_id: config.clientId,
             client_secret: clientSecret,
         })
 
         const verified = await jwtVerify(token.id_token, AppleOAuthProviderClient.jwks, {
             issuer: 'https://appleid.apple.com',
-            audience: clientId,
+            audience: config.clientId,
         })
 
         const sub = String(verified.payload.sub ?? '')

@@ -16,6 +16,7 @@
         "experimentalSpecifierResolution": "node"
     },
     "dependencies": {
+        "@aws-sdk/client-secrets-manager": "^3.985.0",
         "@prisma/client": "^6.19.0",
         "bcrypt": "^6.0.0",
         "body-parser": "^2.2.0",

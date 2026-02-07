@@ -2,6 +2,7 @@
 
 import { ApplicationEventBootstrap } from '@/_bootstrap/ApplicationEventBootstrap.js';
 import { DomainEventBootstrap } from '@/_bootstrap/DomainEventBootstrap.js';
+import { AppSecretsLoader } from '@/_sharedTech/config/AppSecretsLoader.js';
 import { loadEnv } from '@/_sharedTech/config/loadEnv.js';
 import { errorHandler } from '@/api/middleware/errorHandler.js';
 import cors from 'cors';
@@ -96,6 +97,10 @@ const loadRoutes = async (dir: string) => {
 // 🩺 サーバ起動
 // ============================================================
 try {
+    // アプリケーションシークレットをロード（起動時に1回だけ）
+    await AppSecretsLoader.load()
+    console.log('🔑 App secrets loaded (OAuth + Database)');
+
     await loadRoutes(apiRoot);
 
     // ============================================================

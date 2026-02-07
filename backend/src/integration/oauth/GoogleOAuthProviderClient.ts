@@ -1,3 +1,4 @@
+import { AppSecretsLoader } from '@/_sharedTech/config/AppSecretsLoader.js';
 import { OAuthHttpClient } from '@/_sharedTech/http/OAuthHttpClient.js';
 import type {
     IOAuthProviderClient,
@@ -10,13 +11,8 @@ export class GoogleOAuthProviderClient implements IOAuthProviderClient {
     constructor(private readonly http: OAuthHttpClient = new OAuthHttpClient()) { }
 
     async fetchProfile(params: { code: string; redirectUri?: string }): Promise<OAuthProfile> {
-        const clientId = process.env.GOOGLE_CLIENT_ID
-        const clientSecret = process.env.GOOGLE_CLIENT_SECRET
-        const redirectUri = params.redirectUri ?? process.env.GOOGLE_REDIRECT_URI
-
-        if (!clientId || !clientSecret || !redirectUri) {
-            throw new Error('Missing GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/GOOGLE_REDIRECT_URI')
-        }
+        const config = AppSecretsLoader.getOAuth().google
+        const redirectUri = params.redirectUri ?? config.redirectUri
 
         const token = await this.http.postForm<{
             access_token: string
@@ -26,8 +22,8 @@ export class GoogleOAuthProviderClient implements IOAuthProviderClient {
             id_token?: string
         }>('https://oauth2.googleapis.com/token', {
             code: params.code,
-            client_id: clientId,
-            client_secret: clientSecret,
+            client_id: config.clientId,
+            client_secret: config.clientSecret,
             redirect_uri: redirectUri,
             grant_type: 'authorization_code',
         })
