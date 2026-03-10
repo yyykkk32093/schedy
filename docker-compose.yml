@@ -1,0 +1,42 @@
+# ============================================
+# Schedy ローカル開発インフラ
+# PostgreSQL 14 + LocalStack (S3)
+# ============================================
+# 起動: pnpm infra:up
+# 停止: pnpm infra:down
+# ============================================
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    container_name: schedy-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: app_password
+      POSTGRES_DB: reserve_manage
+    volumes:
+      - schedy-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_user -d reserve_manage"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: schedy-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: s3
+      DEFAULT_REGION: ap-northeast-1
+      EAGER_SERVICE_LOADING: 1
+    volumes:
+      - ./infra/localstack/init-s3.sh:/etc/localstack/init/ready.d/init-s3.sh:ro
+      - schedy-localstack:/var/lib/localstack
+
+volumes:
+  schedy-pgdata:
+  schedy-localstack:

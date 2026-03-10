@@ -1,3 +1,4 @@
+import { DomainValidationError } from '@/domains/_sharedDomains/error/DomainValidationError.js'
 import { ValueObject } from '@/domains/_sharedDomains/model/valueObject/ValueObject.js'
 
 export class Biography extends ValueObject<string> {
@@ -7,7 +8,7 @@ export class Biography extends ValueObject<string> {
 
     static create(value: string): Biography {
         if (value.length > 500) {
-            throw new Error('Biography must be 500 characters or less')
+            throw new DomainValidationError('Biography must be 500 characters or less', 'INVALID_BIOGRAPHY')
         }
         return new Biography(value)
     }

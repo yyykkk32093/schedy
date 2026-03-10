@@ -2,13 +2,17 @@
 
 import { ApplicationEventBootstrap } from '@/_bootstrap/ApplicationEventBootstrap.js';
 import { DomainEventBootstrap } from '@/_bootstrap/DomainEventBootstrap.js';
+import { RealtimeEmitterBootstrap } from '@/_bootstrap/RealtimeEmitterBootstrap.js';
 import { AppSecretsLoader } from '@/_sharedTech/config/AppSecretsLoader.js';
 import { loadEnv } from '@/_sharedTech/config/loadEnv.js';
 import { errorHandler } from '@/api/middleware/errorHandler.js';
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs/promises';
+import http from 'http';
 import path, { dirname } from 'path';
+import { Server as SocketIOServer } from 'socket.io';
 import { loadConfig, register } from 'tsconfig-paths';
 import { fileURLToPath, pathToFileURL } from 'url';
 import util from 'util';
@@ -48,9 +52,31 @@ if (tsConfig.resultType === 'success') {
 // 🚀 Express 初期化
 // ============================================================
 const app = express();
-app.use(cors());
+
+// CORS: credentials (httpOnly Cookie) を送受信するため明示的にオリジン指定
+const allowedOrigins = [
+    'http://localhost:5173',  // Vite dev server
+    'http://localhost:4173',  // Vite preview
+];
+app.use(cors({
+    origin: (origin, callback) => {
+        // origin が undefined の場合は同一オリジン（サーバー間通信等）
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error(`CORS not allowed for origin: ${origin}`));
+        }
+    },
+    credentials: true,
+}));
+
+app.use(cookieParser());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// 静的ファイル配信（アップロードファイル）
+app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 
 console.log('🟡 Starting server boot sequence...');
 const apiRoot = path.resolve(__dirname, '.');
@@ -119,8 +145,58 @@ try {
     // ============================================================
     app.use(errorHandler)
 
+    // ============================================================
+    // 🔌 HTTP Server + Socket.io
+    // ============================================================
+    const httpServer = http.createServer(app);
+    const io = new SocketIOServer(httpServer, {
+        cors: {
+            origin: allowedOrigins,
+            credentials: true,
+        },
+    });
+
+    // Socket.io を app に保存（他モジュールから参照可能に）
+    app.set('io', io);
+
+    // IRealtimeEmitter シングルトン初期化（NotificationService 等で使用）
+    RealtimeEmitterBootstrap.initialize(io);
+
+    // WebSocket 認証ミドルウェア
+    io.use(async (socket, next) => {
+        const jwtSecret = process.env.JWT_SECRET || 'fallback-secret';
+        const { JwtTokenService } = await import('@/_sharedTech/security/JwtTokenService.js');
+        const jwtService = new JwtTokenService(jwtSecret);
+
+        // 1. handshake.auth.token → 2. Cookie
+        let token = socket.handshake.auth?.token as string | undefined;
+        if (!token) {
+            const cookieHeader = socket.handshake.headers.cookie;
+            if (cookieHeader) {
+                const match = cookieHeader.match(/token=([^;]+)/);
+                if (match) token = match[1];
+            }
+        }
+
+        if (!token) {
+            return next(new Error('UNAUTHORIZED'));
+        }
+
+        try {
+            const payload = jwtService.verify(token);
+            (socket as any).user = { userId: payload.sub, email: payload.email };
+            next();
+        } catch {
+            next(new Error('INVALID_TOKEN'));
+        }
+    });
+
+    // WebSocket イベントハンドラを動的ロード
+    const { registerSocketHandlers } = await import('@/api/ws/socketHandlers.js');
+    registerSocketHandlers(io);
+
     const PORT = Number(process.env.PORT || 3000);
-    app.listen(PORT, () => {
+    httpServer.listen(PORT, () => {
         console.log(`🚀 Server running at http://localhost:${PORT}`);
     });
 } catch (err) {

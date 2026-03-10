@@ -1,6 +1,7 @@
-import { logger } from "@/_sharedTech/logger/logger.js"
+import { HandlerNotFoundError } from "@/integration/error/IntegrationError.js"
 import { OutboxEvent } from "../outbox/model/entity/OutboxEvent.js"
 import { IntegrationHandler } from "./handler/IntegrationHandler.js"
+
 export class IntegrationDispatcher {
     private handlers = new Map<string, IntegrationHandler>()
 
@@ -12,11 +13,7 @@ export class IntegrationDispatcher {
         const handler = this.handlers.get(routingKey)
 
         if (!handler) {
-            logger.warn(
-                { eventId: event.outboxEventId, routingKey },
-                "No handler found for routingKey"
-            )
-            return
+            throw new HandlerNotFoundError(routingKey)
         }
 
         return handler.handle(event)

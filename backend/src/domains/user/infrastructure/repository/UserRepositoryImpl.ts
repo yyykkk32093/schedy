@@ -31,6 +31,14 @@ export class UserRepositoryImpl implements IUserRepository {
         return this.toDomain(record)
     }
 
+    async findByIds(ids: string[]): Promise<User[]> {
+        if (ids.length === 0) return []
+        const records = await this.db.user.findMany({
+            where: { id: { in: ids } },
+        })
+        return records.map((r) => this.toDomain(r))
+    }
+
     // ============================================================
     // Save / Upsert
     // ============================================================
@@ -42,7 +50,7 @@ export class UserRepositoryImpl implements IUserRepository {
             where: { id: data.id },
             update: {
                 displayName: data.displayName,
-                role: data.role,
+                plan: data.plan,
                 email: data.email,
                 phone: data.phone,
                 biography: data.biography,
@@ -53,7 +61,7 @@ export class UserRepositoryImpl implements IUserRepository {
             create: {
                 id: data.id,
                 displayName: data.displayName,
-                role: data.role,
+                plan: data.plan,
                 email: data.email,
                 phone: data.phone,
                 biography: data.biography,
@@ -75,7 +83,7 @@ export class UserRepositoryImpl implements IUserRepository {
         return {
             id: user.getId().getValue(),
             displayName: user.getDisplayName()?.getValue() ?? null,
-            role: user.getRole().getValue(),
+            plan: user.getPlan().getValue(),
             email: user.getEmail()?.getValue() ?? null,
             phone: user.getPhone()?.getValue() ?? null,
             biography: user.getBiography()?.getValue() ?? null,
@@ -101,7 +109,7 @@ export class UserRepositoryImpl implements IUserRepository {
         return User.reconstruct({
             id: record.id,
             displayName: record.displayName,
-            role: record.role,
+            plan: record.plan,
             email: record.email,
             phone: record.phone,
             biography: record.biography,

@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from 'express'
 
 import { usecaseFactory } from '@/api/_usecaseFactory.js'
+import { setAuthCookie } from '@/api/middleware/cookieUtils.js'
 
 export const oauthAuthController = {
     /**
@@ -37,6 +38,10 @@ export const oauthAuthController = {
                     ipAddress: req.ip,
                 })
 
+            // httpOnly Cookie を設定（Web Browser 向け）
+            setAuthCookie(res, result.accessToken)
+
+            // レスポンスボディにも返す（LIFF / ネイティブアプリ向け）
             return res.status(200).json({
                 userId: result.userId,
                 accessToken: result.accessToken,

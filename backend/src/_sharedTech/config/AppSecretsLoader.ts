@@ -53,12 +53,54 @@ export interface DatabaseConfig {
 }
 
 // ============================================
+// 型定義: Stripe
+// ============================================
+
+export interface StripeConfig {
+    secretKey: string
+    webhookSecret: string
+}
+
+// ============================================
+// 型定義: RevenueCat
+// ============================================
+
+export interface RevenueCatConfig {
+    apiKey: string
+    webhookAuthToken: string
+}
+
+// ============================================
+// 型定義: S3
+// ============================================
+
+export interface S3Config {
+    bucket: string
+    region: string
+    endpoint?: string
+    forcePathStyle?: boolean
+}
+
+// ============================================
+// 型定義: FCM (Firebase Cloud Messaging)
+// ============================================
+
+export interface FcmConfig {
+    /** サービスアカウントJSON文字列（ローカル環境変数 or Secrets Manager） */
+    serviceAccountJson: string | null
+}
+
+// ============================================
 // 型定義: 全シークレット
 // ============================================
 
 export interface AppSecrets {
     oauth: OAuthConfig
     database: DatabaseConfig
+    stripe: StripeConfig
+    revenueCat: RevenueCatConfig
+    s3: S3Config
+    fcm: FcmConfig
 }
 
 // ============================================
@@ -87,6 +129,23 @@ interface SecretsManagerPayload {
     }
     database: {
         url: string
+    }
+    stripe: {
+        secretKey: string
+        webhookSecret: string
+    }
+    revenueCat: {
+        apiKey: string
+        webhookAuthToken: string
+    }
+    s3: {
+        bucket: string
+        region: string
+        endpoint?: string
+        forcePathStyle?: boolean
+    }
+    fcm?: {
+        serviceAccountJson?: string
     }
 }
 
@@ -150,6 +209,54 @@ class AppSecretsLoaderImpl {
     }
 
     /**
+     * Stripe 設定を取得（load() 後に使用）
+     */
+    getStripe(): StripeConfig {
+        if (!this.cache) {
+            throw new Error(
+                'AppSecrets is not loaded. Call AppSecretsLoader.load() at application startup.'
+            )
+        }
+        return this.cache.stripe
+    }
+
+    /**
+     * RevenueCat 設定を取得（load() 後に使用）
+     */
+    getRevenueCat(): RevenueCatConfig {
+        if (!this.cache) {
+            throw new Error(
+                'AppSecrets is not loaded. Call AppSecretsLoader.load() at application startup.'
+            )
+        }
+        return this.cache.revenueCat
+    }
+
+    /**
+     * S3 設定を取得（load() 後に使用）
+     */
+    getS3(): S3Config {
+        if (!this.cache) {
+            throw new Error(
+                'AppSecrets is not loaded. Call AppSecretsLoader.load() at application startup.'
+            )
+        }
+        return this.cache.s3
+    }
+
+    /**
+     * FCM 設定を取得（load() 後に使用）
+     */
+    getFcm(): FcmConfig {
+        if (!this.cache) {
+            throw new Error(
+                'AppSecrets is not loaded. Call AppSecretsLoader.load() at application startup.'
+            )
+        }
+        return this.cache.fcm
+    }
+
+    /**
      * キャッシュをクリアする（テスト用）
      */
     clearCache(): void {
@@ -173,6 +280,10 @@ class AppSecretsLoaderImpl {
             this.cache = {
                 oauth,
                 database: { url: process.env.DATABASE_URL ?? '' },
+                stripe: { secretKey: '', webhookSecret: '' },
+                revenueCat: { apiKey: '', webhookAuthToken: '' },
+                s3: { bucket: '', region: 'ap-northeast-1' },
+                fcm: { serviceAccountJson: null },
             }
         } else {
             this.cache.oauth = oauth
@@ -228,6 +339,23 @@ class AppSecretsLoaderImpl {
             database: {
                 url: payload.database.url,
             },
+            stripe: {
+                secretKey: payload.stripe.secretKey,
+                webhookSecret: payload.stripe.webhookSecret,
+            },
+            revenueCat: {
+                apiKey: payload.revenueCat.apiKey,
+                webhookAuthToken: payload.revenueCat.webhookAuthToken,
+            },
+            s3: {
+                bucket: payload.s3.bucket,
+                region: payload.s3.region,
+                endpoint: payload.s3.endpoint,
+                forcePathStyle: payload.s3.forcePathStyle,
+            },
+            fcm: {
+                serviceAccountJson: payload.fcm?.serviceAccountJson ?? null,
+            },
         }
     }
 
@@ -254,6 +382,23 @@ class AppSecretsLoaderImpl {
             },
             database: {
                 url: requireEnv('DATABASE_URL'),
+            },
+            stripe: {
+                secretKey: requireEnv('STRIPE_SECRET_KEY'),
+                webhookSecret: requireEnv('STRIPE_WEBHOOK_SECRET'),
+            },
+            revenueCat: {
+                apiKey: requireEnv('REVENUECAT_API_KEY'),
+                webhookAuthToken: requireEnv('REVENUECAT_WEBHOOK_AUTH_TOKEN'),
+            },
+            s3: {
+                bucket: requireEnv('S3_BUCKET'),
+                region: requireEnv('S3_REGION'),
+                endpoint: process.env.S3_ENDPOINT || undefined,
+                forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
+            },
+            fcm: {
+                serviceAccountJson: process.env.FCM_SERVICE_ACCOUNT_JSON || null,
             },
         }
     }

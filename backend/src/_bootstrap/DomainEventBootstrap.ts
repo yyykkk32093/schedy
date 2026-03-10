@@ -1,5 +1,6 @@
 import { DomainEventBus } from '@/domains/_sharedDomains/domain/event/DomainEventBus.js'
 import { registerAuthDomainSubscribers } from '@/domains/auth/_sharedAuth/domain/event/AuthDomainSubscribersRegistrar.js'
+import { registerCommunityDomainSubscribers } from '@/domains/community/event/CommunityDomainSubscribersRegistrar.js'
 import { registerUserDomainSubscribers } from '@/domains/user/domain/event/UserDomainSubscribersRegistrar.js'
 
 /**
@@ -19,6 +20,7 @@ export class DomainEventBootstrap {
 
         registerUserDomainSubscribers(bus)
         registerAuthDomainSubscribers(bus)
+        registerCommunityDomainSubscribers(bus)
 
         this.domainEventBus = bus
     }

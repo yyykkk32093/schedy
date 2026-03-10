@@ -1,3 +1,4 @@
+import { DomainValidationError } from '@/domains/_sharedDomains/error/DomainValidationError.js'
 import { ValueObject } from './ValueObject.js'
 
 export class UserId extends ValueObject<string> {
@@ -7,7 +8,7 @@ export class UserId extends ValueObject<string> {
 
   static create(value: string): UserId {
     if (!value || value.trim() === '') {
-      throw new Error('UserId cannot be empty')
+      throw new DomainValidationError('UserId cannot be empty', 'INVALID_USER_ID')
     }
     return new UserId(value)
   }

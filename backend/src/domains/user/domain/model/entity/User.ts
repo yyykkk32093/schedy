@@ -9,13 +9,13 @@ import { Biography } from '../valueObject/Biography.js'
 import { DisplayName } from '../valueObject/DisplayName.js'
 import { PhoneNumber } from '../valueObject/PhoneNumber.js'
 import { QuietHours, UserNotificationSetting } from '../valueObject/UserNotificationSetting.js'
-import { UserRole } from '../valueObject/UserRole.js'
+import { UserPlan } from '../valueObject/UserPlan.js'
 
 export class User extends AggregateRoot {
     private constructor(
         private readonly id: UserId,
         private displayName: DisplayName | null,
-        private role: UserRole,
+        private plan: UserPlan,
         private email: EmailAddress | null,
         private phone: PhoneNumber | null,
         private biography: Biography | null,
@@ -42,7 +42,7 @@ export class User extends AggregateRoot {
         const user = new User(
             params.userId,
             params.displayName ?? null,
-            UserRole.create('MEMBER'),
+            UserPlan.create('FREE'),
             params.email ?? null,
             null,
             null,
@@ -69,7 +69,7 @@ export class User extends AggregateRoot {
     static create(params: {
         id: string
         displayName?: string | null
-        role?: UserRole
+        plan?: UserPlan
         email?: string | null
     }): User {
         const now = new Date()
@@ -77,7 +77,7 @@ export class User extends AggregateRoot {
         return new User(
             UserId.create(params.id),
             params.displayName ? DisplayName.create(params.displayName) : null,
-            params.role ?? UserRole.create('MEMBER'),
+            params.plan ?? UserPlan.create('FREE'),
             params.email ? EmailAddress.create(params.email) : null,
             null,
             null,
@@ -94,7 +94,7 @@ export class User extends AggregateRoot {
     static reconstruct(params: {
         id: string
         displayName: string | null
-        role: string
+        plan: string
         email: string | null
         phone: string | null
         biography: string | null
@@ -112,7 +112,7 @@ export class User extends AggregateRoot {
         return new User(
             UserId.create(params.id),
             params.displayName ? DisplayName.reconstruct(params.displayName) : null,
-            UserRole.reconstruct(params.role),
+            UserPlan.reconstruct(params.plan),
             params.email ? EmailAddress.reconstruct(params.email) : null,
             params.phone ? PhoneNumber.reconstruct(params.phone) : null,
             params.biography ? Biography.reconstruct(params.biography) : null,
@@ -172,8 +172,8 @@ export class User extends AggregateRoot {
         this.updatedAt = new Date()
     }
 
-    changeRole(newRole: UserRole) {
-        this.role = newRole
+    changePlan(newPlan: UserPlan) {
+        this.plan = newPlan
         this.updatedAt = new Date()
     }
 
@@ -187,7 +187,7 @@ export class User extends AggregateRoot {
     getPhone() { return this.phone }
     getBiography() { return this.biography }
     getAvatarUrl() { return this.avatarUrl }
-    getRole() { return this.role }
+    getPlan() { return this.plan }
     getNotificationSetting() { return this.notificationSetting }
     getCreatedAt() { return this.createdAt }
     getUpdatedAt() { return this.updatedAt }

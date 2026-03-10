@@ -11,6 +11,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['test/**/*.test.ts']
+    include: ['test/**/*.test.ts'],
+    // E2Eテストが同一DBを共有するため、ファイル間の並列実行を無効化
+    fileParallelism: false,
   },
 })

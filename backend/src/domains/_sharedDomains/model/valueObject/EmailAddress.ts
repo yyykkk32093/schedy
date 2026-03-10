@@ -1,4 +1,5 @@
 // src/domains/_sharedDomains/model/valueObject/EmailAddress.ts
+import { DomainValidationError } from '@/domains/_sharedDomains/error/DomainValidationError.js'
 import { ValueObject } from './ValueObject.js'
 
 export class EmailAddress extends ValueObject<string> {
@@ -8,7 +9,7 @@ export class EmailAddress extends ValueObject<string> {
 
     static create(value: string): EmailAddress {
         if (!EmailAddress.isValid(value)) {
-            throw new Error('Invalid email address')
+            throw new DomainValidationError('Invalid email address', 'INVALID_EMAIL')
         }
         return new EmailAddress(value)
     }

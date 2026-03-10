@@ -1,0 +1,93 @@
+import { usecaseFactory } from '@/api/_usecaseFactory.js'
+import type { NextFunction, Request, Response } from 'express'
+
+export const activityController = {
+    async create(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { communityId } = req.params
+            const { title, description, defaultLocation, defaultStartTime, defaultEndTime, recurrenceRule, date } = req.body
+            const userId = req.user!.userId
+
+            const useCase = usecaseFactory.createCreateActivityUseCase()
+            const result = await useCase.execute({
+                communityId,
+                title,
+                description,
+                defaultLocation,
+                defaultStartTime,
+                defaultEndTime,
+                recurrenceRule,
+                date,
+                userId,
+            })
+
+            res.status(201).json(result)
+        } catch (err) {
+            next(err)
+        }
+    },
+
+    async list(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { communityId } = req.params
+
+            const useCase = usecaseFactory.createListActivitiesUseCase()
+            const result = await useCase.execute({ communityId })
+
+            res.status(200).json(result)
+        } catch (err) {
+            next(err)
+        }
+    },
+
+    async findById(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { id } = req.params
+
+            const useCase = usecaseFactory.createFindActivityUseCase()
+            const result = await useCase.execute({ activityId: id })
+
+            res.status(200).json(result)
+        } catch (err) {
+            next(err)
+        }
+    },
+
+    async update(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { id } = req.params
+            const { title, description, defaultLocation, defaultStartTime, defaultEndTime, recurrenceRule } = req.body
+            const userId = req.user!.userId
+
+            const useCase = usecaseFactory.createUpdateActivityUseCase()
+            await useCase.execute({
+                activityId: id,
+                userId,
+                title,
+                description,
+                defaultLocation,
+                defaultStartTime,
+                defaultEndTime,
+                recurrenceRule,
+            })
+
+            res.status(204).send()
+        } catch (err) {
+            next(err)
+        }
+    },
+
+    async softDelete(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { id } = req.params
+            const userId = req.user!.userId
+
+            const useCase = usecaseFactory.createSoftDeleteActivityUseCase()
+            await useCase.execute({ activityId: id, userId })
+
+            res.status(204).send()
+        } catch (err) {
+            next(err)
+        }
+    },
+}

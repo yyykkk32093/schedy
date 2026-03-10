@@ -55,37 +55,105 @@ model OutboxDeadLetter {
   routingKey    String
   eventType     String
 
-  payload      Json
-  errorMessage String?
-  errorStack   String?
+  payload        Json
+  errorMessage   String?
+  errorStack     String?
+  errorType      String // IntegrationError.errorType (e.g. HANDLER_NOT_FOUND, HTTP_CLIENT_ERROR)
+  retryCount     Int     @default(0)
+  lastHttpStatus Int? // HttpIntegrationError の statusCode（該当しない場合 null）
 
   occurredAt DateTime // 元イベントの発生時刻
   failedAt   DateTime @default(now())
 }
 
 model Activity {
-  id          String   @id @default(uuid())
-  title       String
-  description String?
-  startAt     DateTime
-  endAt       DateTime
-  location    String?
-  createdBy   String
-
-  status String // 'ACTIVE' | 'CANCELLED'
+  id               String    @id @default(uuid())
+  communityId      String
+  title            String
+  description      String?
+  defaultLocation  String?
+  defaultStartTime String? // "HH:mm" format
+  defaultEndTime   String? // "HH:mm" format
+  recurrenceRule   String? // null in Phase 1
+  createdBy        String
+  deletedAt        DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  community   Community    @relation(fields: [communityId], references: [id])
+  schedules   Schedule[]
+  chatChannel ChatChannel?
+
+  @@index([communityId])
   @@index([createdBy])
-  @@index([startAt])
-  @@index([status])
+}
+
+model Schedule {
+  id               String   @id @default(uuid())
+  activityId       String
+  date             DateTime @db.Date
+  startTime        String // "HH:mm" format
+  endTime          String // "HH:mm" format
+  location         String?
+  note             String?
+  status           String   @default("SCHEDULED") // SCHEDULED | CANCELLED
+  capacity         Int?
+  participationFee Int? // 参加費（円）。null = 無料
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activity        Activity        @relation(fields: [activityId], references: [id])
+  participations  Participation[]
+  waitlistEntries WaitlistEntry[]
+
+  @@index([activityId])
+  @@index([date])
+}
+
+model Participation {
+  id          String    @id @default(uuid())
+  scheduleId  String
+  userId      String
+  status      String    @default("ATTENDING") // ATTENDING | CANCELLED
+  isVisitor   Boolean   @default(false)
+  respondedAt DateTime  @default(now())
+  cancelledAt DateTime?
+
+  // UBL-8: Payment fields
+  paymentMethod      String? // CASH | PAYPAY | STRIPE | null (free)
+  paymentStatus      String? // UNPAID | REPORTED | CONFIRMED | REJECTED | null (free)
+  paymentReportedAt  DateTime?
+  paymentConfirmedAt DateTime?
+  paymentConfirmedBy String? // userId of admin who confirmed
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id])
+
+  @@unique([scheduleId, userId])
+  @@index([userId])
+}
+
+model WaitlistEntry {
+  id           String    @id @default(uuid())
+  scheduleId   String
+  userId       String
+  position     Int
+  status       String    @default("WAITING") // WAITING | PROMOTED | CANCELLED
+  registeredAt DateTime  @default(now())
+  promotedAt   DateTime?
+  cancelledAt  DateTime?
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id])
+
+  @@unique([scheduleId, userId])
+  @@index([scheduleId, position])
 }
 
 model User {
   id                  String  @id @default(uuid())
   displayName         String?
-  role                String  @default("MEMBER")
+  plan                String  @default("FREE")
   email               String? @unique
   phone               String?
   avatarUrl           String?
@@ -101,6 +169,9 @@ model User {
   appleCredential    AppleCredential?
 
   authSecurityState AuthSecurityState?
+
+  // Phase 2.5: 参加リクエスト
+  communityJoinRequests CommunityJoinRequest[]
 }
 
 model AuthSecurityState {
@@ -162,4 +233,626 @@ model AppleCredential {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---- Community ----
+
+model Community {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  logoUrl     String?
+  coverUrl    String?
+  parentId    String?
+  depth       Int       @default(0)
+  grade       String    @default("FREE") // 'FREE' | 'PREMIUM'
+  createdBy   String
+  deletedAt   DateTime?
+
+  // ---- Phase 2: Community Profile Fields ----
+  communityTypeId   String?
+  joinMethod        String  @default("FREE_JOIN") // 'FREE_JOIN' | 'APPROVAL' | 'INVITATION'
+  isPublic          Boolean @default(true)
+  maxMembers        Int?
+  mainActivityArea  String?
+  activityFrequency String?
+  nearestStation    String?
+  targetGender      String?
+  ageRange          String?
+
+  // UBL-8: Payment settings
+  payPayId              String?
+  enabledPaymentMethods String[] @default(["CASH"])
+
+  // Phase 3: Community Notification Settings
+  reminderEnabled          Boolean @default(true) // スケジュール/支払いリマインダーを送信するか
+  cancellationAlertEnabled Boolean @default(true) // 当日キャンセル時に管理者にアラートを送信するか
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent   Community?  @relation("CommunityHierarchy", fields: [parentId], references: [id])
+  children Community[] @relation("CommunityHierarchy")
+
+  communityType CommunityTypeMaster? @relation(fields: [communityTypeId], references: [id])
+
+  memberships   CommunityMembership[]
+  activities    Activity[]
+  announcements Announcement[]
+  chatChannel   ChatChannel?
+  albums        Album[]
+
+  // Phase 2: 正規化リレーション
+  categories          CommunityCategory[]
+  participationLevels CommunityParticipationLevel[]
+  activityDays        CommunityActivityDay[]
+  tags                CommunityTag[]
+
+  // Phase 2.5: 参加リクエスト
+  joinRequests CommunityJoinRequest[]
+
+  // UBL-34: 投票
+  polls Poll[]
+
+  // UBL-29: Webhook 連携
+  webhookConfigs CommunityWebhookConfig[]
+
+  @@index([createdBy])
+  @@index([parentId])
+  @@index([communityTypeId])
+}
+
+model CommunityMembership {
+  id          String    @id @default(uuid())
+  communityId String
+  userId      String
+  role        String    @default("MEMBER") // 'OWNER' | 'ADMIN' | 'MEMBER'
+  joinedAt    DateTime  @default(now())
+  leftAt      DateTime?
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, userId])
+  @@index([userId])
+}
+
+// ============================================================
+// CommunityJoinRequest（Phase 2.5: 承認制参加リクエスト）
+// ============================================================
+
+model CommunityJoinRequest {
+  id          String    @id @default(uuid())
+  communityId String
+  userId      String
+  status      String    @default("PENDING") // 'PENDING' | 'APPROVED' | 'REJECTED'
+  message     String?
+  reviewedBy  String?
+  reviewedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@unique([communityId, userId, status])
+  @@index([communityId])
+  @@index([userId])
+}
+
+// ============================================================
+// Announcement
+// ============================================================
+
+model Announcement {
+  id          String    @id @default(uuid())
+  communityId String
+  authorId    String
+  title       String
+  content     String
+  deletedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  community   Community                @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  reads       AnnouncementRead[]
+  likes       AnnouncementLike[]
+  comments    AnnouncementComment[]
+  attachments AnnouncementAttachment[]
+  polls       Poll[]
+
+  @@index([communityId])
+  @@index([authorId])
+}
+
+model AnnouncementRead {
+  id             String   @id @default(uuid())
+  announcementId String
+  userId         String
+  readAt         DateTime @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@index([userId])
+}
+
+// ============================================================
+// UBL-1: AnnouncementLike（いいね）
+// ============================================================
+
+model AnnouncementLike {
+  id             String   @id @default(uuid())
+  announcementId String
+  userId         String
+  createdAt      DateTime @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@index([userId])
+}
+
+// ============================================================
+// UBL-2: AnnouncementComment（コメント）
+// ============================================================
+
+model AnnouncementComment {
+  id             String   @id @default(uuid())
+  announcementId String
+  userId         String
+  content        String
+  createdAt      DateTime @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@index([announcementId, createdAt])
+  @@index([userId])
+}
+
+// ============================================================
+// UBL-3: AnnouncementAttachment（お知らせ画像添付）
+// ============================================================
+
+model AnnouncementAttachment {
+  id             String @id @default(uuid())
+  announcementId String
+  fileUrl        String
+  fileName       String
+  mimeType       String
+  fileSize       Int
+  sortOrder      Int    @default(0)
+
+  createdAt DateTime @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@index([announcementId])
+}
+
+// ============================================================
+// UBL-6: Album / AlbumPhoto
+// ============================================================
+
+model Album {
+  id          String  @id @default(uuid())
+  communityId String
+  title       String
+  description String?
+  createdBy   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  community Community    @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  photos    AlbumPhoto[]
+
+  @@index([communityId])
+}
+
+model AlbumPhoto {
+  id         String @id @default(uuid())
+  albumId    String
+  fileUrl    String
+  fileName   String
+  mimeType   String
+  fileSize   Int
+  uploadedBy String
+
+  createdAt DateTime @default(now())
+
+  album Album @relation(fields: [albumId], references: [id], onDelete: Cascade)
+
+  @@index([albumId])
+}
+
+// ============================================================
+// FeatureGate — 機能制限テーブル (memo.md §6)
+// ============================================================
+
+model UserFeatureRestriction {
+  id      String  @id @default(uuid())
+  plan    String // 'FREE' | 'SUBSCRIBER' | 'LIFETIME'
+  feature String // Feature enum の値
+  enabled Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([plan, feature])
+  @@index([plan])
+}
+
+model UserLimitRestriction {
+  id       String @id @default(uuid())
+  plan     String // 'FREE' | 'SUBSCRIBER' | 'LIFETIME'
+  limitKey String // 'maxJoinCommunities' | 'maxCustomStamps' etc.
+  value    Int // -1 = 無制限
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([plan, limitKey])
+  @@index([plan])
+}
+
+model CommunityFeatureRestriction {
+  id      String  @id @default(uuid())
+  grade   String // 'FREE' | 'PREMIUM'
+  feature String // CommunityFeature enum の値
+  enabled Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([grade, feature])
+  @@index([grade])
+}
+
+model CommunityLimitRestriction {
+  id       String @id @default(uuid())
+  grade    String // 'FREE' | 'PREMIUM'
+  limitKey String // 'maxMembers' etc.
+  value    Int // -1 = 無制限
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([grade, limitKey])
+  @@index([grade])
+}
+
+// ============================================================
+// ChatChannel + Message
+// ============================================================
+
+// ============================================================
+// UBL-10: CommunityAuditLog（コミュニティ設定変更履歴）
+// ============================================================
+
+model CommunityAuditLog {
+  id          String  @id @default(uuid())
+  communityId String
+  actorUserId String
+  action      String // SETTINGS_UPDATED | ROLE_CHANGED | MEMBER_REMOVED | OWNER_TRANSFERRED | MEMBER_ADDED
+  field       String? // 変更フィールド名 (e.g. "name", "visibility")
+  before      String? // 変更前値 JSON
+  after       String? // 変更後値 JSON
+  summary     String // 人間可読サマリ (e.g. "コミュニティ名を変更")
+
+  createdAt DateTime @default(now())
+
+  @@index([communityId, createdAt])
+}
+
+// ============================================================
+// UBL-11: InviteToken（メンバー招待トークン）
+// ============================================================
+
+model InviteToken {
+  id          String    @id @default(uuid())
+  communityId String
+  token       String    @unique @default(uuid())
+  createdBy   String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  usedBy      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([communityId])
+  @@index([token])
+}
+
+model ChatChannel {
+  id          String  @id @default(uuid())
+  type        String // COMMUNITY | ACTIVITY | DM
+  communityId String? @unique
+  activityId  String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  community      Community?      @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  activity       Activity?       @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  messages       Message[]
+  dmParticipants DMParticipant[]
+
+  @@index([type])
+}
+
+model Message {
+  id              String  @id @default(uuid())
+  channelId       String
+  senderId        String
+  parentMessageId String?
+  content         String
+  mentions        Json    @default("[]") // UserId[]
+  isPinned        Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  channel     ChatChannel         @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  parent      Message?            @relation("MessageThread", fields: [parentMessageId], references: [id])
+  replies     Message[]           @relation("MessageThread")
+  attachments MessageAttachment[]
+  reactions   MessageReaction[]
+
+  @@index([channelId, createdAt])
+  @@index([parentMessageId])
+  @@index([senderId])
+}
+
+model MessageAttachment {
+  id        String @id @default(uuid())
+  messageId String
+  fileUrl   String
+  fileName  String
+  fileSize  Int
+  mimeType  String
+
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+model DMParticipant {
+  id        String   @id @default(uuid())
+  channelId String
+  userId    String
+  joinedAt  DateTime @default(now())
+
+  channel ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+  @@index([userId])
+}
+
+// ============================================================
+// Stamp + MessageReaction
+// ============================================================
+
+model Stamp {
+  id              String @id @default(uuid())
+  createdByUserId String
+  name            String
+  imageUrl        String
+
+  createdAt DateTime @default(now())
+
+  reactions MessageReaction[]
+
+  @@index([createdByUserId])
+}
+
+model MessageReaction {
+  id        String @id @default(uuid())
+  messageId String
+  userId    String
+  stampId   String
+
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  stamp   Stamp   @relation(fields: [stampId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, stampId])
+  @@index([messageId])
+}
+
+// ============================================================
+// Notification
+// ============================================================
+
+model Notification {
+  id            String  @id @default(uuid())
+  userId        String
+  type          String // MENTION | DM | ANNOUNCEMENT | WAITLIST_PROMOTED | etc.
+  title         String
+  body          String?
+  referenceId   String? // 関連エンティティのID
+  referenceType String? // MESSAGE | ANNOUNCEMENT | SCHEDULE | etc.
+  isRead        Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead, createdAt])
+}
+
+// ============================================================
+// Device Token (FCM Push Notification)
+// ============================================================
+
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique // FCM registration token
+  platform  String // 'ios' | 'android' | 'web'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ============================================================
+// Community Master Tables (Phase 2)
+// ============================================================
+
+model CommunityTypeMaster {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  nameEn    String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  communities Community[]
+}
+
+model CategoryMaster {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  nameEn    String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  communityCategories CommunityCategory[]
+}
+
+model ParticipationLevelMaster {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  nameEn    String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  communityLevels CommunityParticipationLevel[]
+}
+
+// ============================================================
+// Community Intermediate Tables (Phase 2)
+// ============================================================
+
+model CommunityCategory {
+  id          String @id @default(uuid())
+  communityId String
+  categoryId  String
+
+  community Community      @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  category  CategoryMaster @relation(fields: [categoryId], references: [id])
+
+  @@unique([communityId, categoryId])
+  @@index([categoryId])
+}
+
+model CommunityParticipationLevel {
+  id          String @id @default(uuid())
+  communityId String
+  levelId     String
+
+  community Community                @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  level     ParticipationLevelMaster @relation(fields: [levelId], references: [id])
+
+  @@unique([communityId, levelId])
+  @@index([levelId])
+}
+
+// ============================================================
+// Community Value Tables (Phase 2)
+// ============================================================
+
+model CommunityActivityDay {
+  id          String @id @default(uuid())
+  communityId String
+  day         String // 月, 火, 水, 木, 金, 土, 日
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, day])
+}
+
+model CommunityTag {
+  id          String @id @default(uuid())
+  communityId String
+  tag         String
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, tag])
+}
+
+// ============================================================
+// UBL-34: Poll / PollOption / PollVote（投票/アンケート）
+// ============================================================
+
+model Poll {
+  id               String    @id @default(uuid())
+  communityId      String
+  announcementId   String?
+  question         String
+  isMultipleChoice Boolean   @default(false)
+  deadline         DateTime?
+  createdBy        String
+  deletedAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  community    Community     @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  announcement Announcement? @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  options      PollOption[]
+
+  @@index([communityId])
+  @@index([announcementId])
+  @@index([createdBy])
+}
+
+model PollOption {
+  id        String @id @default(uuid())
+  pollId    String
+  text      String
+  sortOrder Int    @default(0)
+
+  createdAt DateTime @default(now())
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@index([pollId])
+}
+
+model PollVote {
+  id           String   @id @default(uuid())
+  pollOptionId String
+  userId       String
+  votedAt      DateTime @default(now())
+
+  pollOption PollOption @relation(fields: [pollOptionId], references: [id], onDelete: Cascade)
+
+  @@unique([pollOptionId, userId])
+  @@index([userId])
+}
+
+// ============================================================
+// UBL-29: CommunityWebhookConfig（外部通知連携）
+// ============================================================
+
+model CommunityWebhookConfig {
+  id          String  @id @default(uuid())
+  communityId String
+  service     String // 'LINE'（将来: 'SLACK' | 'DISCORD'）
+  webhookUrl  String
+  enabled     Boolean @default(true)
+  createdBy   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, service])
+  @@index([communityId])
 }

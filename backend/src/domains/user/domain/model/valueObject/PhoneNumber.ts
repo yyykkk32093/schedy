@@ -1,3 +1,4 @@
+import { DomainValidationError } from '@/domains/_sharedDomains/error/DomainValidationError.js'
 import { ValueObject } from '@/domains/_sharedDomains/model/valueObject/ValueObject.js'
 
 /**
@@ -13,7 +14,7 @@ export class PhoneNumber extends ValueObject<string> {
         const cleaned = value.replace(/[-\s]/g, '')
 
         if (!/^\+?\d{7,15}$/.test(cleaned)) {
-            throw new Error('Invalid phone number format')
+            throw new DomainValidationError('Invalid phone number format', 'INVALID_PHONE_NUMBER')
         }
         return new PhoneNumber(cleaned)
     }

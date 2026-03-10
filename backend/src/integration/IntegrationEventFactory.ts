@@ -4,6 +4,7 @@ import type { IntegrationEvent } from '@/integration/IntegrationEvent.js'
 
 import type { UserLoginFailedEvent } from '@/application/auth/event/UserLoginFailedEvent.js'
 import type { UserLoginSucceededEvent } from '@/application/auth/event/UserLoginSucceededEvent.js'
+import type { CommunityCreatedEvent } from '@/domains/community/event/CommunityCreatedEvent.js'
 import type { UserRegisteredEvent } from '@/domains/user/domain/event/UserRegisteredEvent.js'
 
 /**
@@ -21,6 +22,8 @@ export class IntegrationEventFactory {
                 return this.fromUserLoginSucceeded(source as unknown as UserLoginSucceededEvent)
             case 'UserLoginFailedEvent':
                 return this.fromUserLoginFailed(source as unknown as UserLoginFailedEvent)
+            case 'CommunityCreatedEvent':
+                return this.fromCommunityCreated(source as unknown as CommunityCreatedEvent)
             default:
                 return []
         }
@@ -86,6 +89,28 @@ export class IntegrationEventFactory {
             authMethod: event.method,
             reason: event.reason,
             ipAddress: event.ipAddress,
+        }
+
+        return [
+            this.createIntegrationEvent({
+                source: event,
+                aggregateId,
+                eventType,
+                routingKey,
+                payload,
+            }),
+        ]
+    }
+
+    private fromCommunityCreated(event: CommunityCreatedEvent): IntegrationEvent[] {
+        const eventType = 'community.created'
+        const routingKey = 'audit.log'
+        const aggregateId = event.communityId.getValue()
+
+        const payload = {
+            communityId: event.communityId.getValue(),
+            name: event.name.getValue(),
+            createdBy: event.createdBy.getValue(),
         }
 
         return [

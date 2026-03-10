@@ -5,6 +5,8 @@ import { computeEqualJitterDelay } from '@/_sharedTech/util/retry.js'
 import { sleep } from '@/_sharedTech/util/sleep.js'
 
 import type { IntegrationDispatcher } from '@/integration/dispatcher/IntegrationDispatcher.js'
+import { HandlerInternalError, IntegrationError } from '@/integration/error/IntegrationError.js'
+import { OutboxEvent } from '@/integration/outbox/model/entity/OutboxEvent.js'
 import { IOutboxDeadLetterRepository } from '@/integration/outbox/repository/IOutboxDeadLetterRepository.js'
 import type { IOutboxRepository } from '@/integration/outbox/repository/IOutboxRepository.js'
 import { IOutboxRetryPolicyRepository } from '@/integration/outbox/repository/IOutboxRetryPolicyRepository.js'
@@ -51,7 +53,7 @@ export class OutboxWorker {
     }
 
 
-    private async processEvent(ev: any): Promise<void> {
+    private async processEvent(ev: OutboxEvent): Promise<void> {
         const ctx = { outboxEventId: ev.outboxEventId, routingKey: ev.routingKey }
 
         // RetryPolicy fetch
@@ -69,9 +71,29 @@ export class OutboxWorker {
             await this.repo.markAsPublished(ev.outboxEventId)
             logger.info(ctx, "Event published")
         }
-        catch (err) {
-            logger.error({ ...ctx, error: err }, "Event dispatch failed")
+        catch (rawErr) {
+            // IntegrationError でなければ HandlerInternalError で wrap
+            const err = rawErr instanceof IntegrationError
+                ? rawErr
+                : new HandlerInternalError(
+                    rawErr instanceof Error ? rawErr.message : String(rawErr),
+                    rawErr,
+                )
 
+            logger.error(
+                { ...ctx, errorType: err.errorType, retryable: err.retryable, error: err },
+                "Event dispatch failed",
+            )
+
+            // ── retryable=false → 即 FAILED + DLQ ──
+            if (!err.retryable) {
+                await this.dlqRepo.save(ev, err)
+                await this.repo.markAsFailed(ev.outboxEventId)
+                logger.error(ctx, "Event FAILED (non-retryable)")
+                return
+            }
+
+            // ── retryable=true → リトライ or maxRetries 到達で DLQ ──
             const nextRetry = ev.retryCount + 1
 
             if (nextRetry >= policy.maxRetries) {

@@ -1,4 +1,5 @@
 // src/domains/user/domain/model/valueObject/DisplayName.ts
+import { DomainValidationError } from '@/domains/_sharedDomains/error/DomainValidationError.js'
 import { ValueObject } from '@/domains/_sharedDomains/model/valueObject/ValueObject.js'
 
 export class DisplayName extends ValueObject<string> {
@@ -9,10 +10,10 @@ export class DisplayName extends ValueObject<string> {
     static create(value: string): DisplayName {
         const trimmed = value.trim()
         if (!trimmed) {
-            throw new Error('DisplayName must not be empty')
+            throw new DomainValidationError('DisplayName must not be empty', 'INVALID_DISPLAY_NAME')
         }
         if (trimmed.length > 50) {
-            throw new Error('DisplayName must be 50 characters or less')
+            throw new DomainValidationError('DisplayName must be 50 characters or less', 'INVALID_DISPLAY_NAME')
         }
         return new DisplayName(trimmed)
     }

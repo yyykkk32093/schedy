@@ -1,5 +1,7 @@
 // src/application/auth/error/AuthenticationFailedError.ts
 
+import { HttpError } from '@/application/_sharedApplication/error/HttpError.js';
+
 export type AuthFailureReason =
     | 'USER_NOT_FOUND'
     | 'CREDENTIAL_NOT_FOUND'
@@ -9,17 +11,19 @@ export type AuthFailureReason =
 /**
  * 認証失敗（API向け）
  *
- * - HTTP応答の理由コード（reason）を型で固定する
- * - ステータスは基本 401（仕様に合わせる）
+ * - HttpError を継承し、errorHandler で統一的に処理される
+ * - reason を code として渡すことで、レスポンス形式が { code, message } に統一される
  */
-export class AuthenticationFailedError extends Error {
+export class AuthenticationFailedError extends HttpError {
     readonly reason: AuthFailureReason
-    readonly statusCode: number
 
     constructor(params: { reason: AuthFailureReason; statusCode?: number }) {
-        super(params.reason)
+        super({
+            statusCode: params.statusCode ?? 401,
+            code: params.reason,
+            message: params.reason,
+        })
         this.reason = params.reason
-        this.statusCode = params.statusCode ?? 401
         this.name = 'AuthenticationFailedError'
     }
 }

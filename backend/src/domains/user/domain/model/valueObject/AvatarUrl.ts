@@ -1,3 +1,4 @@
+import { DomainValidationError } from '@/domains/_sharedDomains/error/DomainValidationError.js'
 import { ValueObject } from '@/domains/_sharedDomains/model/valueObject/ValueObject.js'
 
 export class AvatarUrl extends ValueObject<string> {
@@ -7,7 +8,7 @@ export class AvatarUrl extends ValueObject<string> {
 
     static create(value: string): AvatarUrl {
         if (!AvatarUrl.isValidUrl(value)) {
-            throw new Error('Invalid avatar URL')
+            throw new DomainValidationError('Invalid avatar URL', 'INVALID_AVATAR_URL')
         }
         return new AvatarUrl(value)
     }

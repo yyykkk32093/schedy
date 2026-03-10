@@ -35,6 +35,9 @@
 - **APIエントリ**: `backend/src/api/server.ts`
 - **UseCase実装例**: `backend/src/application/`
 - **ドメインモデル**: `backend/src/domains/`
+- **案件管理**: `projects/`（frontend-reform, liff-integration, ios-native, android-native）
+- **定型作業ガイド**: `projects/routine-tasks.md`
+- **統合バックログ**: `projects/frontend-reform/backlog/backlog-overview.md`
 
 ---
 
