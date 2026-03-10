@@ -35,10 +35,16 @@ export class CreateActivityUseCase {
         title: string
         description?: string | null
         defaultLocation?: string | null
+        defaultAddress?: string | null
         defaultStartTime?: string | null
         defaultEndTime?: string | null
         recurrenceRule?: string | null
+        organizerUserId?: string | null
         date?: string | null          // 初回 Schedule の開催日 (YYYY-MM-DD)。Activity の属性ではない
+        participationFee?: number | null
+        isOnline?: boolean
+        meetingUrl?: string | null
+        capacity?: number | null
         userId: string
     }): Promise<{ activityId: string }> {
         let activityId = ''
@@ -63,9 +69,11 @@ export class CreateActivityUseCase {
                 title: ActivityTitle.create(input.title),
                 description: ActivityDescription.createNullable(input.description),
                 defaultLocation: DefaultLocation.createNullable(input.defaultLocation),
+                defaultAddress: input.defaultAddress ?? null,
                 defaultStartTime: TimeOfDay.createNullable(input.defaultStartTime),
                 defaultEndTime: TimeOfDay.createNullable(input.defaultEndTime),
                 recurrenceRule: input.recurrenceRule ?? null,
+                organizerUserId: input.organizerUserId ? UserId.create(input.organizerUserId) : null,
                 createdBy: UserId.create(input.userId),
             })
 
@@ -82,6 +90,10 @@ export class CreateActivityUseCase {
                     startTime: TimeOfDay.create(input.defaultStartTime ?? '09:00'),
                     endTime: TimeOfDay.create(input.defaultEndTime ?? '10:00'),
                     location: input.defaultLocation ?? null,
+                    participationFee: input.participationFee ?? null,
+                    isOnline: input.isOnline ?? false,
+                    meetingUrl: input.meetingUrl ?? null,
+                    capacity: input.capacity ?? null,
                 })
                 await repos.schedule.save(schedule)
             }

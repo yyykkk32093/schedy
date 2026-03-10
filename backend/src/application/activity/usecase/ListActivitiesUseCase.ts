@@ -16,6 +16,7 @@ export class ListActivitiesUseCase {
             defaultLocation: string | null
             defaultStartTime: string | null
             defaultEndTime: string | null
+            organizerUserId: string | null
             createdBy: string
             upcomingSchedules: Array<{
                 date: string
@@ -39,8 +40,10 @@ export class ListActivitiesUseCase {
                     title: a.getTitle().getValue(),
                     description: a.getDescription()?.getValue() ?? null,
                     defaultLocation: a.getDefaultLocation()?.getValue() ?? null,
+                    defaultAddress: a.getDefaultAddress(),
                     defaultStartTime: a.getDefaultStartTime()?.getValue() ?? null,
                     defaultEndTime: a.getDefaultEndTime()?.getValue() ?? null,
+                    organizerUserId: a.getOrganizerUserId()?.getValue() ?? null,
                     createdBy: a.getCreatedBy().getValue(),
                     upcomingSchedules: upcoming.map((s) => ({
                         date: s.getDate().toISOString().slice(0, 10),

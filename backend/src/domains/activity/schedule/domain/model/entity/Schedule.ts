@@ -26,6 +26,8 @@ export class Schedule extends AggregateRoot {
         private status: ScheduleStatus,
         private capacity: ScheduleCapacity,
         private participationFee: number | null,
+        private isOnline: boolean,
+        private meetingUrl: string | null,
     ) {
         super()
     }
@@ -40,6 +42,8 @@ export class Schedule extends AggregateRoot {
         note?: string | null
         capacity?: number | null
         participationFee?: number | null
+        isOnline?: boolean
+        meetingUrl?: string | null
     }): Schedule {
         if (!params.startTime.isBefore(params.endTime)) {
             throw new DomainValidationError(
@@ -59,6 +63,8 @@ export class Schedule extends AggregateRoot {
             ScheduleStatus.scheduled(),
             ScheduleCapacity.createNullable(params.capacity),
             params.participationFee ?? null,
+            params.isOnline ?? false,
+            params.meetingUrl ?? null,
         )
     }
 
@@ -73,6 +79,8 @@ export class Schedule extends AggregateRoot {
         status: ScheduleStatus
         capacity: ScheduleCapacity
         participationFee: number | null
+        isOnline: boolean
+        meetingUrl: string | null
     }): Schedule {
         return new Schedule(
             params.id,
@@ -85,6 +93,8 @@ export class Schedule extends AggregateRoot {
             params.status,
             params.capacity,
             params.participationFee,
+            params.isOnline,
+            params.meetingUrl,
         )
     }
 
@@ -98,6 +108,8 @@ export class Schedule extends AggregateRoot {
         note?: string | null
         capacity?: number | null
         participationFee?: number | null
+        isOnline?: boolean
+        meetingUrl?: string | null
     }): void {
         if (this.isCancelled()) {
             throw new DomainValidationError('キャンセル済みスケジュールは更新できません', 'SCHEDULE_ALREADY_CANCELLED')
@@ -109,6 +121,8 @@ export class Schedule extends AggregateRoot {
         if (params.note !== undefined) this.note = params.note
         if (params.capacity !== undefined) this.capacity = ScheduleCapacity.create(params.capacity)
         if (params.participationFee !== undefined) this.participationFee = params.participationFee
+        if (params.isOnline !== undefined) this.isOnline = params.isOnline
+        if (params.meetingUrl !== undefined) this.meetingUrl = params.meetingUrl
 
         // 更新後の整合性チェック
         if (!this.startTime.isBefore(this.endTime)) {
@@ -152,4 +166,6 @@ export class Schedule extends AggregateRoot {
     getStatus(): ScheduleStatus { return this.status }
     getCapacity(): ScheduleCapacity { return this.capacity }
     getParticipationFee(): number | null { return this.participationFee }
+    getIsOnline(): boolean { return this.isOnline }
+    getMeetingUrl(): string | null { return this.meetingUrl }
 }

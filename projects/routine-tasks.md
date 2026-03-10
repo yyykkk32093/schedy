@@ -122,10 +122,10 @@ projects/{project-name}/backlog/phase-N-progress.md
 
 ### 対象ファイル
 
-| ファイル                                                       | 用途                       |
-| -------------------------------------------------------------- | -------------------------- |
-| `backend/infra/database/seeds/testdata/home_feed_testdata.sql` | Home画面フィード表示確認用 |
-| （今後追加される `*_testdata.sql`）                            | 各機能の動作確認用         |
+| ファイル                                                  | 用途                      |
+| --------------------------------------------------------- | ------------------------- |
+| `backend/infra/database/seeds/testdata/e2e-seed-data.sql` | E2E動作確認用シードデータ |
+| （今後追加される `*_testdata.sql`）                       | 各機能の動作確認用        |
 
 ### 更新タイミング
 
@@ -155,7 +155,7 @@ projects/{project-name}/backlog/phase-N-progress.md
 ```bash
 # テストデータ投入
 cd backend && PGPASSWORD=app_password psql -h localhost -p 5432 -U app_user -d reserve_manage \
-  -f infra/database/seeds/testdata/home_feed_testdata.sql
+  -f infra/database/seeds/testdata/e2e-seed-data.sql
 
 # テストデータ削除（ファイル末尾の DELETE 文をコメント解除して実行、または直接）
 cd backend && PGPASSWORD=app_password psql -h localhost -p 5432 -U app_user -d reserve_manage \

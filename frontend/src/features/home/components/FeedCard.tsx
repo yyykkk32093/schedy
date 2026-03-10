@@ -1,12 +1,13 @@
 import { announcementApi } from '@/features/announcement/api/announcementApi'
-import { useToggleAnnouncementLike } from '@/features/announcement/hooks/useAnnouncementSocialQueries'
+import { useToggleAnnouncementBookmark, useToggleAnnouncementLike } from '@/features/announcement/hooks/useAnnouncementSocialQueries'
+import { useMyRole } from '@/features/community/hooks/useCommunityQueries'
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/components/ui/avatar'
 import { announcementFeedKeys } from '@/shared/lib/queryKeys'
 import type { AnnouncementFeedItem } from '@/shared/types/api'
 import { useQueryClient } from '@tanstack/react-query'
-import { Heart, MessageCircle, MoreHorizontal } from 'lucide-react'
+import { Bookmark, Heart, MessageCircle, MoreHorizontal } from 'lucide-react'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { CommentSection } from './CommentSection'
 
 interface FeedCardProps {
@@ -39,14 +40,27 @@ function getInitial(name: string | null): string {
 
 export function FeedCard({ item }: FeedCardProps) {
     const qc = useQueryClient()
+    const navigate = useNavigate()
     const [menuOpen, setMenuOpen] = useState(false)
     const [commentsOpen, setCommentsOpen] = useState(false)
 
     const likeMutation = useToggleAnnouncementLike()
+    const bookmarkMutation = useToggleAnnouncementBookmark()
+    const { isAdminOrAbove } = useMyRole(item.communityId)
 
     const handleMarkAsRead = async () => {
         await announcementApi.markAsRead(item.id)
         qc.invalidateQueries({ queryKey: announcementFeedKeys.all })
+        setMenuOpen(false)
+    }
+
+    const handleToggleBookmark = () => {
+        bookmarkMutation.mutate(item.id)
+        setMenuOpen(false)
+    }
+
+    const handleEdit = () => {
+        navigate(`/communities/${item.communityId}/announcements/create?edit=${item.id}`)
         setMenuOpen(false)
     }
 
@@ -93,7 +107,7 @@ export function FeedCard({ item }: FeedCardProps) {
                     {menuOpen && (
                         <>
                             <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                            <div className="absolute right-0 top-8 z-20 w-36 rounded-lg border bg-white py-1 shadow-md">
+                            <div className="absolute right-0 top-8 z-20 w-44 rounded-lg border bg-white py-1 shadow-md">
                                 {!item.isRead && (
                                     <button
                                         type="button"
@@ -101,6 +115,22 @@ export function FeedCard({ item }: FeedCardProps) {
                                         className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
                                     >
                                         既読にする
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={handleToggleBookmark}
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
+                                >
+                                    {item.isBookmarked ? 'ブックマーク解除' : 'ブックマークする'}
+                                </button>
+                                {isAdminOrAbove && (
+                                    <button
+                                        type="button"
+                                        onClick={handleEdit}
+                                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
+                                    >
+                                        編集する
                                     </button>
                                 )}
                             </div>
@@ -139,7 +169,7 @@ export function FeedCard({ item }: FeedCardProps) {
                 </div>
             )}
 
-            {/* UBL-1 / UBL-2: いいね＋コメント アクションバー */}
+            {/* UBL-1 / UBL-2 / 3-1: いいね＋コメント＋ブックマーク アクションバー */}
             <div className="mt-2 pl-[42px] flex items-center gap-4">
                 <button
                     type="button"
@@ -160,6 +190,17 @@ export function FeedCard({ item }: FeedCardProps) {
                 >
                     <MessageCircle className="h-4 w-4" />
                     {item.commentCount > 0 && <span>{item.commentCount}</span>}
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => bookmarkMutation.mutate(item.id)}
+                    disabled={bookmarkMutation.isPending}
+                    className="flex items-center gap-1 text-sm text-gray-500 hover:text-yellow-500 transition-colors ml-auto"
+                >
+                    <Bookmark
+                        className={`h-4 w-4 ${item.isBookmarked ? 'fill-yellow-500 text-yellow-500' : ''}`}
+                    />
                 </button>
             </div>
 

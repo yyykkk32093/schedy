@@ -8,7 +8,10 @@ import type {
     ListAnnouncementsResponse,
     ListCommentsResponse,
     SearchAnnouncementsResponse,
+    ToggleBookmarkResponse,
     ToggleLikeResponse,
+    UpdateAnnouncementRequest,
+    UpdateAnnouncementResponse,
 } from '@/shared/types/api'
 
 export const announcementApi = {
@@ -21,6 +24,9 @@ export const announcementApi = {
     create: (communityId: string, data: CreateAnnouncementRequest) =>
         http<CreateAnnouncementResponse>(`/v1/communities/${communityId}/announcements`, { method: 'POST', json: data }),
 
+    update: (id: string, data: UpdateAnnouncementRequest) =>
+        http<UpdateAnnouncementResponse>(`/v1/announcements/${id}`, { method: 'PATCH', json: data }),
+
     remove: (id: string) =>
         http<void>(`/v1/announcements/${id}`, { method: 'DELETE' }),
 
@@ -30,6 +36,10 @@ export const announcementApi = {
     // ── UBL-1: いいね ──
     toggleLike: (announcementId: string) =>
         http<ToggleLikeResponse>(`/v1/announcements/${announcementId}/like`, { method: 'POST' }),
+
+    // ── Phase 3 (3-1): ブックマーク ──
+    toggleBookmark: (announcementId: string) =>
+        http<ToggleBookmarkResponse>(`/v1/announcements/${announcementId}/bookmark`, { method: 'POST' }),
 
     // ── UBL-2: コメント ──
     listComments: (announcementId: string, cursor?: string) =>

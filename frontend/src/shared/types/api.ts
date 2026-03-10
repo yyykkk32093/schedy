@@ -315,10 +315,16 @@ export interface CreateActivityRequest {
     title: string
     description?: string | null
     defaultLocation?: string | null
+    defaultAddress?: string | null
     defaultStartTime?: string | null
     defaultEndTime?: string | null
     recurrenceRule?: string | null
+    organizerUserId?: string | null
     date?: string | null
+    participationFee?: number | null
+    isOnline?: boolean
+    meetingUrl?: string | null
+    capacity?: number | null
 }
 
 export interface CreateActivityResponse {
@@ -335,8 +341,10 @@ export interface ActivityListItem {
     title: string
     description: string | null
     defaultLocation: string | null
+    defaultAddress: string | null
     defaultStartTime: string | null
     defaultEndTime: string | null
+    organizerUserId: string | null
     createdBy: string
     createdByDisplayName: string | null
     upcomingSchedules: Array<{
@@ -348,15 +356,22 @@ export interface ActivityListItem {
 
 export interface ActivityDetail extends ActivityListItem {
     recurrenceRule: string | null
+    organizerDisplayName: string | null
 }
 
 export interface UpdateActivityRequest {
     title?: string
     description?: string | null
     defaultLocation?: string | null
+    defaultAddress?: string | null
     defaultStartTime?: string | null
     defaultEndTime?: string | null
     recurrenceRule?: string | null
+    organizerUserId?: string | null
+}
+
+export interface ChangeOrganizerRequest {
+    organizerUserId?: string | null
 }
 
 // ============================================================
@@ -371,6 +386,8 @@ export interface CreateScheduleRequest {
     note?: string | null
     capacity?: number | null
     participationFee?: number | null
+    isOnline?: boolean
+    meetingUrl?: string | null
 }
 
 export interface CreateScheduleResponse {
@@ -384,6 +401,7 @@ export interface ListSchedulesResponse {
 export interface ScheduleListItem {
     id: string
     activityId: string
+    communityId: string
     date: string
     startTime: string
     endTime: string
@@ -392,6 +410,12 @@ export interface ScheduleListItem {
     status: string
     capacity: number | null
     participationFee: number | null
+    isOnline: boolean
+    meetingUrl: string | null
+    participantCount?: number
+    myStatus?: 'none' | 'attending' | 'waitlisted'
+    attendingCount?: number
+    waitlistCount?: number
 }
 
 export interface UpdateScheduleRequest {
@@ -402,6 +426,8 @@ export interface UpdateScheduleRequest {
     note?: string | null
     capacity?: number | null
     participationFee?: number | null
+    isOnline?: boolean
+    meetingUrl?: string | null
 }
 
 // ============================================================
@@ -416,10 +442,15 @@ export interface UserScheduleItem {
     location: string | null
     status: string
     participationFee: number | null
+    isOnline: boolean
+    meetingUrl: string | null
     activityId: string
     activityTitle: string
     communityId: string
     communityName: string
+    organizerName?: string | null
+    participantCount?: number
+    capacity?: number | null
 }
 
 export interface ListUserSchedulesResponse {
@@ -458,6 +489,19 @@ export interface ListParticipantsResponse {
     participants: ParticipantItem[]
 }
 
+export interface WaitlistItem {
+    id: string
+    userId: string
+    displayName: string | null
+    position: number
+    status: string
+    registeredAt: string
+}
+
+export interface ListWaitlistResponse {
+    entries: WaitlistItem[]
+}
+
 // ============================================================
 // Announcement
 // ============================================================
@@ -492,6 +536,7 @@ export interface AnnouncementListItem {
     title: string
     content: string
     isRead: boolean
+    isBookmarked: boolean
     createdAt: string
     likeCount: number
     commentCount: number
@@ -524,6 +569,7 @@ export interface AnnouncementFeedItem {
     title: string
     content: string
     isRead: boolean
+    isBookmarked: boolean
     createdAt: string
     likeCount: number
     commentCount: number
@@ -534,6 +580,19 @@ export interface AnnouncementFeedItem {
 export interface AnnouncementFeedResponse {
     items: AnnouncementFeedItem[]
     nextCursor: string | null
+}
+
+export interface ToggleBookmarkResponse {
+    bookmarked: boolean
+}
+
+export interface UpdateAnnouncementRequest {
+    title: string
+    content: string
+}
+
+export interface UpdateAnnouncementResponse {
+    id: string
 }
 
 // ============================================================

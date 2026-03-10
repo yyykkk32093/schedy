@@ -1,4 +1,4 @@
-import { useCreateAnnouncement } from '@/features/announcement/hooks/useAnnouncementQueries'
+import { useAnnouncement, useCreateAnnouncement, useUpdateAnnouncement } from '@/features/announcement/hooks/useAnnouncementQueries'
 import { PollCreateForm } from '@/features/poll/components/PollCreateForm'
 import { SectionTabs, type SectionTab } from '@/shared/components/SectionTabs'
 import { Button } from '@/shared/components/ui/button'
@@ -7,25 +7,44 @@ import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { uploadFile } from '@/shared/lib/uploadClient'
 import { ImagePlus, Send, X } from 'lucide-react'
-import { useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 /**
- * AnnouncementCreatePage — 投稿作成画面（UBL-35 + UBL-34 タブ統合）
+ * AnnouncementCreatePage — 投稿作成 / 編集画面（UBL-35 + UBL-34 タブ統合 + Phase3 編集プリフィル）
  *
  * 管理者以上が「お知らせ」または「投票」を作成する画面。
- * タブで切り替え（同一パス + ステート管理）。
+ * `?edit=:announcementId` クエリパラメータがある場合は編集モードとなり、
+ * 既存データをプリフィルして PATCH で更新する。
  */
 export function AnnouncementCreatePage() {
     const { communityId } = useParams<{ communityId: string }>()
+    const [searchParams] = useSearchParams()
+    const editId = searchParams.get('edit')
+    const isEditMode = !!editId
+
     const navigate = useNavigate()
     const createAnnouncement = useCreateAnnouncement(communityId!)
+    const updateAnnouncement = useUpdateAnnouncement(communityId!)
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    // 編集モード時に既存データをフェッチ
+    const { data: existingAnnouncement, isLoading: isLoadingExisting } = useAnnouncement(editId ?? '')
 
     const [title, setTitle] = useState('')
     const [content, setContent] = useState('')
     const [attachments, setAttachments] = useState<Array<{ url: string; name: string; mimeType: string; fileSize: number }>>([])
     const [uploading, setUploading] = useState(false)
+    const [prefilled, setPrefilled] = useState(false)
+
+    // 編集モード: 既存データでプリフィル（一度だけ）
+    useEffect(() => {
+        if (isEditMode && existingAnnouncement && !prefilled) {
+            setTitle(existingAnnouncement.title)
+            setContent(existingAnnouncement.content)
+            setPrefilled(true)
+        }
+    }, [isEditMode, existingAnnouncement, prefilled])
 
     const handleAddImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -51,27 +70,52 @@ export function AnnouncementCreatePage() {
         e.preventDefault()
         if (!title.trim() || !content.trim()) return
 
-        createAnnouncement.mutate(
-            {
-                title: title.trim(),
-                content: content.trim(),
-                attachments: attachments.length > 0
-                    ? attachments.map((att) => ({ fileUrl: att.url, fileName: att.name, mimeType: att.mimeType, fileSize: att.fileSize }))
-                    : undefined,
-            },
-            {
-                onSuccess: () => {
-                    navigate(`/communities/${communityId}`)
+        if (isEditMode && editId) {
+            // 編集モード: PATCH
+            updateAnnouncement.mutate(
+                {
+                    id: editId,
+                    data: { title: title.trim(), content: content.trim() },
                 },
-            },
-        )
+                {
+                    onSuccess: () => {
+                        navigate(`/communities/${communityId}`)
+                    },
+                },
+            )
+        } else {
+            // 新規作成モード: POST
+            createAnnouncement.mutate(
+                {
+                    title: title.trim(),
+                    content: content.trim(),
+                    attachments: attachments.length > 0
+                        ? attachments.map((att) => ({ fileUrl: att.url, fileName: att.name, mimeType: att.mimeType, fileSize: att.fileSize }))
+                        : undefined,
+                },
+                {
+                    onSuccess: () => {
+                        navigate(`/communities/${communityId}`)
+                    },
+                },
+            )
+        }
     }
 
     const handlePollSuccess = () => {
         navigate(`/communities/${communityId}`)
     }
 
-    // ── お知らせ作成フォーム ──
+    const isMutating = createAnnouncement.isPending || updateAnnouncement.isPending
+
+    // 編集モードの読み込み中
+    if (isEditMode && isLoadingExisting) {
+        return (
+            <div className="p-4 text-center text-sm text-gray-400">読み込み中…</div>
+        )
+    }
+
+    // ── お知らせ作成/編集フォーム ──
     const announcementForm = (
         <form onSubmit={handleSubmit} className="space-y-4">
             <Card className="p-4 space-y-4">
@@ -146,23 +190,28 @@ export function AnnouncementCreatePage() {
             <Button
                 type="submit"
                 className="w-full"
-                disabled={!title.trim() || !content.trim() || createAnnouncement.isPending}
+                disabled={!title.trim() || !content.trim() || isMutating}
             >
                 <Send className="w-4 h-4 mr-2" />
-                {createAnnouncement.isPending ? '投稿中...' : 'お知らせを投稿'}
+                {isMutating
+                    ? (isEditMode ? '更新中...' : '投稿中...')
+                    : (isEditMode ? 'お知らせを更新' : 'お知らせを投稿')
+                }
             </Button>
         </form>
     )
 
     // ── タブ定義 ──
-    const tabs: SectionTab[] = [
-        { value: 'announcement', label: 'お知らせ', content: announcementForm },
-        {
-            value: 'poll',
-            label: '投票',
-            content: <PollCreateForm communityId={communityId!} onSuccess={handlePollSuccess} />,
-        },
-    ]
+    const tabs: SectionTab[] = isEditMode
+        ? [{ value: 'announcement', label: 'お知らせ編集', content: announcementForm }]
+        : [
+            { value: 'announcement', label: 'お知らせ', content: announcementForm },
+            {
+                value: 'poll',
+                label: '投票',
+                content: <PollCreateForm communityId={communityId!} onSuccess={handlePollSuccess} />,
+            },
+        ]
 
     return (
         <div className="p-4 space-y-4">

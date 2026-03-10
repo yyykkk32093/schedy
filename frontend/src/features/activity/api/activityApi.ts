@@ -1,6 +1,7 @@
 import { http } from '@/shared/lib/apiClient'
 import type {
     ActivityDetail,
+    ChangeOrganizerRequest,
     CreateActivityRequest,
     CreateActivityResponse,
     ListActivitiesResponse,
@@ -23,6 +24,9 @@ export const activityApi = {
 
     remove: (id: string) =>
         http<void>(`/v1/activities/${id}`, { method: 'DELETE' }),
+
+    changeOrganizer: (id: string, data: ChangeOrganizerRequest) =>
+        http<void>(`/v1/activities/${id}/organizer`, { method: 'PATCH', json: data }),
 
     /** ユーザーが所属する全コミュニティのスケジュールを日付範囲で取得 */
     listMySchedules: (from: string, to: string) =>

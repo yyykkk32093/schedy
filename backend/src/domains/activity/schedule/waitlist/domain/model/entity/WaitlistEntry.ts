@@ -14,7 +14,7 @@ export class WaitlistEntry extends AggregateRoot {
         private readonly id: string,
         private readonly scheduleId: ScheduleId,
         private readonly userId: UserId,
-        private readonly position: number,
+        private position: number,
         private status: WaitlistStatus,
         private readonly registeredAt: Date,
         private promotedAt: Date | null,
@@ -83,6 +83,17 @@ export class WaitlistEntry extends AggregateRoot {
         }
         this.status = WaitlistStatus.cancelled()
         this.cancelledAt = new Date()
+    }
+
+    /** キャンセル済み or 繰り上げ済みエントリーを再度 WAITING に戻す */
+    rejoin(newPosition: number): void {
+        if (this.status.isWaiting()) {
+            throw new DomainValidationError('WAITING 状態のエントリーは再登録できません', 'WAITLIST_ALREADY_WAITING')
+        }
+        this.status = WaitlistStatus.waiting()
+        this.position = newPosition
+        this.cancelledAt = null
+        this.promotedAt = null
     }
 
     isWaiting(): boolean {

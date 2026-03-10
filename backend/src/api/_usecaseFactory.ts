@@ -24,7 +24,9 @@ import { ListAnnouncementCommentsUseCase } from '@/application/announcement/usec
 import { ListAnnouncementsUseCase } from '@/application/announcement/usecase/ListAnnouncementsUseCase.js'
 import { MarkAnnouncementAsReadUseCase } from '@/application/announcement/usecase/MarkAnnouncementAsReadUseCase.js'
 import { SearchAnnouncementsUseCase } from '@/application/announcement/usecase/SearchAnnouncementsUseCase.js'
+import { ToggleAnnouncementBookmarkUseCase } from '@/application/announcement/usecase/ToggleAnnouncementBookmarkUseCase.js'
 import { ToggleAnnouncementLikeUseCase } from '@/application/announcement/usecase/ToggleAnnouncementLikeUseCase.js'
+import { UpdateAnnouncementTxRepositories, UpdateAnnouncementUseCase } from '@/application/announcement/usecase/UpdateAnnouncementUseCase.js'
 import type { AuthMethod } from '@/application/auth/model/AuthMethod.js'
 import {
     SignInOAuthUserTxRepositories,
@@ -59,6 +61,8 @@ import { CancelWaitlistTxRepositories, CancelWaitlistUseCase } from '@/applicati
 import { ConfirmPaymentUseCase } from '@/application/participation/usecase/ConfirmPaymentUseCase.js'
 import { JoinWaitlistTxRepositories, JoinWaitlistUseCase } from '@/application/participation/usecase/JoinWaitlistUseCase.js'
 import { ListParticipationsUseCase } from '@/application/participation/usecase/ListParticipationsUseCase.js'
+import { ListWaitlistEntriesUseCase } from '@/application/participation/usecase/ListWaitlistEntriesUseCase.js'
+import { RemoveParticipantByAdminTxRepositories, RemoveParticipantByAdminUseCase } from '@/application/participation/usecase/RemoveParticipantByAdminUseCase.js'
 import { ReportPaymentUseCase } from '@/application/participation/usecase/ReportPaymentUseCase.js'
 
 import { AddAlbumPhotoUseCase } from '@/application/album/usecase/AddAlbumPhotoUseCase.js'
@@ -99,6 +103,7 @@ import { ParticipationRepositoryImpl } from '@/domains/activity/schedule/partici
 import { WaitlistEntryRepositoryImpl } from '@/domains/activity/schedule/waitlist/infrastructure/repository/WaitlistEntryRepositoryImpl.js'
 import { AlbumPhotoRepositoryImpl } from '@/domains/album/infrastructure/repository/AlbumPhotoRepositoryImpl.js'
 import { AlbumRepositoryImpl } from '@/domains/album/infrastructure/repository/AlbumRepositoryImpl.js'
+import { AnnouncementBookmarkRepositoryImpl } from '@/domains/announcement/infrastructure/repository/AnnouncementBookmarkRepositoryImpl.js'
 import { AnnouncementCommentRepositoryImpl } from '@/domains/announcement/infrastructure/repository/AnnouncementCommentRepositoryImpl.js'
 import { AnnouncementLikeRepositoryImpl } from '@/domains/announcement/infrastructure/repository/AnnouncementLikeRepositoryImpl.js'
 import { AnnouncementReadRepositoryImpl } from '@/domains/announcement/infrastructure/repository/AnnouncementReadRepositoryImpl.js'
@@ -408,11 +413,16 @@ export const usecaseFactory = {
     },
 
     createFindScheduleUseCase() {
-        return new FindScheduleUseCase(new ScheduleRepositoryImpl(prisma))
+        return new FindScheduleUseCase(
+            new ScheduleRepositoryImpl(prisma),
+            new ActivityRepositoryImpl(prisma),
+            new ParticipationRepositoryImpl(prisma),
+            new WaitlistEntryRepositoryImpl(prisma),
+        )
     },
 
     createListSchedulesUseCase() {
-        return new ListSchedulesUseCase(new ScheduleRepositoryImpl(prisma))
+        return new ListSchedulesUseCase(new ScheduleRepositoryImpl(prisma), new ParticipationRepositoryImpl(prisma))
     },
     createListUserSchedulesUseCase() {
         return new ListUserSchedulesUseCase(new CommunityMembershipRepositoryImpl(prisma), prisma)
@@ -462,6 +472,20 @@ export const usecaseFactory = {
         return new CancelParticipationUseCase(new UuidGenerator(), unitOfWork, notificationService, prisma)
     },
 
+    createRemoveParticipantByAdminUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<RemoveParticipantByAdminTxRepositories>((tx) => ({
+            schedule: new ScheduleRepositoryImpl(tx),
+            activity: new ActivityRepositoryImpl(tx),
+            membership: new CommunityMembershipRepositoryImpl(tx),
+            participation: new ParticipationRepositoryImpl(tx),
+            waitlist: new WaitlistEntryRepositoryImpl(tx),
+            notification: new NotificationRepositoryImpl(tx),
+            outbox: new OutboxRepository(tx),
+        }))
+        const notificationService = new NotificationService(RealtimeEmitterBootstrap.getEmitter())
+        return new RemoveParticipantByAdminUseCase(new UuidGenerator(), unitOfWork, notificationService)
+    },
+
     createJoinWaitlistUseCase() {
         const unitOfWork = new PrismaUnitOfWork<JoinWaitlistTxRepositories>((tx) => ({
             schedule: new ScheduleRepositoryImpl(tx),
@@ -481,6 +505,13 @@ export const usecaseFactory = {
     createListParticipationsUseCase() {
         return new ListParticipationsUseCase(
             new ParticipationRepositoryImpl(prisma),
+            new UserRepositoryImpl(prisma),
+        )
+    },
+
+    createListWaitlistEntriesUseCase() {
+        return new ListWaitlistEntriesUseCase(
+            new WaitlistEntryRepositoryImpl(prisma),
             new UserRepositoryImpl(prisma),
         )
     },
@@ -508,6 +539,7 @@ export const usecaseFactory = {
             new AnnouncementReadRepositoryImpl(prisma),
             new AnnouncementLikeRepositoryImpl(prisma),
             new AnnouncementCommentRepositoryImpl(prisma),
+            new AnnouncementBookmarkRepositoryImpl(prisma),
         )
     },
 
@@ -517,6 +549,15 @@ export const usecaseFactory = {
             membership: new CommunityMembershipRepositoryImpl(tx),
         }))
         return new DeleteAnnouncementUseCase(unitOfWork)
+    },
+
+    // ---- Phase 3 (3-2): お知らせ編集 ----
+    createUpdateAnnouncementUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<UpdateAnnouncementTxRepositories>((tx) => ({
+            announcement: new AnnouncementRepositoryImpl(tx),
+            membership: new CommunityMembershipRepositoryImpl(tx),
+        }))
+        return new UpdateAnnouncementUseCase(unitOfWork)
     },
 
     createMarkAnnouncementAsReadUseCase() {
@@ -533,6 +574,7 @@ export const usecaseFactory = {
             new CommunityMembershipRepositoryImpl(prisma),
             new AnnouncementLikeRepositoryImpl(prisma),
             new AnnouncementCommentRepositoryImpl(prisma),
+            new AnnouncementBookmarkRepositoryImpl(prisma),
         )
     },
 
@@ -573,6 +615,15 @@ export const usecaseFactory = {
             new CommunityMembershipRepositoryImpl(prisma),
             new AnnouncementLikeRepositoryImpl(prisma),
             new AnnouncementCommentRepositoryImpl(prisma),
+            new AnnouncementBookmarkRepositoryImpl(prisma),
+        )
+    },
+
+    // ---- Phase 3 (3-1): ブックマーク ----
+    createToggleAnnouncementBookmarkUseCase() {
+        return new ToggleAnnouncementBookmarkUseCase(
+            new AnnouncementRepositoryImpl(prisma),
+            new AnnouncementBookmarkRepositoryImpl(prisma),
         )
     },
 

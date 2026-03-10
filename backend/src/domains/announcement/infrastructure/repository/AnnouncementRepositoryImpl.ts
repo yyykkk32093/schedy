@@ -164,6 +164,7 @@ export class AnnouncementRepositoryImpl implements IAnnouncementRepository {
                 OR: [
                     { title: { contains: keyword, mode: 'insensitive' } },
                     { content: { contains: keyword, mode: 'insensitive' } },
+                    { community: { name: { contains: keyword, mode: 'insensitive' } } },
                 ],
             },
             orderBy: { createdAt: 'desc' },

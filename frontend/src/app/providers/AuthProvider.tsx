@@ -89,8 +89,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const logoutMutation = useMutation({
         mutationFn: () => http<void>('/v1/auth/logout', { method: 'POST' }),
         onSettled: () => {
-            // サーバーエラーでもローカル状態はクリア
-            qc.setQueryData(authKeys.me(), null)
+            // サーバーエラーでもローカル状態はクリア（全キャッシュ削除で他ユーザのデータ残留を防止）
+            qc.removeQueries()
             navigate('/login', { replace: true })
         },
     })

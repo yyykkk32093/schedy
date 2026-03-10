@@ -1,12 +1,15 @@
 import { ScheduleCard } from '@/features/activity/components/ScheduleCard'
 import { useUserSchedules } from '@/features/activity/hooks/useActivityQueries'
+import { participationApi } from '@/features/participation/api/participationApi'
 import { SectionTabs } from '@/shared/components/SectionTabs'
 import { Calendar } from '@/shared/components/ui/calendar'
 import { Input } from '@/shared/components/ui/input'
 import type { UserScheduleItem } from '@/shared/types/api'
+import { formatDay, formatWeekday, groupByMonthAndDate } from '@/shared/utils/dateGroup'
+import { useQueryClient } from '@tanstack/react-query'
 import { endOfMonth, format, startOfMonth } from 'date-fns'
 import { Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 /**
  * ActivityTopPage — BottomNav「アクティビティ」タブのランディング
@@ -34,10 +37,21 @@ export function ActivityTopPage() {
 function CalendarTab() {
     const [currentMonth, setCurrentMonth] = useState(new Date())
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
+    const queryClient = useQueryClient()
 
     const from = format(startOfMonth(currentMonth), 'yyyy-MM-dd')
     const to = format(endOfMonth(currentMonth), 'yyyy-MM-dd')
     const { data, isLoading } = useUserSchedules(from, to)
+
+    const handleRemove = useCallback(async (scheduleId: string) => {
+        if (!confirm('この参加を取り消しますか？')) return
+        try {
+            await participationApi.cancelAttendance(scheduleId)
+            queryClient.invalidateQueries({ queryKey: ['user-schedules'] })
+        } catch {
+            alert('参加取り消しに失敗しました')
+        }
+    }, [queryClient])
 
     const schedules = data?.schedules ?? []
 
@@ -83,7 +97,7 @@ function CalendarTab() {
                     selectedSchedules.length > 0 ? (
                         <div className="divide-y divide-gray-100">
                             {selectedSchedules.map((s) => (
-                                <ScheduleCard key={s.scheduleId} schedule={s} />
+                                <ScheduleCard key={s.scheduleId} schedule={s} timeOnly onRemove={handleRemove} />
                             ))}
                         </div>
                     ) : (
@@ -106,6 +120,7 @@ function CalendarTab() {
 function TimeLineTab() {
     const [search, setSearch] = useState('')
     const [showPast, setShowPast] = useState(false)
+    const queryClient = useQueryClient()
 
     // 未来90日分
     const futureFrom = format(new Date(), 'yyyy-MM-dd')
@@ -144,6 +159,16 @@ function TimeLineTab() {
         )
     }, [futureData, pastData, showPast, search])
 
+    const handleRemove = useCallback(async (scheduleId: string) => {
+        if (!confirm('この参加を取り消しますか？')) return
+        try {
+            await participationApi.cancelAttendance(scheduleId)
+            queryClient.invalidateQueries({ queryKey: ['user-schedules'] })
+        } catch {
+            alert('参加取り消しに失敗しました')
+        }
+    }, [queryClient])
+
     return (
         <div className="flex flex-col">
             <div className="px-4 py-3 space-y-2">
@@ -156,35 +181,48 @@ function TimeLineTab() {
                         className="pl-9"
                     />
                 </div>
-                <button
-                    type="button"
-                    onClick={() => setShowPast(!showPast)}
-                    className={`text-xs px-3 py-1 rounded-full border transition-colors ${showPast
-                            ? 'bg-blue-50 border-blue-300 text-blue-700'
-                            : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                        }`}
-                >
-                    {showPast ? '過去を非表示' : '過去のスケジュールも表示'}
-                </button>
+                <label className="flex items-center gap-2 text-xs text-gray-500">
+                    <input
+                        type="checkbox"
+                        checked={showPast}
+                        onChange={(e) => setShowPast(e.target.checked)}
+                        className="rounded border-gray-300"
+                    />
+                    過去のスケジュールも表示
+                </label>
             </div>
 
             {isLoading ? (
                 <div className="py-8 text-center text-gray-400 text-sm">読み込み中...</div>
             ) : schedules.length > 0 ? (
-                <div className="divide-y divide-gray-100">
-                    {schedules.map((s: UserScheduleItem, i: number) => {
-                        const prevMonth = i > 0 ? schedules[i - 1].date.slice(0, 7) : null
-                        const curMonth = s.date.slice(0, 7)
-                        const showHeader = curMonth !== prevMonth
-                        const [y, m] = curMonth.split('-')
+                <div>
+                    {groupByMonthAndDate(schedules, (s) => s.date).map((mg) => {
+                        const [y, m] = mg.month.split('-')
                         return (
-                            <div key={s.scheduleId}>
-                                {showHeader && (
-                                    <div className="px-4 py-2 bg-gray-50 text-xs font-semibold text-gray-500">
-                                        {y}年{Number(m)}月
+                            <div key={mg.month}>
+                                <div className="px-4 py-2 bg-gray-50 text-xs font-semibold text-gray-500">
+                                    {y}年{Number(m)}月
+                                </div>
+                                {mg.dateGroups.map((dg) => (
+                                    <div key={dg.date} className="flex border-b border-gray-100">
+                                        {/* 左列: 日付 + 曜日 */}
+                                        <div className="w-14 shrink-0 flex flex-col items-center justify-start pt-3 text-gray-500">
+                                            <span className="text-lg font-semibold leading-none">{formatDay(dg.date)}</span>
+                                            <span className="text-[10px] mt-0.5">{formatWeekday(dg.date)}</span>
+                                        </div>
+                                        {/* 右列: その日のカード群 */}
+                                        <div className="flex-1 min-w-0 divide-y divide-gray-50">
+                                            {dg.items.map((s: UserScheduleItem) => (
+                                                <ScheduleCard
+                                                    key={s.scheduleId}
+                                                    schedule={s}
+                                                    timeOnly
+                                                    onRemove={handleRemove}
+                                                />
+                                            ))}
+                                        </div>
                                     </div>
-                                )}
-                                <ScheduleCard schedule={s} />
+                                ))}
                             </div>
                         )
                     })}

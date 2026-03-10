@@ -1,3 +1,4 @@
+import type { IAnnouncementBookmarkRepository } from '@/domains/announcement/domain/repository/IAnnouncementBookmarkRepository.js'
 import type { IAnnouncementCommentRepository } from '@/domains/announcement/domain/repository/IAnnouncementCommentRepository.js'
 import type { IAnnouncementLikeRepository } from '@/domains/announcement/domain/repository/IAnnouncementLikeRepository.js'
 import type { IAnnouncementReadRepository } from '@/domains/announcement/domain/repository/IAnnouncementReadRepository.js'
@@ -15,6 +16,7 @@ export interface AnnouncementFeedItemDto {
     title: string
     content: string
     isRead: boolean
+    isBookmarked: boolean
     createdAt: string
     likeCount: number
     commentCount: number
@@ -36,6 +38,7 @@ export class GetAnnouncementFeedUseCase {
         private readonly membershipRepository: ICommunityMembershipRepository,
         private readonly likeRepository: IAnnouncementLikeRepository,
         private readonly commentRepository: IAnnouncementCommentRepository,
+        private readonly bookmarkRepository: IAnnouncementBookmarkRepository,
     ) { }
 
     async execute(input: {
@@ -64,15 +67,17 @@ export class GetAnnouncementFeedUseCase {
 
         // 3. 既読状態・いいね数・コメント数・いいね済みを一括取得
         const announcementIds = feedRows.map((r) => r.id)
-        const [readIds, likeCounts, commentCounts, likedIds] = await Promise.all([
+        const [readIds, likeCounts, commentCounts, likedIds, bookmarkedIds] = await Promise.all([
             this.announcementReadRepository.findReadAnnouncementIds(input.userId, announcementIds),
             this.likeRepository.countByAnnouncementIds(announcementIds),
             this.commentRepository.countByAnnouncementIds(announcementIds),
             this.likeRepository.findLikedIds(input.userId, announcementIds),
+            this.bookmarkRepository.findBookmarkedIds(input.userId, announcementIds),
         ])
 
         const readSet = new Set(readIds)
         const likedSet = new Set(likedIds)
+        const bookmarkedSet = new Set(bookmarkedIds)
 
         // 4. DTOに変換
         const items: AnnouncementFeedItemDto[] = feedRows.map((r) => ({
@@ -86,6 +91,7 @@ export class GetAnnouncementFeedUseCase {
             title: r.title,
             content: r.content,
             isRead: readSet.has(r.id),
+            isBookmarked: bookmarkedSet.has(r.id),
             createdAt: r.createdAt.toISOString(),
             likeCount: likeCounts.get(r.id) ?? 0,
             commentCount: commentCounts.get(r.id) ?? 0,

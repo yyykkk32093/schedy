@@ -15,10 +15,14 @@ router.get('/v1/communities/:communityId/announcements', authMiddleware, announc
 
 router.get('/v1/announcements/:id', authMiddleware, announcementController.findById)
 router.patch('/v1/announcements/:id/read', authMiddleware, announcementController.markAsRead)
+router.patch('/v1/announcements/:id', authMiddleware, announcementController.update)
 router.delete('/v1/announcements/:id', authMiddleware, announcementController.softDelete)
 
 // UBL-1: いいね toggle
 router.post('/v1/announcements/:id/like', authMiddleware, announcementController.toggleLike)
+
+// Phase 3 (3-1): ブックマーク toggle
+router.post('/v1/announcements/:id/bookmark', authMiddleware, announcementController.toggleBookmark)
 
 // UBL-2: コメント CRUD
 router.get('/v1/announcements/:id/comments', authMiddleware, announcementController.listComments)

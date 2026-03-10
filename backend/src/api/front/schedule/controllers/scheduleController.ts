@@ -5,7 +5,7 @@ export const scheduleController = {
     async create(req: Request, res: Response, next: NextFunction) {
         try {
             const { activityId } = req.params
-            const { date, startTime, endTime, location, note, capacity, participationFee } = req.body
+            const { date, startTime, endTime, location, note, capacity, participationFee, isOnline, meetingUrl } = req.body
             const userId = req.user!.userId
 
             const useCase = usecaseFactory.createCreateScheduleUseCase()
@@ -18,6 +18,8 @@ export const scheduleController = {
                 note,
                 capacity,
                 participationFee,
+                isOnline,
+                meetingUrl,
                 userId,
             })
 
@@ -43,9 +45,10 @@ export const scheduleController = {
     async findById(req: Request, res: Response, next: NextFunction) {
         try {
             const { id } = req.params
+            const userId = req.user?.userId
 
             const useCase = usecaseFactory.createFindScheduleUseCase()
-            const result = await useCase.execute({ scheduleId: id })
+            const result = await useCase.execute({ scheduleId: id, userId })
 
             res.status(200).json(result)
         } catch (err) {
@@ -56,7 +59,7 @@ export const scheduleController = {
     async update(req: Request, res: Response, next: NextFunction) {
         try {
             const { id } = req.params
-            const { date, startTime, endTime, location, note, capacity, participationFee } = req.body
+            const { date, startTime, endTime, location, note, capacity, participationFee, isOnline, meetingUrl } = req.body
             const userId = req.user!.userId
 
             const useCase = usecaseFactory.createUpdateScheduleUseCase()
@@ -70,6 +73,8 @@ export const scheduleController = {
                 note,
                 capacity,
                 participationFee,
+                isOnline,
+                meetingUrl,
             })
 
             res.status(204).send()

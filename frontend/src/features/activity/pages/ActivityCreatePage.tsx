@@ -24,10 +24,16 @@ export function ActivityCreatePage() {
                 title: values.title,
                 description: values.description || undefined,
                 defaultLocation: values.defaultLocation || undefined,
+                defaultAddress: values.defaultAddress || undefined,
                 defaultStartTime: values.defaultStartTime || undefined,
                 defaultEndTime: values.defaultEndTime || undefined,
                 recurrenceRule: values.recurrenceRule,
+                organizerUserId: values.organizerUserId || null,
                 date: values.date || undefined,
+                participationFee: values.participationFee,
+                isOnline: values.isOnline,
+                meetingUrl: values.meetingUrl,
+                capacity: values.capacity,
             })
 
             navigate(`/activities/${result.activityId}`)

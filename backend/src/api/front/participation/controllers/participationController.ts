@@ -99,4 +99,30 @@ export const participationController = {
             next(err)
         }
     },
+
+    async listWaitlist(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { id: scheduleId } = req.params
+            const useCase = usecaseFactory.createListWaitlistEntriesUseCase()
+            const result = await useCase.execute({ scheduleId })
+            res.json(result)
+        } catch (err) {
+            next(err)
+        }
+    },
+
+    /** 管理者による参加者除外 */
+    async removeParticipant(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { id: scheduleId, userId: targetUserId } = req.params
+            const adminUserId = req.user!.userId
+
+            const useCase = usecaseFactory.createRemoveParticipantByAdminUseCase()
+            await useCase.execute({ scheduleId, targetUserId, adminUserId })
+
+            res.status(204).send()
+        } catch (err) {
+            next(err)
+        }
+    },
 }

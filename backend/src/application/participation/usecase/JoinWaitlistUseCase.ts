@@ -61,15 +61,22 @@ export class JoinWaitlistUseCase {
             const waitingCount = await repos.waitlist.countWaiting(input.scheduleId)
             const position = waitingCount + 1
 
-            const id = this.idGenerator.generate()
-            const entry = WaitlistEntry.create({
-                id,
-                scheduleId: ScheduleId.create(input.scheduleId),
-                userId: UserId.create(input.userId),
-                position,
-            })
-            await repos.waitlist.save(entry)
-            waitlistEntryId = id
+            // キャンセル済み or 繰り上げ済みエントリーがあれば再登録（rejoin）
+            if (existingEntry) {
+                existingEntry.rejoin(position)
+                await repos.waitlist.save(existingEntry)
+                waitlistEntryId = existingEntry.getId()
+            } else {
+                const id = this.idGenerator.generate()
+                const entry = WaitlistEntry.create({
+                    id,
+                    scheduleId: ScheduleId.create(input.scheduleId),
+                    userId: UserId.create(input.userId),
+                    position,
+                })
+                await repos.waitlist.save(entry)
+                waitlistEntryId = id
+            }
         })
 
         return { waitlistEntryId }

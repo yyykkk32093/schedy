@@ -74,6 +74,7 @@ router.get('/v1/communities/:communityId/activities', authMiddleware, activityCo
 // Activity 単体操作
 router.get('/v1/activities/:id', authMiddleware, activityController.findById)
 router.patch('/v1/activities/:id', authMiddleware, requireAutoScheduleIfRecurrenceUpdate, activityController.update)
+router.patch('/v1/activities/:id/organizer', authMiddleware, activityController.changeOrganizer)
 router.delete('/v1/activities/:id', authMiddleware, activityController.softDelete)
 
 export default router

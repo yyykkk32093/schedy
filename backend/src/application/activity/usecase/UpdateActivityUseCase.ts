@@ -1,4 +1,5 @@
 import { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnitOfWork.js'
+import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
 import { ActivityDescription } from '@/domains/activity/domain/model/valueObject/ActivityDescription.js'
 import { ActivityTitle } from '@/domains/activity/domain/model/valueObject/ActivityTitle.js'
 import { DefaultLocation } from '@/domains/activity/domain/model/valueObject/DefaultLocation.js'
@@ -24,9 +25,11 @@ export class UpdateActivityUseCase {
         title?: string
         description?: string | null
         defaultLocation?: string | null
+        defaultAddress?: string | null
         defaultStartTime?: string | null
         defaultEndTime?: string | null
         recurrenceRule?: string | null
+        organizerUserId?: string | null
     }): Promise<void> {
         await this.unitOfWork.run(async (repos) => {
             const activity = await repos.activity.findById(input.activityId)
@@ -48,6 +51,7 @@ export class UpdateActivityUseCase {
                 defaultLocation: input.defaultLocation !== undefined
                     ? DefaultLocation.createNullable(input.defaultLocation)
                     : undefined,
+                defaultAddress: input.defaultAddress !== undefined ? (input.defaultAddress || null) : undefined,
                 defaultStartTime: input.defaultStartTime !== undefined
                     ? TimeOfDay.createNullable(input.defaultStartTime)
                     : undefined,
@@ -55,6 +59,9 @@ export class UpdateActivityUseCase {
                     ? TimeOfDay.createNullable(input.defaultEndTime)
                     : undefined,
                 recurrenceRule: input.recurrenceRule !== undefined ? input.recurrenceRule : undefined,
+                organizerUserId: input.organizerUserId !== undefined
+                    ? (input.organizerUserId ? UserId.create(input.organizerUserId) : null)
+                    : undefined,
             })
 
             await repos.activity.save(activity)

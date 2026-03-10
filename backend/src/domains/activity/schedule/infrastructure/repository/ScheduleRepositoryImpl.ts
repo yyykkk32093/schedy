@@ -63,6 +63,8 @@ export class ScheduleRepositoryImpl implements IScheduleRepository {
                 status: schedule.getStatus().getValue(),
                 capacity: schedule.getCapacity().getValue(),
                 participationFee: schedule.getParticipationFee(),
+                isOnline: schedule.getIsOnline(),
+                meetingUrl: schedule.getMeetingUrl(),
             },
             update: {
                 date: schedule.getDate(),
@@ -73,6 +75,8 @@ export class ScheduleRepositoryImpl implements IScheduleRepository {
                 status: schedule.getStatus().getValue(),
                 capacity: schedule.getCapacity().getValue(),
                 participationFee: schedule.getParticipationFee(),
+                isOnline: schedule.getIsOnline(),
+                meetingUrl: schedule.getMeetingUrl(),
             },
         })
     }
@@ -89,6 +93,8 @@ export class ScheduleRepositoryImpl implements IScheduleRepository {
             status: ScheduleStatus.reconstruct(row.status),
             capacity: ScheduleCapacity.reconstruct(row.capacity),
             participationFee: row.participationFee,
+            isOnline: row.isOnline,
+            meetingUrl: row.meetingUrl,
         })
     }
 }

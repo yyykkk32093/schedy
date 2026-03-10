@@ -26,6 +26,15 @@ export function AlbumTab() {
     const { data: albumsData, isLoading: albumsLoading } = useAlbums(communityId!)
     const createAlbumMutation = useCreateAlbum(communityId!)
 
+    const handleShowCreateForm = () => {
+        // デフォルト名: 「YYYY年M月 アルバム」
+        const now = new Date()
+        const defaultTitle = `${now.getFullYear()}年${now.getMonth() + 1}月 アルバム`
+        setNewTitle(defaultTitle)
+        setNewDescription('')
+        setShowCreateForm(true)
+    }
+
     const handleCreateAlbum = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!newTitle.trim()) return
@@ -54,8 +63,18 @@ export function AlbumTab() {
 
     return (
         <div className="py-4">
-            <div className="px-1 mb-3">
+            <div className="px-1 mb-3 flex items-center justify-between">
                 <h3 className="font-semibold text-sm text-gray-700">アルバム</h3>
+                {!showCreateForm && (
+                    <button
+                        type="button"
+                        onClick={handleShowCreateForm}
+                        className="flex items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-xs text-white hover:bg-blue-700"
+                    >
+                        <Plus className="h-3.5 w-3.5" />
+                        新規作成
+                    </button>
+                )}
             </div>
 
             {/* 作成フォーム */}

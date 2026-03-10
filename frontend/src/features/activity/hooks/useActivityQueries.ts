@@ -53,3 +53,14 @@ export function useDeleteActivity(communityId: string) {
         onSuccess: () => qc.invalidateQueries({ queryKey: activityListKeys.byCommunity(communityId) }),
     })
 }
+
+export function useChangeOrganizer(id: string, communityId: string) {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: (data: { organizerUserId?: string | null }) => activityApi.changeOrganizer(id, data),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: activityKeys.detail(id) })
+            qc.invalidateQueries({ queryKey: activityListKeys.byCommunity(communityId) })
+        },
+    })
+}

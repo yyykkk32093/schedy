@@ -5,7 +5,7 @@ export const activityController = {
     async create(req: Request, res: Response, next: NextFunction) {
         try {
             const { communityId } = req.params
-            const { title, description, defaultLocation, defaultStartTime, defaultEndTime, recurrenceRule, date } = req.body
+            const { title, description, defaultLocation, defaultAddress, defaultStartTime, defaultEndTime, recurrenceRule, date, participationFee, organizerUserId, isOnline, meetingUrl, capacity } = req.body
             const userId = req.user!.userId
 
             const useCase = usecaseFactory.createCreateActivityUseCase()
@@ -14,10 +14,16 @@ export const activityController = {
                 title,
                 description,
                 defaultLocation,
+                defaultAddress,
                 defaultStartTime,
                 defaultEndTime,
                 recurrenceRule,
                 date,
+                participationFee: participationFee != null ? Number(participationFee) : null,
+                organizerUserId: organizerUserId || null,
+                isOnline: isOnline ?? false,
+                meetingUrl: meetingUrl || null,
+                capacity: capacity != null ? Number(capacity) : null,
                 userId,
             })
 
@@ -56,7 +62,7 @@ export const activityController = {
     async update(req: Request, res: Response, next: NextFunction) {
         try {
             const { id } = req.params
-            const { title, description, defaultLocation, defaultStartTime, defaultEndTime, recurrenceRule } = req.body
+            const { title, description, defaultLocation, defaultAddress, defaultStartTime, defaultEndTime, recurrenceRule, organizerUserId } = req.body
             const userId = req.user!.userId
 
             const useCase = usecaseFactory.createUpdateActivityUseCase()
@@ -66,9 +72,11 @@ export const activityController = {
                 title,
                 description,
                 defaultLocation,
+                defaultAddress,
                 defaultStartTime,
                 defaultEndTime,
                 recurrenceRule,
+                organizerUserId: organizerUserId !== undefined ? (organizerUserId || null) : undefined,
             })
 
             res.status(204).send()
@@ -84,6 +92,25 @@ export const activityController = {
 
             const useCase = usecaseFactory.createSoftDeleteActivityUseCase()
             await useCase.execute({ activityId: id, userId })
+
+            res.status(204).send()
+        } catch (err) {
+            next(err)
+        }
+    },
+
+    async changeOrganizer(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { id } = req.params
+            const { organizerUserId } = req.body
+            const userId = req.user!.userId
+
+            const useCase = usecaseFactory.createUpdateActivityUseCase()
+            await useCase.execute({
+                activityId: id,
+                userId,
+                organizerUserId: organizerUserId || null,
+            })
 
             res.status(204).send()
         } catch (err) {

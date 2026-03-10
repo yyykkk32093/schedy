@@ -1,12 +1,14 @@
 import { useHomeFeed } from '@/features/home/hooks/useHomeFeed'
 import { Separator } from '@/shared/components/ui/separator'
-import { Loader2, Megaphone } from 'lucide-react'
-import { useCallback, useEffect, useRef } from 'react'
+import { Bookmark, Loader2, Megaphone } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { FeedCard } from './FeedCard'
 
 const SCROLL_KEY = 'home-feed-scroll-y'
 
 export function FeedList() {
+    const [bookmarkOnly, setBookmarkOnly] = useState(false)
+
     const {
         data,
         isLoading,
@@ -53,6 +55,7 @@ export function FeedList() {
 
     // スクロール位置の復元（データ読み込み完了後に一度だけ）
     const allItems = data?.pages.flatMap((p) => p.items) ?? []
+    const displayItems = bookmarkOnly ? allItems.filter((item) => item.isBookmarked) : allItems
     useEffect(() => {
         if (restoredRef.current || allItems.length === 0) return
         const saved = sessionStorage.getItem(SCROLL_KEY)
@@ -97,12 +100,34 @@ export function FeedList() {
 
     return (
         <div>
-            {allItems.map((item, idx) => (
-                <div key={item.id}>
-                    {idx > 0 && <Separator />}
-                    <FeedCard item={item} />
+            {/* ブックマークフィルタ */}
+            <div className="flex items-center gap-2 px-4 py-2">
+                <button
+                    type="button"
+                    onClick={() => setBookmarkOnly(!bookmarkOnly)}
+                    className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${bookmarkOnly
+                            ? 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                            : 'bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200'
+                        }`}
+                >
+                    <Bookmark className={`h-3.5 w-3.5 ${bookmarkOnly ? 'fill-yellow-500' : ''}`} />
+                    お気に入り
+                </button>
+            </div>
+
+            {displayItems.length === 0 && bookmarkOnly ? (
+                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                    <Bookmark className="mb-3 h-10 w-10" />
+                    <p className="text-sm">ブックマークしたお知らせはありません</p>
                 </div>
-            ))}
+            ) : (
+                displayItems.map((item, idx) => (
+                    <div key={item.id}>
+                        {idx > 0 && <Separator />}
+                        <FeedCard item={item} />
+                    </div>
+                ))
+            )}
 
             {/* 無限スクロールのセンチネル */}
             <div ref={observerRef} className="h-4" />

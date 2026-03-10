@@ -1,14 +1,16 @@
 import { ScheduleCard } from '@/features/activity/components/ScheduleCard'
 import { useActivities } from '@/features/activity/hooks/useActivityQueries'
+import { useMembers } from '@/features/community/hooks/useMemberQueries'
 import { Calendar } from '@/shared/components/ui/calendar'
 import { Input } from '@/shared/components/ui/input'
 import { http } from '@/shared/lib/apiClient'
 import type { ListSchedulesResponse, UserScheduleItem } from '@/shared/types/api'
+import { formatDay, formatWeekday, groupByMonthAndDate } from '@/shared/utils/dateGroup'
 import { useQuery } from '@tanstack/react-query'
 import { endOfMonth, format, startOfMonth } from 'date-fns'
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 
 /**
  * ActivitiesTab — コミュニティ詳細のアクティビティタブ
@@ -58,7 +60,9 @@ export function ActivitiesTab() {
 
 function useCommunitySchedules(communityId: string, from: string, to: string) {
     const { data: activitiesData } = useActivities(communityId)
+    const { data: membersData } = useMembers(communityId)
     const activities = activitiesData?.activities ?? []
+    const members = membersData?.members ?? []
     const activityIds = activities.map((a) => a.id)
 
     return useQuery({
@@ -71,6 +75,12 @@ function useCommunitySchedules(communityId: string, from: string, to: string) {
                     const res = await http<ListSchedulesResponse>(
                         `/v1/activities/${activity.id}/schedules`
                     )
+                    // 幹事名をメンバー一覧から解決
+                    const organizer = activity.organizerUserId
+                        ? members.find((m) => m.userId === activity.organizerUserId)
+                        : undefined
+                    const organizerName = organizer?.displayName ?? null
+
                     return res.schedules
                         .filter((s) => s.date >= from && s.date <= to)
                         .map((s) => ({
@@ -81,10 +91,15 @@ function useCommunitySchedules(communityId: string, from: string, to: string) {
                             location: s.location,
                             status: s.status,
                             participationFee: s.participationFee,
+                            isOnline: s.isOnline,
+                            meetingUrl: s.meetingUrl,
                             activityId: activity.id,
                             activityTitle: activity.title,
                             communityId: activity.communityId,
-                            communityName: '', // コミュニティ名はコンテキストで既知
+                            communityName: '',
+                            organizerName,
+                            participantCount: s.participantCount,
+                            capacity: s.capacity,
                         }))
                 })
             )
@@ -99,41 +114,40 @@ function useCommunitySchedules(communityId: string, from: string, to: string) {
 
 // ─── Timeline Sub-Tab ────────────────────────────────────
 
-function formatDateLabel(dateStr: string): string {
-    const d = new Date(dateStr + 'T00:00:00')
-    const weekDays = ['日', '月', '火', '水', '木', '金', '土']
-    return `${d.getMonth() + 1}月${d.getDate()}日(${weekDays[d.getDay()]})`
-}
-
 function TimelineSubTab({ communityId }: { communityId: string }) {
-    const navigate = useNavigate()
-    const { data: activitiesData, isLoading } = useActivities(communityId)
     const [search, setSearch] = useState('')
+    const [showPast, setShowPast] = useState(false)
 
-    // 検索 + upcomingSchedules[0].date でソート
-    const sortedActivities = useMemo(() => {
-        const all = activitiesData?.activities ?? []
-        const filtered = search.trim()
-            ? all.filter((a) => {
+    // 全期間（十分広い範囲）のスケジュールを取得
+    const from = '2000-01-01'
+    const to = '2099-12-31'
+    const { data: allSchedules = [], isLoading } = useCommunitySchedules(communityId, from, to)
+
+    // 検索・過去フィルタ
+    const scheduleItems = useMemo(() => {
+        const today = new Date().toISOString().split('T')[0]
+        return allSchedules.filter((s) => {
+            if (!showPast && s.date < today) return false
+            if (search.trim()) {
                 const q = search.toLowerCase()
-                return (
-                    a.title.toLowerCase().includes(q) ||
-                    (a.defaultLocation?.toLowerCase().includes(q) ?? false)
-                )
-            })
-            : all
-
-        // upcoming がある = 日付昇順、ない = 末尾
-        return [...filtered].sort((a, b) => {
-            const aDate = a.upcomingSchedules?.[0]?.date ?? 'z'
-            const bDate = b.upcomingSchedules?.[0]?.date ?? 'z'
-            return aDate.localeCompare(bDate)
+                if (
+                    !s.activityTitle.toLowerCase().includes(q) &&
+                    !(s.location?.toLowerCase().includes(q) ?? false)
+                ) return false
+            }
+            return true
         })
-    }, [activitiesData, search])
+    }, [allSchedules, search, showPast])
+
+    // 月→日の二段グルーピング
+    const monthGroups = useMemo(
+        () => groupByMonthAndDate(scheduleItems, (s) => s.date),
+        [scheduleItems],
+    )
 
     return (
         <div className="relative">
-            <div className="px-4 py-3">
+            <div className="px-4 py-3 space-y-2">
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <Input
@@ -143,56 +157,56 @@ function TimelineSubTab({ communityId }: { communityId: string }) {
                         className="pl-9"
                     />
                 </div>
+                <label className="flex items-center gap-2 text-xs text-gray-500">
+                    <input
+                        type="checkbox"
+                        checked={showPast}
+                        onChange={(e) => setShowPast(e.target.checked)}
+                        className="rounded border-gray-300"
+                    />
+                    過去のスケジュールも表示
+                </label>
             </div>
 
             {isLoading ? (
                 <div className="py-8 text-center text-gray-400 text-sm">読み込み中...</div>
-            ) : sortedActivities.length > 0 ? (
-                <div className="divide-y divide-gray-100">
-                    {sortedActivities.map((a, idx) => {
-                        const nextDate = a.upcomingSchedules?.[0]?.date
-                        const curMonth = nextDate?.slice(0, 7) ?? null
-                        const prevMonth = idx > 0
-                            ? (sortedActivities[idx - 1].upcomingSchedules?.[0]?.date?.slice(0, 7) ?? null)
-                            : null
-
-                        const showMonthHeader = curMonth && curMonth !== prevMonth
-                        const [y, m] = curMonth ? curMonth.split('-') : ['', '']
-
+            ) : monthGroups.length > 0 ? (
+                <div>
+                    {monthGroups.map((mg) => {
+                        const [y, m] = mg.month.split('-')
                         return (
-                            <div key={a.id}>
-                                {showMonthHeader && (
-                                    <div className="px-4 py-2 bg-gray-50 text-xs font-semibold text-gray-500">
-                                        {y}年{Number(m)}月
+                            <div key={mg.month}>
+                                <div className="px-4 py-2 bg-gray-50 text-xs font-semibold text-gray-500">
+                                    {y}年{Number(m)}月
+                                </div>
+                                {mg.dateGroups.map((dg) => (
+                                    <div key={dg.date} className="flex border-b border-gray-100">
+                                        {/* 左列: 日付 + 曜日 */}
+                                        <div className="w-14 shrink-0 flex flex-col items-center justify-start pt-3 text-gray-500">
+                                            <span className="text-lg font-semibold leading-none">{formatDay(dg.date)}</span>
+                                            <span className="text-[10px] mt-0.5">{formatWeekday(dg.date)}</span>
+                                        </div>
+                                        {/* 右列: その日のカード群 */}
+                                        <div className="flex-1 min-w-0 divide-y divide-gray-50">
+                                            {dg.items.map((s) => (
+                                                <ScheduleCard
+                                                    key={`${s.activityId}-${s.date}-${s.startTime}`}
+                                                    schedule={s}
+                                                    timeOnly
+                                                />
+                                            ))}
+                                        </div>
                                     </div>
-                                )}
-                                <button
-                                    onClick={() => navigate(`/activities/${a.id}`)}
-                                    className="w-full text-left p-4 hover:bg-gray-50 transition-colors"
-                                >
-                                    <p className="text-sm font-medium text-gray-900">{a.title}</p>
-                                    {a.description && (
-                                        <p className="text-xs text-gray-500 mt-0.5 truncate">{a.description}</p>
-                                    )}
-                                    <div className="flex gap-3 mt-1 text-xs text-gray-400">
-                                        {a.defaultLocation && <span>📍 {a.defaultLocation}</span>}
-                                        {nextDate ? (
-                                            <span>📅 {formatDateLabel(nextDate)} {a.upcomingSchedules[0].startTime} 〜 {a.upcomingSchedules[0].endTime}</span>
-                                        ) : (a.defaultStartTime && (
-                                            <span>🕐 {a.defaultStartTime} - {a.defaultEndTime}</span>
-                                        ))}
-                                    </div>
-                                </button>
+                                ))}
                             </div>
                         )
                     })}
                 </div>
             ) : (
                 <p className="py-12 text-center text-gray-400 text-sm">
-                    アクティビティがありません
+                    {search.trim() ? '一致するスケジュールがありません' : 'スケジュールがありません'}
                 </p>
             )}
-
         </div>
     )
 }
@@ -245,7 +259,7 @@ function CalendarSubTab({ communityId }: { communityId: string }) {
                     selectedSchedules.length > 0 ? (
                         <div className="divide-y divide-gray-100">
                             {selectedSchedules.map((s) => (
-                                <ScheduleCard key={s.scheduleId} schedule={s} />
+                                <ScheduleCard key={s.scheduleId} schedule={s} timeOnly />
                             ))}
                         </div>
                     ) : (

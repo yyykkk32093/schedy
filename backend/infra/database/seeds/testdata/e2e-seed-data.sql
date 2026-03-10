@@ -1,8 +1,9 @@
 -- ============================================================
--- Phase 1+2 テストデータ
--- テストユーザー3人 + コミュニティ(Phase2拡張済み) + アクティビティ + アナウンスメント
+-- E2E シードデータ（Phase 1〜3）
+-- テストユーザー3人 + コミュニティ + アクティビティ + スケジュール
+-- + 参加 / キャンセル待ち / アナウンスメント / ブックマーク
 -- ============================================================
--- 実行: cd backend && PGPASSWORD=app_password psql -h localhost -p 5432 -U app_user -d reserve_manage -f infra/database/seeds/testdata/home_feed_testdata.sql
+-- 実行: cd backend && PGPASSWORD=app_password psql -h localhost -p 5432 -U app_user -d reserve_manage -f infra/database/seeds/testdata/e2e-seed-data.sql
 -- 削除: 末尾のDELETE文をコメント解除して実行
 
 BEGIN;
@@ -174,14 +175,14 @@ ON CONFLICT ("id") DO NOTHING;
 -- 4-b. スケジュール（各アクティビティの初回日程）
 -- ============================================================
 
-INSERT INTO "Schedule" ("id", "activityId", "date", "startTime", "endTime", "location", "status", "capacity", "participationFee", "createdAt", "updatedAt")
+INSERT INTO "Schedule" ("id", "activityId", "date", "startTime", "endTime", "location", "status", "capacity", "participationFee", "isOnline", "meetingUrl", "createdAt", "updatedAt")
 VALUES
-  ('test-sched-futsal-sat-01', 'test-activity-futsal-sat', '2026-03-15', '10:00', '12:00', '代々木公園フットサルコート', 'SCHEDULED', 20, 500, NOW(), NOW()),
-  ('test-sched-futsal-sat-02', 'test-activity-futsal-sat', '2026-03-22', '10:00', '12:00', '代々木公園フットサルコート', 'SCHEDULED', 20, 500, NOW(), NOW()),
-  ('test-sched-futsal-sun-01', 'test-activity-futsal-sun', '2026-03-16', '14:00', '16:00', '駒沢公園', 'SCHEDULED', 16, NULL, NOW(), NOW()),
-  ('test-sched-yoga-01',       'test-activity-yoga-morning', '2026-03-10', '07:00', '08:00', '新宿御苑', 'SCHEDULED', NULL, NULL, NOW(), NOW()),
-  ('test-sched-yoga-02',       'test-activity-yoga-morning', '2026-03-17', '07:00', '08:00', '新宿御苑', 'SCHEDULED', NULL, NULL, NOW(), NOW()),
-  ('test-sched-book-01',       'test-activity-book-monthly', '2026-03-20', '19:00', '21:00', 'オンライン (Zoom)', 'SCHEDULED', 15, NULL, NOW(), NOW())
+  ('test-sched-futsal-sat-01', 'test-activity-futsal-sat', '2026-03-15', '10:00', '12:00', '代々木公園フットサルコート', 'SCHEDULED', 20, 500,  false, NULL, NOW(), NOW()),
+  ('test-sched-futsal-sat-02', 'test-activity-futsal-sat', '2026-03-22', '10:00', '12:00', '代々木公園フットサルコート', 'SCHEDULED', 20, 500,  false, NULL, NOW(), NOW()),
+  ('test-sched-futsal-sun-01', 'test-activity-futsal-sun', '2026-03-16', '14:00', '16:00', '駒沢公園', 'SCHEDULED', 16, NULL, false, NULL, NOW(), NOW()),
+  ('test-sched-yoga-01',       'test-activity-yoga-morning', '2026-03-10', '07:00', '08:00', '新宿御苑', 'SCHEDULED', NULL, NULL, false, NULL, NOW(), NOW()),
+  ('test-sched-yoga-02',       'test-activity-yoga-morning', '2026-03-17', '07:00', '08:00', '新宿御苑', 'SCHEDULED', NULL, NULL, false, NULL, NOW(), NOW()),
+  ('test-sched-book-01',       'test-activity-book-monthly', '2026-03-20', '19:00', '21:00', 'オンライン (Zoom)', 'SCHEDULED', 15, NULL, true, 'https://zoom.us/j/1234567890', NOW(), NOW())
 ON CONFLICT ("id") DO NOTHING;
 
 -- ============================================================
@@ -262,6 +263,65 @@ VALUES
   ('test-read-008', 'test-ann-yoga-003',   'test-user-daniel-001', NOW())
 ON CONFLICT ("announcementId", "userId") DO NOTHING;
 
+-- ============================================================
+-- 6b. アナウンスメント — ブックマーク
+-- ============================================================
+
+-- Helena はフットサルの最新＋読書会をブックマーク
+INSERT INTO "AnnouncementBookmark" ("id", "announcementId", "userId", "createdAt")
+VALUES
+  ('test-bookmark-001', 'test-ann-futsal-001', 'test-user-helena-001', NOW()),
+  ('test-bookmark-002', 'test-ann-book-001',   'test-user-helena-001', NOW())
+ON CONFLICT ("announcementId", "userId") DO NOTHING;
+
+-- Daniel はヨガの特別レッスンをブックマーク
+INSERT INTO "AnnouncementBookmark" ("id", "announcementId", "userId", "createdAt")
+VALUES
+  ('test-bookmark-003', 'test-ann-yoga-002', 'test-user-daniel-001', NOW())
+ON CONFLICT ("announcementId", "userId") DO NOTHING;
+
+-- ============================================================
+-- 7. スケジュール参加データ（メイン日程）
+-- ============================================================
+
+-- フットサル土曜 3/15: Helena=参加, Daniel=参加, Sakura=参加
+INSERT INTO "Participation" ("id", "scheduleId", "userId", "status", "isVisitor", "respondedAt", "paymentMethod", "paymentStatus")
+VALUES
+  ('test-part-futsal-sat01-h', 'test-sched-futsal-sat-01', 'test-user-helena-001', 'ATTENDING', false, NOW(), 'PAYPAY', 'CONFIRMED'),
+  ('test-part-futsal-sat01-d', 'test-sched-futsal-sat-01', 'test-user-daniel-001', 'ATTENDING', false, NOW(), 'CASH',   'UNPAID'),
+  ('test-part-futsal-sat01-s', 'test-sched-futsal-sat-01', 'test-user-sakura-001', 'ATTENDING', false, NOW(), NULL,     NULL)
+ON CONFLICT DO NOTHING;
+
+-- フットサル土曜 3/22: Helena=参加
+INSERT INTO "Participation" ("id", "scheduleId", "userId", "status", "isVisitor", "respondedAt")
+VALUES
+  ('test-part-futsal-sat02-h', 'test-sched-futsal-sat-02', 'test-user-helena-001', 'ATTENDING', false, NOW())
+ON CONFLICT DO NOTHING;
+
+-- ヨガ 3/10: Daniel=参加, Sakura=参加
+INSERT INTO "Participation" ("id", "scheduleId", "userId", "status", "isVisitor", "respondedAt")
+VALUES
+  ('test-part-yoga01-d', 'test-sched-yoga-01', 'test-user-daniel-001', 'ATTENDING', false, NOW()),
+  ('test-part-yoga01-s', 'test-sched-yoga-01', 'test-user-sakura-001', 'ATTENDING', false, NOW())
+ON CONFLICT DO NOTHING;
+
+-- 読書会 3/20: Sakura=参加, Helena=参加（オンライン）
+INSERT INTO "Participation" ("id", "scheduleId", "userId", "status", "isVisitor", "respondedAt")
+VALUES
+  ('test-part-book01-s', 'test-sched-book-01', 'test-user-sakura-001', 'ATTENDING', false, NOW()),
+  ('test-part-book01-h', 'test-sched-book-01', 'test-user-helena-001', 'ATTENDING', false, NOW())
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- 7b. キャンセル待ちデータ
+-- ============================================================
+
+-- フットサル日曜 3/16 (capacity=16): Sakura がキャンセル待ち
+INSERT INTO "WaitlistEntry" ("id", "scheduleId", "userId", "position", "status", "registeredAt")
+VALUES
+  ('test-wl-futsal-sun01-s', 'test-sched-futsal-sun-01', 'test-user-sakura-001', 1, 'WAITING', NOW())
+ON CONFLICT ("scheduleId", "userId") DO NOTHING;
+
 COMMIT;
 
 -- ========== 9. 統計確認用データ（Phase 4 / UBL-17〜22） ==========
@@ -270,12 +330,12 @@ COMMIT;
 
 BEGIN;
 
--- Schedule: フットサル 3月分
-INSERT INTO "Schedule" ("id", "activityId", "date", "startTime", "endTime", "location", "status", "capacity", "participationFee")
+-- Schedule: フットサル 3月分（統計テスト用）
+INSERT INTO "Schedule" ("id", "activityId", "date", "startTime", "endTime", "location", "status", "capacity", "participationFee", "isOnline")
 VALUES
-  ('test-sched-futsal-0301', 'test-activity-futsal', '2026-03-01', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500),
-  ('test-sched-futsal-0308', 'test-activity-futsal', '2026-03-08', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500),
-  ('test-sched-futsal-0315', 'test-activity-futsal', '2026-03-15', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500)
+  ('test-sched-futsal-0301', 'test-activity-futsal-sat', '2026-03-01', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500, false),
+  ('test-sched-futsal-0308', 'test-activity-futsal-sat', '2026-03-08', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500, false),
+  ('test-sched-futsal-0315', 'test-activity-futsal-sat', '2026-03-15', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500, false)
 ON CONFLICT DO NOTHING;
 
 -- Participation: Helena, Daniel, Sakura の参加
@@ -301,8 +361,10 @@ COMMIT;
 -- テストデータ削除用（必要時にコメント解除して実行）
 -- ============================================================
 -- BEGIN;
+-- DELETE FROM "WaitlistEntry" WHERE "id" LIKE 'test-wl-%';
 -- DELETE FROM "Participation" WHERE "id" LIKE 'test-part-%';
 -- DELETE FROM "Schedule" WHERE "id" LIKE 'test-sched-%';
+-- DELETE FROM "AnnouncementBookmark" WHERE "id" LIKE 'test-bookmark-%';
 -- DELETE FROM "AnnouncementRead" WHERE "id" LIKE 'test-read-%';
 -- DELETE FROM "Announcement" WHERE "id" LIKE 'test-ann-%';
 -- DELETE FROM "Activity" WHERE "id" LIKE 'test-activity-%';

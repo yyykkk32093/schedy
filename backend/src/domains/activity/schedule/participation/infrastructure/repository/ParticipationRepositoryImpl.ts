@@ -26,7 +26,7 @@ export class ParticipationRepositoryImpl implements IParticipationRepository {
 
     async findsByScheduleId(scheduleId: string): Promise<Participation[]> {
         const rows = await this.prisma.participation.findMany({
-            where: { scheduleId },
+            where: { scheduleId, status: 'ATTENDING' },
             orderBy: { respondedAt: 'asc' },
         })
         return rows.map((r) => this.toDomain(r))

@@ -1,12 +1,22 @@
-import { useActivity, useDeleteActivity } from '@/features/activity/hooks/useActivityQueries'
-import { useAttendSchedule, useParticipants } from '@/features/participation/hooks/useParticipationQueries'
-import { useSchedules } from '@/features/schedule/hooks/useScheduleQueries'
+import { useActivity, useChangeOrganizer, useDeleteActivity } from '@/features/activity/hooks/useActivityQueries'
+import { useMyRole } from '@/features/community/hooks/useCommunityQueries'
+import { useMembers } from '@/features/community/hooks/useMemberQueries'
+import { ParticipationActionButton } from '@/features/participation/components/ParticipationActionButton'
+import { useParticipants, useWaitlistEntries } from '@/features/participation/hooks/useParticipationQueries'
+import { useSchedule, useSchedules } from '@/features/schedule/hooks/useScheduleQueries'
 import { useSetHeaderActions } from '@/shared/components/HeaderActionsContext'
-import { Button } from '@/shared/components/ui/button'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/shared/components/ui/dialog'
+import { Input } from '@/shared/components/ui/input'
 import { Separator } from '@/shared/components/ui/separator'
-import type { ParticipantItem, ScheduleListItem } from '@/shared/types/api'
-import { Banknote, Calendar, Edit, MapPin, Trash2, User } from 'lucide-react'
-import { useMemo, useRef } from 'react'
+import type { Member, ParticipantItem, ScheduleListItem } from '@/shared/types/api'
+import { formatDateLabel } from '@/shared/utils/dateGroup'
+import { ArrowLeftRight, Banknote, Calendar, Edit, ExternalLink, MapPin, Trash2, User } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 /**
@@ -29,6 +39,8 @@ export function ActivityDetailPage() {
     deleteMutationRef.current = deleteMutation
     const { data: schedulesData, isLoading: isSchedulesLoading, isError: isSchedulesError, error: schedulesError, refetch: refetchSchedules } = useSchedules(id!)
     const schedules = schedulesData?.schedules ?? []
+    const { isAdminOrAbove } = useMyRole(activity?.communityId ?? '')
+    const [showOrganizerDialog, setShowOrganizerDialog] = useState(false)
 
     // ヘッダーに編集・削除アイコンを設定（useMemo で参照安定化 — 0-2 fix）
     const headerActions = useMemo(
@@ -81,19 +93,40 @@ export function ActivityDetailPage() {
             {/* ── アクティビティ名 ── */}
             <h1 className="text-xl font-bold text-gray-900">{activity.title}</h1>
 
+            {/* ── アクティビティ概要 ── */}
+            {activity.description && (
+                <div className="rounded-lg bg-gray-50 border border-gray-100 px-4 py-3">
+                    <p className="text-xs font-semibold text-gray-500 mb-1">アクティビティ概要</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{activity.description}</p>
+                </div>
+            )}
+
             {/* ── 情報セクション ── */}
             <div className="space-y-2 text-sm text-gray-700">
-                {activity.defaultLocation && (
+                {activity.defaultLocation && activity.defaultLocation !== 'オンライン' && (
                     <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
                         <span>開催場所：{activity.defaultLocation}</span>
+                    </div>
+                )}
+                {activity.defaultAddress && (
+                    <div className="flex items-center gap-2 ml-6">
+                        <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.defaultAddress)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                        >
+                            Googleマップで開く
+                            <ExternalLink className="w-3 h-3" />
+                        </a>
                     </div>
                 )}
                 {schedules.length > 0 ? (
                     <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
                         <span>
-                            日時：{schedules[0].date} {schedules[0].startTime} 〜 {schedules[0].endTime}
+                            日時：{formatDateLabel(schedules[0].date)} {schedules[0].startTime} 〜 {schedules[0].endTime}
                         </span>
                     </div>
                 ) : (activity.defaultStartTime || activity.defaultEndTime) ? (
@@ -106,14 +139,18 @@ export function ActivityDetailPage() {
                 ) : null}
                 <div className="flex items-center gap-2">
                     <User className="w-4 h-4 text-gray-400 shrink-0" />
-                    <span>幹事：{activity.createdByDisplayName ?? activity.createdBy}</span>
+                    <span>幹事：{activity.organizerDisplayName ?? activity.organizerUserId ? (activity.organizerDisplayName ?? '—') : '未定'}</span>
+                    {isAdminOrAbove && (
+                        <button
+                            type="button"
+                            onClick={() => setShowOrganizerDialog(true)}
+                            className="p-1 hover:bg-gray-100 rounded"
+                            aria-label="幹事を変更"
+                        >
+                            <ArrowLeftRight className="w-3.5 h-3.5 text-gray-400" />
+                        </button>
+                    )}
                 </div>
-                {/* ── Description（幹事の下に表示） ── */}
-                {activity.description && (
-                    <div className="mt-2 pl-6">
-                        <p className="text-sm text-gray-600 whitespace-pre-wrap">{activity.description}</p>
-                    </div>
-                )}
                 {/* 参加費（先頭スケジュールから取得） */}
                 {schedules.length > 0 && (
                     <div className="flex items-center gap-2">
@@ -157,6 +194,16 @@ export function ActivityDetailPage() {
                     </div>
                 )}
             </div>
+
+            {/* ── 幹事変更ダイアログ ── */}
+            {activity && (
+                <ChangeOrganizerDialog
+                    activityId={id!}
+                    communityId={activity.communityId}
+                    open={showOrganizerDialog}
+                    onOpenChange={setShowOrganizerDialog}
+                />
+            )}
         </div>
     )
 }
@@ -165,10 +212,18 @@ export function ActivityDetailPage() {
 
 function ScheduleSection({ schedule }: { schedule: ScheduleListItem }) {
     const { data: participantsData } = useParticipants(schedule.id)
-    const attendMutation = useAttendSchedule(schedule.id)
+    const { data: waitlistData } = useWaitlistEntries(schedule.id)
+    // 個別スケジュールAPIで myStatus / attendingCount / waitlistCount を取得
+    const { data: scheduleDetail, isLoading: isDetailLoading } = useSchedule(schedule.id)
     const participants = participantsData?.participants ?? []
+    const waitlistEntries = waitlistData?.entries ?? []
     const isCancelled = schedule.status === 'CANCELLED'
     const remaining = schedule.capacity != null ? schedule.capacity - participants.length : null
+
+    const myStatus = scheduleDetail?.myStatus ?? 'none'
+    const hasFee = schedule.participationFee != null && schedule.participationFee > 0
+    const isFull = schedule.capacity != null
+        && (scheduleDetail?.attendingCount ?? participants.length) >= schedule.capacity
 
     return (
         <div className="border rounded-lg p-4 space-y-3">
@@ -177,10 +232,10 @@ function ScheduleSection({ schedule }: { schedule: ScheduleListItem }) {
                 <h3 className="text-xs font-semibold text-gray-600 mb-1">
                     参加者一覧（{remaining != null ? `残り: ${remaining}/${schedule.capacity}` : `${participants.length}名`}）
                 </h3>
-                {participants.length > 0 ? (
-                    <div className="border rounded overflow-hidden">
+                <div className="border rounded overflow-hidden">
+                    <div className="max-h-64 overflow-auto">
                         <table className="w-full text-xs">
-                            <thead>
+                            <thead className="sticky top-0 z-10">
                                 <tr className="bg-gray-50 border-b">
                                     <th className="px-2 py-1 text-left font-medium text-gray-600 w-8">No.</th>
                                     <th className="px-2 py-1 text-left font-medium text-gray-600">参加者</th>
@@ -189,48 +244,159 @@ function ScheduleSection({ schedule }: { schedule: ScheduleListItem }) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {participants.map((p: ParticipantItem, i: number) => (
-                                    <tr key={p.id} className="border-b last:border-0">
-                                        <td className="px-2 py-1 text-gray-600">{i + 1}</td>
-                                        <td className="px-2 py-1 text-gray-900">{p.displayName ?? p.userId.slice(0, 8)}</td>
-                                        <td className="px-2 py-1 text-center">
-                                            {p.isVisitor ? '✓' : '—'}
-                                        </td>
-                                        <td className="px-2 py-1 text-center">
-                                            {p.paymentStatus === 'CONFIRMED' ? (
-                                                <span className="text-green-600">✓</span>
-                                            ) : p.paymentStatus === 'REPORTED' ? (
-                                                <span className="text-yellow-600">報告済</span>
-                                            ) : '—'}
-                                        </td>
-                                    </tr>
-                                ))}
+                                {(() => {
+                                    const totalRows = schedule.capacity != null ? Math.max(schedule.capacity, participants.length) : Math.max(participants.length, 1)
+                                    return Array.from({ length: totalRows }, (_, i) => {
+                                        const p = participants[i] as ParticipantItem | undefined
+                                        return (
+                                            <tr key={p?.id ?? `empty-${i}`} className="border-b last:border-0">
+                                                <td className="px-2 py-1 text-gray-600">{i + 1}</td>
+                                                <td className="px-2 py-1 text-gray-900">
+                                                    {p ? (p.displayName ?? p.userId.slice(0, 8)) : <span className="text-gray-300">—</span>}
+                                                </td>
+                                                <td className="px-2 py-1 text-center">
+                                                    {p ? (p.isVisitor ? '✓' : '—') : <span className="text-gray-300">—</span>}
+                                                </td>
+                                                <td className="px-2 py-1 text-center">
+                                                    {p ? (
+                                                        p.paymentStatus === 'CONFIRMED' ? (
+                                                            <span className="text-green-600">✓</span>
+                                                        ) : p.paymentStatus === 'REPORTED' ? (
+                                                            <span className="text-yellow-600">報告済</span>
+                                                        ) : '—'
+                                                    ) : <span className="text-gray-300">—</span>}
+                                                </td>
+                                            </tr>
+                                        )
+                                    })
+                                })()}
                             </tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+
+            {/* キャンセル待ち一覧（常時表示） */}
+            <div>
+                <h3 className="text-xs font-semibold text-gray-600 mb-1">
+                    キャンセル待ち（{waitlistEntries.length}名）
+                </h3>
+                {waitlistEntries.length > 0 ? (
+                    <div className="border rounded overflow-hidden">
+                        <div className="max-h-40 overflow-auto">
+                            <table className="w-full text-xs">
+                                <thead className="sticky top-0 z-10">
+                                    <tr className="bg-orange-50 border-b">
+                                        <th className="px-2 py-1 text-left font-medium text-gray-600 w-8">No.</th>
+                                        <th className="px-2 py-1 text-left font-medium text-gray-600">名前</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {waitlistEntries.map((w, i) => (
+                                        <tr key={w.id} className="border-b last:border-0">
+                                            <td className="px-2 py-1 text-gray-600">{i + 1}</td>
+                                            <td className="px-2 py-1 text-gray-900">{w.displayName ?? '—'}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 ) : (
-                    <p className="text-xs text-gray-400">まだ参加者がいません</p>
+                    <p className="text-xs text-gray-400">キャンセル待ちはいません。</p>
                 )}
             </div>
 
-            {/* 参加するボタン */}
+            {/* 参加アクションボタン（scheduleDetail読込完了まで表示しない） */}
             {!isCancelled && (
-                <Button
-                    className="w-full"
-                    variant="outline"
-                    size="sm"
-                    disabled={attendMutation.isPending}
-                    onClick={() => attendMutation.mutate({})}
-                >
-                    {attendMutation.isPending ? '処理中...' : '参加する'}
-                </Button>
-            )}
-            {attendMutation.isError && (
-                <p className="text-xs text-red-500">{(attendMutation.error as Error).message}</p>
-            )}
-            {attendMutation.isSuccess && (
-                <p className="text-xs text-green-600">参加登録しました ✓</p>
+                isDetailLoading ? (
+                    <div className="flex justify-center py-2">
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                    </div>
+                ) : (
+                    <ParticipationActionButton
+                        scheduleId={schedule.id}
+                        hasFee={hasFee}
+                        myStatus={myStatus}
+                        isFull={isFull}
+                    />
+                )
             )}
         </div>
+    )
+}
+
+// ─── 幹事変更ダイアログ ────────────────────────────────
+
+function ChangeOrganizerDialog({
+    activityId,
+    communityId,
+    open,
+    onOpenChange,
+}: {
+    activityId: string
+    communityId: string
+    open: boolean
+    onOpenChange: (open: boolean) => void
+}) {
+    const { data: membersData } = useMembers(communityId)
+    const members = membersData?.members ?? []
+    const changeOrganizerMutation = useChangeOrganizer(activityId, communityId)
+    const [search, setSearch] = useState('')
+
+    const filtered = useMemo(() => {
+        if (!search.trim()) return members.slice(0, 10)
+        const q = search.toLowerCase()
+        return members.filter((m: Member) =>
+            m.userId.toLowerCase().includes(q) ||
+            (m.displayName && m.displayName.toLowerCase().includes(q))
+        ).slice(0, 10)
+    }, [members, search])
+
+    const handleSelect = async (userId: string | null) => {
+        await changeOrganizerMutation.mutateAsync({ organizerUserId: userId })
+        onOpenChange(false)
+        setSearch('')
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>幹事を変更</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                    <Input
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="🔍 メンバーを検索"
+                        className="text-sm"
+                    />
+                    <div className="max-h-60 overflow-auto space-y-1">
+                        {/* 未定 */}
+                        <button
+                            type="button"
+                            onClick={() => handleSelect(null)}
+                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-left rounded"
+                        >
+                            <div className="w-6 h-6 bg-gray-100 rounded-full shrink-0 flex items-center justify-center text-xs text-gray-400">?</div>
+                            <span className="text-gray-500">未定</span>
+                        </button>
+                        {filtered.map((m: Member) => (
+                            <button
+                                key={m.userId}
+                                type="button"
+                                onClick={() => handleSelect(m.userId)}
+                                disabled={changeOrganizerMutation.isPending}
+                                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-left rounded disabled:opacity-50"
+                            >
+                                <div className="w-6 h-6 bg-gray-200 rounded-full shrink-0" />
+                                <span>{m.displayName ?? m.userId}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
     )
 }

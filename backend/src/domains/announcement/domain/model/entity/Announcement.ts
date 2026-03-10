@@ -69,6 +69,20 @@ export class Announcement extends AggregateRoot {
         this.deletedAt = new Date()
     }
 
+    updateTitle(title: AnnouncementTitle): void {
+        if (this.isDeleted()) {
+            throw new DomainValidationError('削除済みのお知らせは編集できません', 'ANNOUNCEMENT_ALREADY_DELETED')
+        }
+        this.title = title
+    }
+
+    updateContent(content: AnnouncementContent): void {
+        if (this.isDeleted()) {
+            throw new DomainValidationError('削除済みのお知らせは編集できません', 'ANNOUNCEMENT_ALREADY_DELETED')
+        }
+        this.content = content
+    }
+
     isDeleted(): boolean {
         return this.deletedAt !== null
     }

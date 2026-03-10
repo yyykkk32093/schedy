@@ -1,3 +1,4 @@
+import type { IAnnouncementBookmarkRepository } from '@/domains/announcement/domain/repository/IAnnouncementBookmarkRepository.js';
 import type { IAnnouncementCommentRepository } from '@/domains/announcement/domain/repository/IAnnouncementCommentRepository.js';
 import type { IAnnouncementLikeRepository } from '@/domains/announcement/domain/repository/IAnnouncementLikeRepository.js';
 import type { IAnnouncementReadRepository } from '@/domains/announcement/domain/repository/IAnnouncementReadRepository.js';
@@ -14,6 +15,7 @@ export interface CommunityAnnouncementItemDto {
     title: string
     content: string
     isRead: boolean
+    isBookmarked: boolean
     createdAt: string
     likeCount: number
     commentCount: number
@@ -27,6 +29,7 @@ export class ListAnnouncementsUseCase {
         private readonly announcementReadRepository: IAnnouncementReadRepository,
         private readonly likeRepository: IAnnouncementLikeRepository,
         private readonly commentRepository: IAnnouncementCommentRepository,
+        private readonly bookmarkRepository: IAnnouncementBookmarkRepository,
     ) { }
 
     async execute(input: { communityId: string; userId: string }): Promise<{
@@ -45,15 +48,17 @@ export class ListAnnouncementsUseCase {
         const ids = rows.map((r) => r.id)
 
         // ソーシャルデータを一括取得（GetAnnouncementFeedUseCase と同パターン）
-        const [readIds, likeCounts, commentCounts, likedIds] = await Promise.all([
+        const [readIds, likeCounts, commentCounts, likedIds, bookmarkedIds] = await Promise.all([
             this.announcementReadRepository.findReadAnnouncementIds(input.userId, ids),
             this.likeRepository.countByAnnouncementIds(ids),
             this.commentRepository.countByAnnouncementIds(ids),
             this.likeRepository.findLikedIds(input.userId, ids),
+            this.bookmarkRepository.findBookmarkedIds(input.userId, ids),
         ])
 
         const readSet = new Set(readIds)
         const likedSet = new Set(likedIds)
+        const bookmarkedSet = new Set(bookmarkedIds)
 
         return {
             announcements: rows.map((r) => ({
@@ -67,6 +72,7 @@ export class ListAnnouncementsUseCase {
                 title: r.title,
                 content: r.content,
                 isRead: readSet.has(r.id),
+                isBookmarked: bookmarkedSet.has(r.id),
                 createdAt: r.createdAt.toISOString(),
                 likeCount: likeCounts.get(r.id) ?? 0,
                 commentCount: commentCounts.get(r.id) ?? 0,

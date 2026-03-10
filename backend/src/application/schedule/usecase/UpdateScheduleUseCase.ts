@@ -28,6 +28,8 @@ export class UpdateScheduleUseCase {
         note?: string | null
         capacity?: number | null
         participationFee?: number | null
+        isOnline?: boolean
+        meetingUrl?: string | null
     }): Promise<void> {
         await this.unitOfWork.run(async (repos) => {
             const schedule = await repos.schedule.findById(input.scheduleId)
@@ -52,6 +54,8 @@ export class UpdateScheduleUseCase {
                 note: input.note !== undefined ? input.note : undefined,
                 capacity: input.capacity !== undefined ? input.capacity : undefined,
                 participationFee: input.participationFee !== undefined ? input.participationFee : undefined,
+                isOnline: input.isOnline !== undefined ? input.isOnline : undefined,
+                meetingUrl: input.meetingUrl !== undefined ? input.meetingUrl : undefined,
             })
 
             await repos.schedule.save(schedule)

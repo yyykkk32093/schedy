@@ -132,6 +132,10 @@ export const participationListKeys = {
     bySchedule: (scheduleId: string) => ['participations', 'list', scheduleId] as const,
 }
 
+export const waitlistKeys = {
+    bySchedule: (scheduleId: string) => ['waitlist', 'list', scheduleId] as const,
+}
+
 // ─── Announcement Social Key ────────────────────────────
 
 export const announcementCommentKeys = {

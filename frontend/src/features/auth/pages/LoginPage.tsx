@@ -17,8 +17,9 @@ export function LoginPage() {
         mutationFn: (data: LoginFormValues) =>
             authApi.loginWithPassword({ email: data.email, password: data.password }),
         onSuccess: async () => {
-            // 認証キャッシュを無効化し、/v1/auth/me を再フェッチして完全な AuthUser を取得
-            // await で再フェッチ完了を待ってからナビゲーション（0-1 fix）
+            // ユーザ切替時にすべてのキャッシュをクリアし、staleなmyStatus等を排除
+            qc.removeQueries()
+            // 認証キャッシュを再フェッチして完全な AuthUser を取得
             await qc.invalidateQueries({ queryKey: authKeys.me() })
             navigate('/', { replace: true })
         },

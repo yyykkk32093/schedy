@@ -44,6 +44,7 @@ export class CancelParticipationUseCase {
     }): Promise<void> {
         let scheduleDate: Date | null = null
         let activityId: string | null = null
+        let hasPaidPayment = false
 
         await this.unitOfWork.run(async (repos) => {
             const participation = await repos.participation.findByScheduleAndUser(
@@ -52,6 +53,10 @@ export class CancelParticipationUseCase {
             if (!participation || !participation.isAttending()) {
                 throw new ParticipationError('参加表明が見つかりません', 'PARTICIPATION_NOT_FOUND')
             }
+
+            // 有料参加かどうかを TX 内で記録（REPORTED / CONFIRMED → 返金アラート対象）
+            const ps = participation.getPaymentStatus()
+            hasPaidPayment = ps != null && (ps.isReported() || ps.isConfirmed())
 
             // キャンセル
             participation.cancel()
@@ -68,16 +73,25 @@ export class CancelParticipationUseCase {
             if (!schedule.isFull(attendingCount)) {
                 const nextEntry = await repos.waitlist.findNextWaiting(input.scheduleId)
                 if (nextEntry) {
-                    // 繰り上げ: WaitlistEntry → PROMOTED + Participation 作成
+                    // 繰り上げ: WaitlistEntry → PROMOTED + Participation 作成（or 再参加）
                     nextEntry.promote()
                     await repos.waitlist.save(nextEntry)
 
-                    const promotedParticipation = Participation.create({
-                        id: this.idGenerator.generate(),
-                        scheduleId: ScheduleId.create(input.scheduleId),
-                        userId: nextEntry.getUserId(),
-                    })
-                    await repos.participation.save(promotedParticipation)
+                    // 既存の CANCELLED Participation があれば reattend（@@unique 制約回避）
+                    const existingParticipation = await repos.participation.findByScheduleAndUser(
+                        input.scheduleId, nextEntry.getUserId().getValue()
+                    )
+                    if (existingParticipation && !existingParticipation.isAttending()) {
+                        existingParticipation.reattend()
+                        await repos.participation.save(existingParticipation)
+                    } else {
+                        const promotedParticipation = Participation.create({
+                            id: this.idGenerator.generate(),
+                            scheduleId: ScheduleId.create(input.scheduleId),
+                            userId: nextEntry.getUserId(),
+                        })
+                        await repos.participation.save(promotedParticipation)
+                    }
 
                     // 通知: ① Notification INSERT + ② OutboxEvent INSERT（同一 TX 内）
                     await this.notificationService.prepareNotification(repos, {
@@ -95,6 +109,11 @@ export class CancelParticipationUseCase {
         // TX commit 後: 当日キャンセルなら管理者にアラート（UBL-18-3）
         if (scheduleDate && activityId) {
             await this.sendSameDayCancellationAlert(input.scheduleId, input.userId, scheduleDate, activityId)
+        }
+
+        // TX commit 後: 有料参加者のキャンセル → 管理者に返金アラート
+        if (hasPaidPayment && activityId) {
+            await this.sendPaidCancellationAlert(input.scheduleId, input.userId, activityId)
         }
 
         // ③ TX commit 後に WS 配信（fire-and-forget）
@@ -174,6 +193,62 @@ export class CancelParticipationUseCase {
             // アラート送信失敗は握りつぶす（キャンセル自体は成功済み）
             // ログは出す
             console.error('[CancelParticipation] Failed to send same-day cancellation alert:', err)
+        }
+    }
+
+    /**
+     * 有料参加者がキャンセルした際に OWNER/ADMIN へ返金アラートを送信する。
+     * メイン TX の外で実行し、失敗しても参加キャンセル自体はロールバックしない。
+     */
+    private async sendPaidCancellationAlert(
+        scheduleId: string,
+        cancellerUserId: string,
+        activityId: string,
+    ): Promise<void> {
+        try {
+            const activity = await this.prisma.activity.findUnique({
+                where: { id: activityId },
+                select: { communityId: true, title: true },
+            })
+            if (!activity) return
+
+            // OWNER/ADMIN を取得（キャンセルした本人は除外）
+            const admins = await this.prisma.communityMembership.findMany({
+                where: {
+                    communityId: activity.communityId,
+                    role: { in: ['OWNER', 'ADMIN'] },
+                    leftAt: null,
+                    userId: { not: cancellerUserId },
+                },
+                select: { userId: true },
+            })
+            if (admins.length === 0) return
+
+            const canceller = await this.prisma.user.findUnique({
+                where: { id: cancellerUserId },
+                select: { displayName: true },
+            })
+            const cancellerName = canceller?.displayName ?? '不明なユーザー'
+
+            await this.prisma.$transaction(async (tx) => {
+                const notifRepo = new NotificationRepositoryImpl(tx)
+                const outboxRepo = new OutboxRepository(tx)
+                for (const admin of admins) {
+                    await this.notificationService.prepareNotification(
+                        { notification: notifRepo, outbox: outboxRepo },
+                        {
+                            userId: admin.userId,
+                            type: 'PAID_CANCELLATION',
+                            title: '支払済み参加者がキャンセルしました',
+                            body: `${cancellerName}さんが${activity.title}のスケジュールをキャンセルしました。返金対応をご確認ください。`,
+                            referenceId: scheduleId,
+                            referenceType: 'SCHEDULE',
+                        },
+                    )
+                }
+            })
+        } catch (err) {
+            console.error('[CancelParticipation] Failed to send paid cancellation alert:', err)
         }
     }
 }

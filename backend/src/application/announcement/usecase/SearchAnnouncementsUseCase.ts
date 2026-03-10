@@ -1,3 +1,4 @@
+import type { IAnnouncementBookmarkRepository } from '@/domains/announcement/domain/repository/IAnnouncementBookmarkRepository.js'
 import type { IAnnouncementCommentRepository } from '@/domains/announcement/domain/repository/IAnnouncementCommentRepository.js'
 import type { IAnnouncementLikeRepository } from '@/domains/announcement/domain/repository/IAnnouncementLikeRepository.js'
 import type { IAnnouncementReadRepository } from '@/domains/announcement/domain/repository/IAnnouncementReadRepository.js'
@@ -16,6 +17,7 @@ export class SearchAnnouncementsUseCase {
         private readonly membershipRepository: ICommunityMembershipRepository,
         private readonly likeRepository: IAnnouncementLikeRepository,
         private readonly commentRepository: IAnnouncementCommentRepository,
+        private readonly bookmarkRepository: IAnnouncementBookmarkRepository,
     ) { }
 
     async execute(input: {
@@ -41,15 +43,17 @@ export class SearchAnnouncementsUseCase {
         )
 
         const announcementIds = rows.map((r) => r.id)
-        const [readIds, likeCounts, commentCounts, likedIds] = await Promise.all([
+        const [readIds, likeCounts, commentCounts, likedIds, bookmarkedIds] = await Promise.all([
             this.announcementReadRepository.findReadAnnouncementIds(input.userId, announcementIds),
             this.likeRepository.countByAnnouncementIds(announcementIds),
             this.commentRepository.countByAnnouncementIds(announcementIds),
             this.likeRepository.findLikedIds(input.userId, announcementIds),
+            this.bookmarkRepository.findBookmarkedIds(input.userId, announcementIds),
         ])
 
         const readSet = new Set(readIds)
         const likedSet = new Set(likedIds)
+        const bookmarkedSet = new Set(bookmarkedIds)
 
         return {
             items: rows.map((r) => ({
@@ -63,6 +67,7 @@ export class SearchAnnouncementsUseCase {
                 title: r.title,
                 content: r.content,
                 isRead: readSet.has(r.id),
+                isBookmarked: bookmarkedSet.has(r.id),
                 createdAt: r.createdAt.toISOString(),
                 likeCount: likeCounts.get(r.id) ?? 0,
                 commentCount: commentCounts.get(r.id) ?? 0,

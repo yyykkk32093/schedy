@@ -9,10 +9,15 @@ export interface UserScheduleItem {
     location: string | null
     status: string
     participationFee: number | null
+    isOnline: boolean
+    meetingUrl: string | null
     activityId: string
     activityTitle: string
     communityId: string
     communityName: string
+    organizerName: string | null
+    participantCount: number
+    capacity: number | null
 }
 
 /**
@@ -58,8 +63,17 @@ export class ListUserSchedulesUseCase {
                         id: true,
                         title: true,
                         communityId: true,
+                        createdBy: true,
+                        organizerUserId: true,
                         community: {
                             select: { name: true },
+                        },
+                    },
+                },
+                _count: {
+                    select: {
+                        participations: {
+                            where: { status: 'ATTENDING' },
                         },
                     },
                 },
@@ -70,6 +84,16 @@ export class ListUserSchedulesUseCase {
             ],
         })
 
+        // 3. 幹事（organizerUserId 優先、なければ createdBy）の displayName を一括取得
+        const organizerIds = [...new Set(rows.map((r) => r.activity.organizerUserId ?? r.activity.createdBy))]
+        const organizers = organizerIds.length > 0
+            ? await this.prisma.user.findMany({
+                where: { id: { in: organizerIds } },
+                select: { id: true, displayName: true },
+            })
+            : []
+        const organizerMap = new Map(organizers.map((u) => [u.id, u.displayName]))
+
         return {
             schedules: rows.map((row) => ({
                 scheduleId: row.id,
@@ -79,10 +103,15 @@ export class ListUserSchedulesUseCase {
                 location: row.location,
                 status: row.status,
                 participationFee: row.participationFee,
+                isOnline: row.isOnline,
+                meetingUrl: row.meetingUrl,
                 activityId: row.activity.id,
                 activityTitle: row.activity.title,
                 communityId: row.activity.communityId,
                 communityName: row.activity.community.name,
+                organizerName: organizerMap.get(row.activity.organizerUserId ?? row.activity.createdBy) ?? null,
+                participantCount: row._count.participations,
+                capacity: row.capacity,
             })),
         }
     }

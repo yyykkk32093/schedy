@@ -44,6 +44,38 @@ export function useToggleAnnouncementLike() {
     })
 }
 
+// ─── Phase 3 (3-1): ブックマークトグル ───────────────────
+
+export function useToggleAnnouncementBookmark() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: (announcementId: string) => announcementApi.toggleBookmark(announcementId),
+        onMutate: async (announcementId) => {
+            await qc.cancelQueries({ queryKey: announcementFeedKeys.all })
+            qc.setQueriesData<{ pages: Array<{ items: AnnouncementFeedItem[]; nextCursor: string | null }> }>(
+                { queryKey: announcementFeedKeys.all },
+                (old) => {
+                    if (!old) return old
+                    return {
+                        ...old,
+                        pages: old.pages.map((page) => ({
+                            ...page,
+                            items: page.items.map((item) =>
+                                item.id === announcementId
+                                    ? { ...item, isBookmarked: !item.isBookmarked }
+                                    : item,
+                            ),
+                        })),
+                    }
+                },
+            )
+        },
+        onSettled: () => {
+            qc.invalidateQueries({ queryKey: announcementFeedKeys.all })
+        },
+    })
+}
+
 // ─── UBL-2: コメント ─────────────────────────────────────
 
 export function useAnnouncementComments(announcementId: string) {

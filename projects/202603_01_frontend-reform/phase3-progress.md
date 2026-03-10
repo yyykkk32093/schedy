@@ -71,4 +71,12 @@
 
 ## 作業ログ
 
+- 2026-03-10: Session 3.2 レビューフィードバック対応（6件）
+  - **参加取り消し後にUIが切り替わらないバグ修正**: FindScheduleUseCase の `myStatus` 判定で `isAttending()` / `isWaiting()` チェック追加。`findsByScheduleId` を ATTENDING のみ返すようフィルタ追加
+  - **開催場所住所フィールド追加 (defaultAddress)**: Prisma schema → Activity entity → Repository → 4 UseCase → Controller → FE types → ActivityForm → Create/Edit/Detail ページ全レイヤ実装
+  - **Googleマップリンク条件変更**: defaultAddress が存在する場合のみ表示。オンライン時は開催場所自体を非表示
+  - **会議URLラベル変更**: 「会議URL」→「会議URL（任意）」
+  - **ScheduleCard X アイコン削除**: ActivitiesTab で不要な × マーク除去
+  - Migration: `add_default_address_to_activity`
+  - BE tsc ✅ / FE tsc ✅ / Vite build ✅
 - 2026-03-04: Phase 3 全タスク実装完了。バックエンドAPI新設 + フロント5画面リビルド + ActivitiesTab刷新。BL-10〜12をバックログ化

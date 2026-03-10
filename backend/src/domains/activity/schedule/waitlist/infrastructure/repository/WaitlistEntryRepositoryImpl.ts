@@ -58,6 +58,7 @@ export class WaitlistEntryRepositoryImpl implements IWaitlistEntryRepository {
                 cancelledAt: entry.getCancelledAt(),
             },
             update: {
+                position: entry.getPosition(),
                 status: entry.getStatus().getValue(),
                 promotedAt: entry.getPromotedAt(),
                 cancelledAt: entry.getCancelledAt(),

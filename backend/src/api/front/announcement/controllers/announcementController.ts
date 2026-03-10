@@ -100,6 +100,21 @@ export const announcementController = {
         }
     },
 
+    /** Phase 3 (3-2): お知らせ編集 */
+    async update(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { id: announcementId } = req.params
+            const { title, content } = req.body
+            const userId = req.user!.userId
+
+            const useCase = usecaseFactory.createUpdateAnnouncementUseCase()
+            const result = await useCase.execute({ announcementId, userId, title, content })
+            res.status(200).json(result)
+        } catch (err) {
+            next(err)
+        }
+    },
+
     /** UBL-1: いいね Toggle */
     async toggleLike(req: Request, res: Response, next: NextFunction) {
         try {
@@ -107,6 +122,20 @@ export const announcementController = {
             const userId = req.user!.userId
 
             const useCase = usecaseFactory.createToggleAnnouncementLikeUseCase()
+            const result = await useCase.execute({ announcementId, userId })
+            res.status(200).json(result)
+        } catch (err) {
+            next(err)
+        }
+    },
+
+    /** Phase 3 (3-1): ブックマーク Toggle */
+    async toggleBookmark(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { id: announcementId } = req.params
+            const userId = req.user!.userId
+
+            const useCase = usecaseFactory.createToggleAnnouncementBookmarkUseCase()
             const result = await useCase.execute({ announcementId, userId })
             res.status(200).json(result)
         } catch (err) {

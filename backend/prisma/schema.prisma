@@ -72,9 +72,11 @@ model Activity {
   title            String
   description      String?
   defaultLocation  String?
+  defaultAddress   String? // 開催場所住所（任意）— Googleマップリンク用
   defaultStartTime String? // "HH:mm" format
   defaultEndTime   String? // "HH:mm" format
   recurrenceRule   String? // null in Phase 1
+  organizerUserId  String? // 幹事ユーザーID（null = 未定）
   createdBy        String
   deletedAt        DateTime?
 
@@ -87,6 +89,7 @@ model Activity {
 
   @@index([communityId])
   @@index([createdBy])
+  @@index([organizerUserId])
 }
 
 model Schedule {
@@ -100,6 +103,8 @@ model Schedule {
   status           String   @default("SCHEDULED") // SCHEDULED | CANCELLED
   capacity         Int?
   participationFee Int? // 参加費（円）。null = 無料
+  isOnline         Boolean  @default(false)
+  meetingUrl       String? // オンライン時の会議URL
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -360,6 +365,7 @@ model Announcement {
   likes       AnnouncementLike[]
   comments    AnnouncementComment[]
   attachments AnnouncementAttachment[]
+  bookmarks   AnnouncementBookmark[]
   polls       Poll[]
 
   @@index([communityId])
@@ -429,6 +435,22 @@ model AnnouncementAttachment {
   announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
 
   @@index([announcementId])
+}
+
+// ============================================================
+// Phase 3 (3-1): AnnouncementBookmark（お知らせブックマーク）
+// ============================================================
+
+model AnnouncementBookmark {
+  id             String   @id @default(uuid())
+  announcementId String
+  userId         String
+  createdAt      DateTime @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@index([userId])
 }
 
 // ============================================================

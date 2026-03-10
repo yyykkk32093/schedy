@@ -31,6 +31,8 @@ export class CreateScheduleUseCase {
         note?: string | null
         capacity?: number | null
         participationFee?: number | null
+        isOnline?: boolean
+        meetingUrl?: string | null
         userId: string
     }): Promise<{ scheduleId: string }> {
         let scheduleId = ''
@@ -59,6 +61,8 @@ export class CreateScheduleUseCase {
                 note: input.note,
                 capacity: input.capacity,
                 participationFee: input.participationFee,
+                isOnline: input.isOnline,
+                meetingUrl: input.meetingUrl,
             })
 
             await repos.schedule.save(schedule)

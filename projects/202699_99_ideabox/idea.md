@@ -16,6 +16,7 @@
 | I-5 | Slack 通知連携（Webhook）                        | Ph5 UBL-29 検討時   | LINE と同様の Webhook 連携を Slack 向けに実装。既存 `CommunityWebhookConfig.service = 'SLACK'` で設定可能。Slack Incoming Webhook URL に POST するだけ。`LineWebhookIntegrationHandler` と同パターン       | 2026-03-06 |
 | I-6 | Discord 通知連携（Webhook）                      | Ph5 UBL-29 検討時   | Discord Webhook URL に POST するパターン。Slack と同様に `CommunityWebhookConfig.service = 'DISCORD'` で管理。Discord 固有のフォーマット（embeds）対応が必要                                               | 2026-03-06 |
 | I-7 | チャットのマイク入力（音声入力）                 | 202603_02 レビュー  | チャットメッセージ入力欄にマイクボタンがあるが未実装。Web Speech API (`SpeechRecognition`) or 外部サービス連携で音声→テキスト変換。実装工数大のためIdeaBox送り。レビュー元: チャットタブ[4]                | 2026-03-07 |
+| I-8 | チャットメッセージ既読数表示（ハイブリッド方式） | 202603_02 Ph3 3-9   | WS: `message:read`(C→S)で既読送信、REST: メッセージ取得時に`readCount`付与。`message_read_receipts`テーブル新設が必要。パフォーマンス設計（バッチ既読等）も要検討。実装工数大のためIdeaBox送り             | 2026-03-10 |
 
 ---
 
