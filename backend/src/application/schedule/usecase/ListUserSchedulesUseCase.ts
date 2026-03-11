@@ -72,9 +72,7 @@ export class ListUserSchedulesUseCase {
                 },
                 _count: {
                     select: {
-                        participations: {
-                            where: { status: 'ATTENDING' },
-                        },
+                        participations: true,
                     },
                 },
             },

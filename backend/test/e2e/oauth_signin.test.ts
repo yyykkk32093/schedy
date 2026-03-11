@@ -42,7 +42,7 @@ describeE2E("OAuth SignIn E2E", () => {
 
     beforeEach(async () => {
         // クリーンアップ
-        await prisma.auditLog.deleteMany({});
+        await prisma.authAuditLog.deleteMany({});
         await prisma.outboxEvent.deleteMany({});
         await prisma.outboxDeadLetter.deleteMany({});
 
@@ -123,7 +123,7 @@ describeE2E("OAuth SignIn E2E", () => {
             // Worker を実行して AuditLog に記録
             await worker.runOnce();
 
-            const logs = await prisma.auditLog.findMany({
+            const logs = await prisma.authAuditLog.findMany({
                 where: { userId },
             });
             expect(logs.length).toBeGreaterThanOrEqual(1);

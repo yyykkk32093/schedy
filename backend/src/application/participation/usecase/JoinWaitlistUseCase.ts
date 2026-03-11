@@ -5,7 +5,9 @@ import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
 import { ScheduleId } from '@/domains/activity/schedule/domain/model/valueObject/ScheduleId.js'
 import type { IScheduleRepository } from '@/domains/activity/schedule/domain/repository/IScheduleRepository.js'
 import type { IParticipationRepository } from '@/domains/activity/schedule/participation/domain/repository/IParticipationRepository.js'
+import { WaitlistAuditLog } from '@/domains/activity/schedule/waitlist/domain/model/entity/WaitlistAuditLog.js'
 import { WaitlistEntry } from '@/domains/activity/schedule/waitlist/domain/model/entity/WaitlistEntry.js'
+import type { IWaitlistAuditLogRepository } from '@/domains/activity/schedule/waitlist/domain/repository/IWaitlistAuditLogRepository.js'
 import type { IWaitlistEntryRepository } from '@/domains/activity/schedule/waitlist/domain/repository/IWaitlistEntryRepository.js'
 import { WaitlistError } from '../error/WaitlistError.js'
 
@@ -13,13 +15,15 @@ export type JoinWaitlistTxRepositories = {
     schedule: IScheduleRepository
     participation: IParticipationRepository
     waitlist: IWaitlistEntryRepository
+    waitlistAuditLog: IWaitlistAuditLogRepository
 }
 
 /**
- * キャンセル待ち登録 UseCase。
- * - Schedule が定員に達している場合のみ登録可（定員なし = 無条件参加なのでキャンセル待ち不要）
- * - 既に ATTENDING の参加がある場合は拒否
- * - 既に WAITING のエントリーがある場合は拒否
+ * キャンセル待ち登録 UseCase（物理削除方式）。
+ * - Schedule が定員に達している場合のみ登録可
+ * - 既に参加レコードがある場合は拒否（レコード存在 = 参加中）
+ * - 既にキャンセル待ちレコードがある場合は拒否（レコード存在 = 待ち中）
+ * - 新規 WaitlistEntry を作成し、AuditLog に JOINED を記録
  */
 export class JoinWaitlistUseCase {
     constructor(
@@ -41,42 +45,39 @@ export class JoinWaitlistUseCase {
                 throw new WaitlistError('キャンセルされたスケジュールにはキャンセル待ち登録できません', 'SCHEDULE_CANCELLED')
             }
 
-            // 既に参加している場合は拒否
+            // 既に参加している場合は拒否（レコード存在 = 参加中）
             const existingParticipation = await repos.participation.findByScheduleAndUser(
                 input.scheduleId, input.userId
             )
-            if (existingParticipation && existingParticipation.isAttending()) {
+            if (existingParticipation) {
                 throw new WaitlistError('すでに参加表明済みです', 'ALREADY_ATTENDING')
             }
 
-            // 既にキャンセル待ちの場合は拒否
+            // 既にキャンセル待ちの場合は拒否（レコード存在 = 待ち中）
             const existingEntry = await repos.waitlist.findByScheduleAndUser(
                 input.scheduleId, input.userId
             )
-            if (existingEntry && existingEntry.isWaiting()) {
+            if (existingEntry) {
                 throw new WaitlistError('すでにキャンセル待ち登録済みです', 'ALREADY_ON_WAITLIST')
             }
 
-            // position 算出: WAITING の数 + 1
-            const waitingCount = await repos.waitlist.countWaiting(input.scheduleId)
-            const position = waitingCount + 1
+            // 新規登録
+            const id = this.idGenerator.generate()
+            const entry = WaitlistEntry.create({
+                id,
+                scheduleId: ScheduleId.create(input.scheduleId),
+                userId: UserId.create(input.userId),
+            })
+            await repos.waitlist.add(entry)
 
-            // キャンセル済み or 繰り上げ済みエントリーがあれば再登録（rejoin）
-            if (existingEntry) {
-                existingEntry.rejoin(position)
-                await repos.waitlist.save(existingEntry)
-                waitlistEntryId = existingEntry.getId()
-            } else {
-                const id = this.idGenerator.generate()
-                const entry = WaitlistEntry.create({
-                    id,
-                    scheduleId: ScheduleId.create(input.scheduleId),
-                    userId: UserId.create(input.userId),
-                    position,
-                })
-                await repos.waitlist.save(entry)
-                waitlistEntryId = id
-            }
+            // AuditLog: JOINED
+            await repos.waitlistAuditLog.save(new WaitlistAuditLog({
+                scheduleId: input.scheduleId,
+                userId: input.userId,
+                action: 'JOINED',
+            }))
+
+            waitlistEntryId = id
         })
 
         return { waitlistEntryId }

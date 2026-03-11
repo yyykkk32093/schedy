@@ -20,6 +20,6 @@ export class ConfirmPaymentUseCase {
         }
 
         participation.confirmPayment(input.confirmedBy)
-        await this.participationRepository.save(participation)
+        await this.participationRepository.update(participation)
     }
 }

@@ -24,7 +24,7 @@ export class ListCommunityAuditLogsUseCase {
 
         return {
             logs: logs.map((l) => ({
-                id: l.id,
+                id: l.id ?? '',
                 actorUserId: l.actorUserId,
                 action: l.action,
                 field: l.field,

@@ -1,13 +1,11 @@
 // test/e2e/community.test.ts
 
 import { prisma } from '@/_sharedTech/db/client.js'
-import type { OutboxWorker } from '@/job/outbox/outboxWorker.js'
 import request from 'supertest'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { cleanAllTables, ensureRetryPolicy } from './helpers/dbCleanup.js'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+import { cleanAllTables } from './helpers/dbCleanup.js'
 import { createTestUserDirect } from './helpers/seedUser.js'
 import { bearerToken } from './helpers/testAuth.js'
-import { OutboxWorkerTestRegistrar } from './OutboxWorkerTestRegistrar.js'
 import app from './serverForTest.js'
 
 const describeE2E = process.env.DATABASE_URL
@@ -15,8 +13,6 @@ const describeE2E = process.env.DATABASE_URL
     : describe.skip
 
 describeE2E('Community E2E', () => {
-    let worker: OutboxWorker
-
     const ownerId = 'e2e-owner-001'
     const ownerEmail = 'owner@test.com'
     const memberId = 'e2e-member-001'
@@ -24,18 +20,8 @@ describeE2E('Community E2E', () => {
     const adminId = 'e2e-admin-001'
     const adminEmail = 'admin@test.com'
 
-    beforeAll(async () => {
-        worker = OutboxWorkerTestRegistrar.createWorker(app)
-    })
-
     beforeEach(async () => {
         await cleanAllTables()
-        await ensureRetryPolicy({
-            routingKey: 'audit.log',
-            baseInterval: 1,
-            maxInterval: 10,
-            maxRetries: 3,
-        })
 
         // テスト用ユーザーを直接作成
         await createTestUserDirect({ id: ownerId, email: ownerEmail, plan: 'SUBSCRIBER' })
@@ -74,21 +60,6 @@ describeE2E('Community E2E', () => {
         })
         expect(membership).not.toBeNull()
         expect(membership!.role).toBe('OWNER')
-
-        // Outbox に PENDING イベントがある
-        const outbox = await prisma.outboxEvent.findMany({
-            where: { status: 'PENDING' },
-        })
-        expect(outbox.length).toBe(1)
-        expect(outbox[0].eventType).toBe('community.created')
-
-        // Worker 実行 → AuditLog 作成
-        await worker.runOnce()
-
-        const logs = await prisma.auditLog.findMany({
-            where: { eventType: 'community.created' },
-        })
-        expect(logs.length).toBe(1)
     })
 
     it('GET /v1/communities → 自分が所属するコミュニティ一覧', async () => {
@@ -279,7 +250,7 @@ describeE2E('Community E2E', () => {
 
         // Outboxをクリア（親作成分）
         await prisma.outboxEvent.deleteMany({})
-        await prisma.auditLog.deleteMany({})
+        await prisma.authAuditLog.deleteMany({})
 
         const childRes = await request(app)
             .post(`/v1/communities/${parentId}/children`)
@@ -295,20 +266,6 @@ describeE2E('Community E2E', () => {
         })
         expect(child!.parentId).toBe(parentId)
         expect(child!.depth).toBe(1)
-
-        // Outbox → AuditLog
-        const outbox = await prisma.outboxEvent.findMany({
-            where: { status: 'PENDING' },
-        })
-        expect(outbox.length).toBe(1)
-        expect(outbox[0].eventType).toBe('community.created')
-
-        await worker.runOnce()
-
-        const logs = await prisma.auditLog.findMany({
-            where: { eventType: 'community.created' },
-        })
-        expect(logs.length).toBe(1)
     })
 
     // ========================================

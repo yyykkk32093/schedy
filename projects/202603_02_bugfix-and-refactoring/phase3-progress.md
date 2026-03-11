@@ -325,3 +325,161 @@ CREATE INDEX idx_message_read_receipts_message ON message_read_receipts(message_
 - `frontend/src/features/activity/components/ActivityForm.tsx` — 開催形式を開催場所の上に移動、オンライン時に開催場所非表示+BE送信値「オンライン」、定員を Input+datalist に変更（メンバー数×20%刻み候補）、+60分を毎回適用
 
 **ビルド状況**: ✅ FE / ✅ BE — 全ビルド通過
+
+
+### Session 4 — 物理削除モデル移行 + AuditLog統合 + Outboxスコープ縮小
+
+> Session 3 のバグ修正（BUG-3.4-3: 参加→取消→再参加で @@unique 衝突）対応中に、
+> Participation / WaitlistEntry の status 設計自体が根本原因であることが判明。
+> **論理削除（status=CANCELLED）を全廃し物理削除へ移行**。統計・監査用途には専用 AuditLog テーブルを新設。
+> 併せて AuditLog の書込方式を Outbox→自己HTTP → **TX内INSERT** に変更し、Outbox は外部システム連携（FCM / LINE）専用に縮小。
+
+#### 背景と経緯
+
+1. **BUG-3.4-3 の根本原因**:
+   - `Participation` は `@@unique([scheduleId, userId])` を持つが、`status=CANCELLED` のレコードが残存
+   - 再参加時に Prisma の `upsert` を使っても `status` が `CANCELLED` → `ATTENDING` に戻るだけで、`cancelledAt` が null にならない等の不整合が発生
+   - `WaitlistEntry` も同様に `status=CANCELLED/PROMOTED` + `@@unique([scheduleId, userId])` で衝突
+
+2. **論理削除 vs 物理削除の検討**:
+   - 論理削除のメリット: 既存データが残る
+   - 論理削除のデメリット: @@unique 制約と衝突、全クエリに `WHERE status != 'CANCELLED'` が必要、entity に不要メソッド増殖
+   - **結論**: `Participation` / `WaitlistEntry` は「現在の状態」のみ管理するテーブル。存在=参加中、削除=キャンセル済。統計用途は AuditLog テーブルへ
+
+3. **AuditLog の命名統一**:
+   - 旧: `AuditLog`（認証イベント用、Outbox 経由で自己 HTTP 呼出しで書込）
+   - 新: `{Domain}AuditLog` パターン — `AuthAuditLog`, `CommunityAuditLog`, `ParticipationAuditLog`, `WaitlistAuditLog`
+   - 書込方式: Outbox→HTTP（非同期） → **TX内 INSERT**（同期、同一トランザクション内で確実に記録）
+
+4. **Outbox スコープ縮小**:
+   - 旧: `audit.log`, `user.lifecycle.audit`, `notification.push`, `webhook.line` の 4 routingKey
+   - 新: `notification.push`（FCM）, `webhook.line`（LINE Webhook）の **2 routingKey のみ**
+   - Outbox = **外部システム連携専用**（リトライ・DLQ の恩恵があるケース）
+   - AuditLog = **TX 内 INSERT**（Outbox のリトライは不要、TX の一貫性で十分）
+
+#### Prisma スキーマ変更
+
+**リネーム・カラム変更**
+- `AuditLog` → `AuthAuditLog` — `idempotencyKey` 削除、`eventType` → `action`、`@default(uuid())` 追加、`@@index([userId, occurredAt])` 追加
+- `Participation` — `status` / `cancelledAt` 削除（物理削除モデルへ）
+- `WaitlistEntry` — `status` / `position` / `promotedAt` / `cancelledAt` 削除、index → `[scheduleId, registeredAt]`
+
+**新規テーブル**
+- `ParticipationAuditLog` — `scheduleId`, `userId`, `action`(JOINED/CANCELLED/REMOVED_BY_ADMIN), `cancelledAt?`, `paymentMethod?`, `paymentStatus?`, Schedule リレーション
+- `WaitlistAuditLog` — `scheduleId`, `userId`, `action`(JOINED/CANCELLED/PROMOTED)
+
+#### 実装サマリ
+
+**ドメイン層 — 新規**
+| ファイル                                                                                                   | 概要                           |
+| ---------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| `domains/audit/log/domain/model/entity/AuthAuditLog.ts`                                                    | AuthAuditLog エンティティ      |
+| `domains/audit/log/domain/repository/IAuthAuditLogRepository.ts`                                           | `save(log): Promise<void>`     |
+| `domains/audit/log/infrastructure/repository/AuthAuditLogRepositoryImpl.ts`                                | Prisma 実装                    |
+| `domains/community/domain/model/entity/CommunityAuditLog.ts`                                               | CommunityAuditLog エンティティ |
+| `domains/community/domain/repository/ICommunityAuditLogRepository.ts`                                      | Repository interface           |
+| `domains/community/infrastructure/repository/CommunityAuditLogRepositoryImpl.ts`                           | Prisma 実装                    |
+| `domains/activity/schedule/participation/domain/model/entity/ParticipationAuditLog.ts`                     | エンティティ                   |
+| `domains/activity/schedule/participation/domain/repository/IParticipationAuditLogRepository.ts`            | interface                      |
+| `domains/activity/schedule/participation/infrastructure/repository/ParticipationAuditLogRepositoryImpl.ts` | Prisma 実装                    |
+| `domains/activity/schedule/waitlist/domain/model/entity/WaitlistAuditLog.ts`                               | エンティティ                   |
+| `domains/activity/schedule/waitlist/domain/repository/IWaitlistAuditLogRepository.ts`                      | interface                      |
+| `domains/activity/schedule/waitlist/infrastructure/repository/WaitlistAuditLogRepositoryImpl.ts`           | Prisma 実装                    |
+
+**ドメイン層 — 変更**
+| ファイル                         | 変更内容                                                                                                         |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `Participation.ts`               | `status` / `cancelledAt` / `cancel()` / `reattend()` / `isAttending()` / `getStatus()` / `getCancelledAt()` 削除 |
+| `IParticipationRepository.ts`    | `save()` → `add()` + `update()`（支払更新用）+ `delete()`、`countAttending` → `count`                            |
+| `ParticipationRepositoryImpl.ts` | `add()` = create, `update()` = update(payment), `delete()` = delete by unique                                    |
+| `WaitlistEntry.ts`               | `status` / `position` / `promotedAt` / `cancelledAt` + 全メソッド削除                                            |
+| `IWaitlistEntryRepository.ts`    | `save()` → `add()` + `delete()`、`findNextWaiting` → `findNext`、`countWaiting` → `count`                        |
+| `WaitlistEntryRepositoryImpl.ts` | `findNext` = `registeredAt: 'asc'`、status フィルタ全削除                                                        |
+
+**ドメイン層 — 削除**
+- `ParticipationStatus.ts`, `WaitlistStatus.ts`（不要になった ValueObject）
+
+**UseCase 層 — 変更（参加/WL）**
+| UseCase                           | 変更内容                                                  |
+| --------------------------------- | --------------------------------------------------------- |
+| `AttendScheduleUseCase`           | `save()` → `add()` + AuditLog INSERT(JOINED)              |
+| `CancelParticipationUseCase`      | `save()` → `delete()` + AuditLog INSERT(CANCELLED)        |
+| `JoinWaitlistUseCase`             | `save()` → `add()` + AuditLog INSERT(JOINED)              |
+| `CancelWaitlistUseCase`           | `save()` → `delete()` + AuditLog INSERT(CANCELLED)        |
+| `RemoveParticipantByAdminUseCase` | `save()` → `delete()` + AuditLog INSERT(REMOVED_BY_ADMIN) |
+| `ReportPaymentUseCase`            | `save()` → `update()`                                     |
+| `ConfirmPaymentUseCase`           | `save()` → `update()`                                     |
+| `FindScheduleUseCase`             | `status: 'ATTENDING'` フィルタ削除                        |
+| `ListParticipationsUseCase`       | `status: 'ATTENDING'` フィルタ削除                        |
+| `ListWaitlistEntriesUseCase`      | `status: 'WAITING'` フィルタ削除                          |
+| `ListSchedulesUseCase`            | `countAttending()` → `count()`                            |
+| `ListUserSchedulesUseCase`        | `status: 'ATTENDING'` フィルタ削除                        |
+| `CancelScheduleUseCase`           | `isAttending()` チェック削除                              |
+| `ExportAccountingUseCase`         | `status` select/filter 削除                               |
+| `ExportCalendarUseCase`           | `status: 'ATTENDING'` フィルタ削除                        |
+
+**UseCase 層 — 変更（統計）**
+| UseCase                         | 変更内容                                  |
+| ------------------------------- | ----------------------------------------- |
+| `GetAbsenceReportUseCase`       | AuditLog テーブルからキャンセル統計を集計 |
+| `GetCommunityStatsUseCase`      | `countAttending` → `count`                |
+| `ExportParticipationCsvUseCase` | AuditLog テーブルから CSV 出力            |
+
+**UseCase 層 — 変更（認証 → TX 内 AuditLog）**
+| UseCase                     | 変更内容                                                                                                             |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `SignInPasswordUserUseCase` | TxRepos: `outbox` → `authAuditLog`。IntegrationEventFactory / OutboxEventFactory 削除。TX 内で `authAuditLog.save()` |
+| `SignInOAuthUserUseCase`    | 同上。全 4 ブランチで TX 内 `authAuditLog.save()`                                                                    |
+| `SignUpUserUseCase`         | TxRepos から `outbox` 削除（signup は Outbox 不使用に）                                                              |
+| `RegisterUserService`       | TxRepos: `{ user }` のみに簡素化                                                                                     |
+
+**UseCase 層 — 変更（コミュニティ）**
+| UseCase                     | 変更内容                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------- |
+| `CreateCommunityUseCase`    | Outbox / IntegrationEventFactory 削除。TxRepos: `{ community, membership, user, tx }` |
+| `CreateSubCommunityUseCase` | 同上。TxRepos: `{ community, membership, user }`                                      |
+
+**インフラ / DI**
+| ファイル                            | 変更内容                                                                                 |
+| ----------------------------------- | ---------------------------------------------------------------------------------------- |
+| `IntegrationEventFactory.ts`        | `fromUserRegistered` / `fromCommunityCreated` 等 4 メソッド削除（switch default → `[]`） |
+| `integrationDispatcherRegistrar.ts` | `notification.push` + `webhook.line` の 2 件のみ登録                                     |
+| `_usecaseFactory.ts`                | 全 factory 関数を新 Repository/Constructor に合わせて更新                                |
+| `outbox-retry-policy.sql`           | `audit.log` / `user.lifecycle.audit` 削除、`notification.push` 追加                      |
+
+**ジョブ**
+| ファイル                         | 変更内容                           |
+| -------------------------------- | ---------------------------------- |
+| `startPaymentReminderWorker.ts`  | `status: 'ATTENDING'` フィルタ削除 |
+| `startScheduleReminderWorker.ts` | `status: 'ATTENDING'` フィルタ削除 |
+
+**削除ファイル（旧 Audit 基盤）**
+- `domains/audit/log/` — 旧 AuditLog entity, IAuditLogRepository, AuditLogRepositoryImpl
+- `application/audit/usecase/RecordAuditLogUseCase.ts`
+- `integration/dto/AuditLogIntegrationEventDTO.ts`
+- `integration/handler/audit/` — IAuditIntegrationHandler, DefaultAuditIntegrationHandler, AuthLoginSuccessHandler, AuthLoginFailedHandler
+- `integration/handler/AuditLogIntegrationHandler.ts`
+- `api/integration/audit/` — auditLogIntegrationRoutes, auditLogIntegrationController
+
+**テストファイル変更**
+| ファイル                                                             | 変更内容                                                                         |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `test/e2e/signup_to_audit.test.ts`                                   | Outbox/AuditLog 検証削除 → 基本 signup E2E のみ                                  |
+| `test/e2e/auth_to_audit.test.ts`                                     | Outbox Worker 不使用 → TX 内 AuthAuditLog 直接検証                               |
+| `test/e2e/community.test.ts`                                         | Outbox/AuditLog 検証削除（community creation は Outbox 不使用に）                |
+| `test/e2e/participation.test.ts`                                     | 物理削除モデルに合わせてアサーション書換                                         |
+| `test/application/auth/oauth/usecase/SignInOAuthUserUseCase.test.ts` | FakeOutboxRepository → FakeAuthAuditLogRepository                                |
+| `test/e2e/helpers/dbCleanup.ts`                                      | `authAuditLog` / `participationAuditLog` / `waitlistAuditLog` の deleteMany 追加 |
+| `test/e2e/serverForTest.ts`                                          | AppSecrets にテスト用 stripe / revenueCat / s3 / fcm ダミー追加                  |
+| 13 テストファイル                                                    | `prisma.auditLog` → `prisma.authAuditLog` 一括置換                               |
+
+#### 設計判断（D-20〜D-24）
+| #    | 判断                           | 詳細                                                                                                                                                                 |
+| ---- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D-20 | 物理削除モデル                 | Participation / WaitlistEntry は「現在の状態」を表すテーブル。存在=アクティブ、非存在=キャンセル済。@@unique 衝突を根本解消                                          |
+| D-21 | AuditLog テーブル分離          | `{Domain}AuditLog` パターン。ドメインごとに独立テーブル（AuthAuditLog, CommunityAuditLog, ParticipationAuditLog, WaitlistAuditLog）。JOIN 不要、スキーマ独立進化可能 |
+| D-22 | TX 内 INSERT                   | AuditLog は同一トランザクション内で INSERT。Outbox のリトライ・DLQ は不要（書込失敗 = 本体操作も失敗 = 一貫性保証）                                                  |
+| D-23 | Outbox スコープ縮小            | Outbox は外部システム連携（FCM 通知 / LINE Webhook）専用。内部データ書込に Outbox→自己 HTTP 呼出しは過剰                                                             |
+| D-24 | WaitlistEntry の position 廃止 | `registeredAt` の昇順で暗黙的に順番を決定。position カラムの管理コスト（INSERT/DELETE 時の再番）を排除                                                               |
+
+**ビルド状況**: ✅ FE / ✅ BE（server + test）— 全ビルド通過（tsc --noEmit 0 errors）

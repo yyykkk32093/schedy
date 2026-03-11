@@ -2,126 +2,22 @@ import type { IntegrationSource } from '@/integration/IntegrationSource.js'
 
 import type { IntegrationEvent } from '@/integration/IntegrationEvent.js'
 
-import type { UserLoginFailedEvent } from '@/application/auth/event/UserLoginFailedEvent.js'
-import type { UserLoginSucceededEvent } from '@/application/auth/event/UserLoginSucceededEvent.js'
-import type { CommunityCreatedEvent } from '@/domains/community/event/CommunityCreatedEvent.js'
-import type { UserRegisteredEvent } from '@/domains/user/domain/event/UserRegisteredEvent.js'
-
 /**
  * IntegrationEventFactory
  *
  * - 内部イベント（Domain/Application）から外部契約（IntegrationEvent）を生成する
  * - fan-out（routingKeyごとの複数生成）はここが担当する
+ *
+ * NOTE: auth/community の audit.log ルーティングは TX 内 AuditLog INSERT に移行済み。
+ *       notification.push は NotificationService が直接 OutboxEvent を生成する。
+ *       現在は webhook.line 等、将来の外部連携のためのプレースホルダ。
  */
 export class IntegrationEventFactory {
     createManyFrom(source: IntegrationSource): IntegrationEvent[] {
         switch (source.eventName) {
-            case 'UserRegisteredEvent':
-                return this.fromUserRegistered(source as unknown as UserRegisteredEvent)
-            case 'UserLoginSucceededEvent':
-                return this.fromUserLoginSucceeded(source as unknown as UserLoginSucceededEvent)
-            case 'UserLoginFailedEvent':
-                return this.fromUserLoginFailed(source as unknown as UserLoginFailedEvent)
-            case 'CommunityCreatedEvent':
-                return this.fromCommunityCreated(source as unknown as CommunityCreatedEvent)
             default:
                 return []
         }
-    }
-
-    private fromUserRegistered(event: UserRegisteredEvent): IntegrationEvent[] {
-        const eventType = 'user.registered'
-
-        // 併存はUserRegisteredのみ
-        const routingKeys = ['audit.log', 'user.lifecycle.audit'] as const
-
-        const aggregateId = event.userId.getValue()
-
-        const payload = {
-            userId: event.userId.getValue(),
-            email: event.email?.getValue() ?? null,
-        }
-
-        return routingKeys.map((routingKey) =>
-            this.createIntegrationEvent({
-                source: event,
-                aggregateId,
-                eventType,
-                routingKey,
-                payload,
-            })
-        )
-    }
-
-    private fromUserLoginSucceeded(event: UserLoginSucceededEvent): IntegrationEvent[] {
-        const eventType = 'auth.login.success'
-        const routingKey = 'audit.log'
-
-        const aggregateId = event.userId.getValue()
-
-        const payload = {
-            userId: event.userId.getValue(),
-            email: event.email?.getValue() ?? null,
-            authMethod: event.method,
-            ipAddress: event.ipAddress,
-        }
-
-        return [
-            this.createIntegrationEvent({
-                source: event,
-                aggregateId,
-                eventType,
-                routingKey,
-                payload,
-            }),
-        ]
-    }
-
-    private fromUserLoginFailed(event: UserLoginFailedEvent): IntegrationEvent[] {
-        const eventType = 'auth.login.failed'
-        const routingKey = 'audit.log'
-
-        const aggregateId = event.userId?.getValue() ?? 'unknown'
-
-        const payload = {
-            userId: aggregateId,
-            email: event.email?.getValue() ?? null,
-            authMethod: event.method,
-            reason: event.reason,
-            ipAddress: event.ipAddress,
-        }
-
-        return [
-            this.createIntegrationEvent({
-                source: event,
-                aggregateId,
-                eventType,
-                routingKey,
-                payload,
-            }),
-        ]
-    }
-
-    private fromCommunityCreated(event: CommunityCreatedEvent): IntegrationEvent[] {
-        const eventType = 'community.created'
-        const routingKey = 'audit.log'
-        const aggregateId = event.communityId.getValue()
-
-        const payload = {
-            communityId: event.communityId.getValue(),
-            name: event.name.getValue(),
-            createdBy: event.createdBy.getValue(),
-        }
-
-        return [
-            this.createIntegrationEvent({
-                source: event,
-                aggregateId,
-                eventType,
-                routingKey,
-                payload,
-            }),
-        ]
     }
 
     private createIntegrationEvent(params: {

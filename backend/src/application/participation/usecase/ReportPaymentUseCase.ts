@@ -25,6 +25,6 @@ export class ReportPaymentUseCase {
         }
 
         participation.reportPayment()
-        await this.participationRepository.save(participation)
+        await this.participationRepository.update(participation)
     }
 }

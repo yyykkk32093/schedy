@@ -1,4 +1,5 @@
 import { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnitOfWork.js'
+import { CommunityAuditLog } from '@/domains/community/auditLog/domain/model/entity/CommunityAuditLog.js'
 import type { ICommunityAuditLogRepository } from '@/domains/community/auditLog/domain/repository/ICommunityAuditLogRepository.js'
 import { CommunityDescription } from '@/domains/community/domain/model/valueObject/CommunityDescription.js'
 import { CommunityName } from '@/domains/community/domain/model/valueObject/CommunityName.js'
@@ -94,7 +95,7 @@ export class UpdateCommunityUseCase {
 
             // 監査ログ記録
             for (const change of changes) {
-                await repos.auditLog.save({
+                await repos.auditLog.save(new CommunityAuditLog({
                     communityId: input.communityId,
                     actorUserId: input.userId,
                     action: 'COMMUNITY_UPDATED',
@@ -102,7 +103,7 @@ export class UpdateCommunityUseCase {
                     before: change.before,
                     after: change.after,
                     summary: `${change.field} を変更しました`,
-                })
+                }))
             }
         })
     }

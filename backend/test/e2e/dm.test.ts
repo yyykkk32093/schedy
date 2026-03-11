@@ -28,7 +28,7 @@ describeE2E('DM E2E', () => {
         await createTestUserDirect({ id: otherUserId, email: otherUserEmail, plan: 'SUBSCRIBER' })
 
         await prisma.outboxEvent.deleteMany({})
-        await prisma.auditLog.deleteMany({})
+        await prisma.authAuditLog.deleteMany({})
     })
 
     afterAll(async () => {

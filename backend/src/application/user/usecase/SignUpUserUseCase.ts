@@ -19,7 +19,6 @@ import { PlainPassword } from '@/domains/auth/_sharedAuth/model/valueObject/Plai
 export type SignUpUserTxRepositories = {
     user: IUserRepository
     credential: IPasswordCredentialRepository
-    outbox: import('@/integration/outbox/repository/IOutboxRepository.js').IOutboxRepository
 }
 
 export class SignUpUserUseCase {

@@ -44,7 +44,7 @@ describeE2E('Announcement E2E', () => {
 
         // Outbox/Audit クリア
         await prisma.outboxEvent.deleteMany({})
-        await prisma.auditLog.deleteMany({})
+        await prisma.authAuditLog.deleteMany({})
     })
 
     afterAll(async () => {

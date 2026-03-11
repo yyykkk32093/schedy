@@ -1,4 +1,5 @@
 import { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnitOfWork.js'
+import { CommunityAuditLog } from '@/domains/community/auditLog/domain/model/entity/CommunityAuditLog.js'
 import type { ICommunityAuditLogRepository } from '@/domains/community/auditLog/domain/repository/ICommunityAuditLogRepository.js'
 import type { ICommunityRepository } from '@/domains/community/domain/repository/ICommunityRepository.js'
 import { CommunityGradePolicy } from '@/domains/community/domain/service/CommunityGradePolicy.js'
@@ -64,7 +65,7 @@ export class ChangeMemberRoleUseCase {
                 await repos.community.save(community)
 
                 // 監査ログ: OWNER 委譲
-                await repos.auditLog.save({
+                await repos.auditLog.save(new CommunityAuditLog({
                     communityId: input.communityId,
                     actorUserId: input.requesterId,
                     action: 'OWNER_TRANSFERRED',
@@ -72,7 +73,7 @@ export class ChangeMemberRoleUseCase {
                     before: input.requesterId,
                     after: input.targetUserId,
                     summary: `OWNERを委譲しました (userId: ${input.targetUserId})`,
-                })
+                }))
                 return
             }
 
@@ -81,7 +82,7 @@ export class ChangeMemberRoleUseCase {
             await repos.membership.save(target)
 
             // 監査ログ: ロール変更
-            await repos.auditLog.save({
+            await repos.auditLog.save(new CommunityAuditLog({
                 communityId: input.communityId,
                 actorUserId: input.requesterId,
                 action: 'ROLE_CHANGED',
@@ -89,7 +90,7 @@ export class ChangeMemberRoleUseCase {
                 before: oldRole,
                 after: input.newRole,
                 summary: `メンバーのロールを ${oldRole} → ${input.newRole} に変更しました (userId: ${input.targetUserId})`,
-            })
+            }))
         })
     }
 }

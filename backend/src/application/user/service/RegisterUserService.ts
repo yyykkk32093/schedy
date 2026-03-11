@@ -1,4 +1,3 @@
-import { OutboxEventFactory } from '@/application/_sharedApplication/outbox/OutboxEventFactory.js'
 import { AuthMethod } from '@/application/auth/model/AuthMethod.js'
 import { EmailAlreadyInUseError } from '@/application/user/error/EmailAlreadyInUseError.js'
 import { BaseDomainEvent } from '@/domains/_sharedDomains/domain/event/BaseDomainEvent.js'
@@ -7,19 +6,13 @@ import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
 import { User } from '@/domains/user/domain/model/entity/User.js'
 import { DisplayName } from '@/domains/user/domain/model/valueObject/DisplayName.js'
 import type { IUserRepository } from '@/domains/user/domain/repository/IUserRepository.js'
-import type { IntegrationEventFactory } from '@/integration/IntegrationEventFactory.js'
-import type { IOutboxRepository } from '@/integration/outbox/repository/IOutboxRepository.js'
 
 export type RegisterUserTxRepositories = {
     user: IUserRepository
-    outbox: IOutboxRepository
 }
 
 export class RegisterUserService {
-    constructor(
-        private readonly integrationEventFactory: IntegrationEventFactory,
-        private readonly outboxEventFactory: OutboxEventFactory
-    ) { }
+    constructor() { }
 
     async register<TRepos extends RegisterUserTxRepositories>(
         params: {
@@ -55,13 +48,6 @@ export class RegisterUserService {
         }
 
         const domainEvents = user.pullDomainEvents()
-
-        const integrationEvents = domainEvents.flatMap((e) =>
-            this.integrationEventFactory.createManyFrom(e)
-        )
-
-        const outboxEvents = this.outboxEventFactory.createManyFrom(integrationEvents)
-        await repos.outbox.saveMany(outboxEvents)
 
         return { user, domainEvents }
     }

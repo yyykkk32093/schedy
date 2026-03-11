@@ -40,8 +40,8 @@ export class FindScheduleUseCase {
 
         // 参加状態・人数の取得（並列）
         const [attendingCount, waitlistCount, participation, waitlistEntry] = await Promise.all([
-            this.participationRepository.countAttending(scheduleId),
-            this.waitlistEntryRepository.countWaiting(scheduleId),
+            this.participationRepository.count(scheduleId),
+            this.waitlistEntryRepository.count(scheduleId),
             input.userId
                 ? this.participationRepository.findByScheduleAndUser(scheduleId, input.userId)
                 : Promise.resolve(null),
@@ -50,9 +50,10 @@ export class FindScheduleUseCase {
                 : Promise.resolve(null),
         ])
 
+        // レコード存在 = 参加中 / キャンセル待ち中（物理削除方式）
         let myStatus: MyScheduleStatus = 'none'
-        if (participation && participation.isAttending()) myStatus = 'attending'
-        else if (waitlistEntry && waitlistEntry.isWaiting()) myStatus = 'waitlisted'
+        if (participation != null) myStatus = 'attending'
+        else if (waitlistEntry != null) myStatus = 'waitlisted'
 
         return {
             id: scheduleId,

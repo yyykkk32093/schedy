@@ -53,7 +53,6 @@ async function runOnce(): Promise<void> {
     const unpaidParticipations = await prisma.participation.findMany({
         where: {
             paymentStatus: 'UNPAID',
-            status: 'ATTENDING',
             schedule: {
                 date: { gte: today, lte: cutoff },
                 status: 'SCHEDULED',

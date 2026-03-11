@@ -1,5 +1,4 @@
 import { DomainEventFlusher } from '@/application/_sharedApplication/event/DomainEventFlusher.js'
-import { OutboxEventFactory } from '@/application/_sharedApplication/outbox/OutboxEventFactory.js'
 import { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnitOfWork.js'
 import { BaseDomainEvent } from '@/domains/_sharedDomains/domain/event/BaseDomainEvent.js'
 import { IIdGenerator } from '@/domains/_sharedDomains/domain/service/IIdGenerator.js'
@@ -15,8 +14,6 @@ import { MembershipId } from '@/domains/community/membership/domain/model/valueO
 import { MembershipRole } from '@/domains/community/membership/domain/model/valueObject/MembershipRole.js'
 import type { ICommunityMembershipRepository } from '@/domains/community/membership/domain/repository/ICommunityMembershipRepository.js'
 import type { IUserRepository } from '@/domains/user/domain/repository/IUserRepository.js'
-import type { IntegrationEventFactory } from '@/integration/IntegrationEventFactory.js'
-import type { IOutboxRepository } from '@/integration/outbox/repository/IOutboxRepository.js'
 import { CommunityNotFoundError } from '../error/CommunityNotFoundError.js'
 import { CommunityPermissionError } from '../error/CommunityPermissionError.js'
 
@@ -24,15 +21,12 @@ export type CreateSubCommunityTxRepositories = {
     community: ICommunityRepository
     membership: ICommunityMembershipRepository
     user: IUserRepository
-    outbox: IOutboxRepository
 }
 
 export class CreateSubCommunityUseCase {
     constructor(
         private readonly idGenerator: IIdGenerator,
         private readonly unitOfWork: IUnitOfWorkWithRepos<CreateSubCommunityTxRepositories>,
-        private readonly integrationEventFactory: IntegrationEventFactory,
-        private readonly outboxEventFactory: OutboxEventFactory,
         private readonly domainEventFlusher: DomainEventFlusher,
     ) { }
 
@@ -88,15 +82,7 @@ export class CreateSubCommunityUseCase {
             })
             await repos.membership.save(childMembership)
 
-            // ドメインイベント → Outbox
-            const domainEvents = child.pullDomainEvents()
-            const integrationEvents = domainEvents.flatMap((e) =>
-                this.integrationEventFactory.createManyFrom(e)
-            )
-            const outboxEvents = this.outboxEventFactory.createManyFrom(integrationEvents)
-            await repos.outbox.saveMany(outboxEvents)
-
-            eventsToPublish = domainEvents
+            eventsToPublish = child.pullDomainEvents()
         })
 
         await this.domainEventFlusher.publish(eventsToPublish)

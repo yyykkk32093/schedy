@@ -37,15 +37,16 @@ model OutboxRetryPolicy {
   updatedAt DateTime @updatedAt
 }
 
-model AuditLog {
-  id             String   @id
-  idempotencyKey String   @unique //  = OutBoxイベントのid String  @id
-  eventType      String
-  userId         String
-  authMethod     String
-  detail         String?
-  occurredAt     DateTime
-  createdAt      DateTime @default(now())
+model AuthAuditLog {
+  id         String   @id @default(uuid())
+  action     String // auth.login.success | auth.login.failed | user.registered
+  userId     String
+  authMethod String
+  detail     String?
+  occurredAt DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([userId, occurredAt])
 }
 
 model OutboxDeadLetter {
@@ -109,22 +110,21 @@ model Schedule {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  activity        Activity        @relation(fields: [activityId], references: [id])
-  participations  Participation[]
-  waitlistEntries WaitlistEntry[]
+  activity               Activity                @relation(fields: [activityId], references: [id])
+  participations         Participation[]
+  waitlistEntries        WaitlistEntry[]
+  participationAuditLogs ParticipationAuditLog[]
 
   @@index([activityId])
   @@index([date])
 }
 
 model Participation {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   scheduleId  String
   userId      String
-  status      String    @default("ATTENDING") // ATTENDING | CANCELLED
-  isVisitor   Boolean   @default(false)
-  respondedAt DateTime  @default(now())
-  cancelledAt DateTime?
+  isVisitor   Boolean  @default(false)
+  respondedAt DateTime @default(now())
 
   // UBL-8: Payment fields
   paymentMethod      String? // CASH | PAYPAY | STRIPE | null (free)
@@ -140,19 +140,15 @@ model Participation {
 }
 
 model WaitlistEntry {
-  id           String    @id @default(uuid())
+  id           String   @id @default(uuid())
   scheduleId   String
   userId       String
-  position     Int
-  status       String    @default("WAITING") // WAITING | PROMOTED | CANCELLED
-  registeredAt DateTime  @default(now())
-  promotedAt   DateTime?
-  cancelledAt  DateTime?
+  registeredAt DateTime @default(now())
 
   schedule Schedule @relation(fields: [scheduleId], references: [id])
 
   @@unique([scheduleId, userId])
-  @@index([scheduleId, position])
+  @@index([scheduleId, registeredAt])
 }
 
 model User {
@@ -557,7 +553,7 @@ model CommunityAuditLog {
   id          String  @id @default(uuid())
   communityId String
   actorUserId String
-  action      String // SETTINGS_UPDATED | ROLE_CHANGED | MEMBER_REMOVED | OWNER_TRANSFERRED | MEMBER_ADDED
+  action      String // COMMUNITY_UPDATED | ROLE_CHANGED | MEMBER_REMOVED | OWNER_TRANSFERRED | MEMBER_ADDED
   field       String? // 変更フィールド名 (e.g. "name", "visibility")
   before      String? // 変更前値 JSON
   after       String? // 変更後値 JSON
@@ -566,6 +562,41 @@ model CommunityAuditLog {
   createdAt DateTime @default(now())
 
   @@index([communityId, createdAt])
+}
+
+// ============================================================
+// ParticipationAuditLog（参加履歴 — 物理削除に伴う監査ログ）
+// ============================================================
+
+model ParticipationAuditLog {
+  id            String    @id @default(uuid())
+  scheduleId    String
+  userId        String
+  action        String // JOINED | CANCELLED | REMOVED_BY_ADMIN
+  cancelledAt   DateTime? // キャンセル日時（当日キャンセル判定用）
+  paymentMethod String? // キャンセル時点のスナップショット
+  paymentStatus String? // キャンセル時点のスナップショット
+  createdAt     DateTime  @default(now())
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id])
+
+  @@index([scheduleId, createdAt])
+  @@index([userId, createdAt])
+}
+
+// ============================================================
+// WaitlistAuditLog（キャンセル待ち履歴 — 物理削除に伴う監査ログ）
+// ============================================================
+
+model WaitlistAuditLog {
+  id         String   @id @default(uuid())
+  scheduleId String
+  userId     String
+  action     String // JOINED | CANCELLED | PROMOTED
+  createdAt  DateTime @default(now())
+
+  @@index([scheduleId, createdAt])
+  @@index([userId, createdAt])
 }
 
 // ============================================================

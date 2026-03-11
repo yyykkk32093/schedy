@@ -65,7 +65,7 @@ describeE2E('Participation + Waitlist E2E', () => {
 
         // Outbox/Audit クリア
         await prisma.outboxEvent.deleteMany({})
-        await prisma.auditLog.deleteMany({})
+        await prisma.authAuditLog.deleteMany({})
     })
 
     afterAll(async () => {
@@ -92,7 +92,6 @@ describeE2E('Participation + Waitlist E2E', () => {
             where: { scheduleId, userId: userAId },
         })
         expect(participation).not.toBeNull()
-        expect(participation!.status).toBe('ATTENDING')
         expect(participation!.isVisitor).toBe(false)
     })
 
@@ -112,12 +111,17 @@ describeE2E('Participation + Waitlist E2E', () => {
 
         expect(res.status).toBe(204)
 
-        // DB 確認
+        // DB 確認: 物理削除されていること
         const participation = await prisma.participation.findFirst({
             where: { scheduleId, userId: userAId },
         })
-        expect(participation!.status).toBe('CANCELLED')
-        expect(participation!.cancelledAt).not.toBeNull()
+        expect(participation).toBeNull()
+
+        // AuditLog にキャンセル記録が残っていること
+        const auditLog = await prisma.participationAuditLog.findFirst({
+            where: { scheduleId, userId: userAId, action: 'CANCELLED' },
+        })
+        expect(auditLog).not.toBeNull()
     })
 
     // ========================================
@@ -162,8 +166,6 @@ describeE2E('Participation + Waitlist E2E', () => {
             where: { scheduleId, userId: userAId },
         })
         expect(entry).not.toBeNull()
-        expect(entry!.status).toBe('WAITING')
-        expect(entry!.position).toBe(1)
     })
 
     it('DELETE /v1/schedules/:id/waitlist-entries/me → キャンセル待ち辞退', async () => {
@@ -181,11 +183,17 @@ describeE2E('Participation + Waitlist E2E', () => {
 
         expect(res.status).toBe(204)
 
-        // DB 確認
+        // DB 確認: 物理削除されていること
         const entry = await prisma.waitlistEntry.findFirst({
             where: { scheduleId, userId: userAId },
         })
-        expect(entry!.status).toBe('CANCELLED')
+        expect(entry).toBeNull()
+
+        // AuditLog にキャンセル記録が残っていること
+        const auditLog = await prisma.waitlistAuditLog.findFirst({
+            where: { scheduleId, userId: userAId, action: 'CANCELLED' },
+        })
+        expect(auditLog).not.toBeNull()
     })
 
     // ========================================
@@ -217,25 +225,29 @@ describeE2E('Participation + Waitlist E2E', () => {
             .set('Authorization', bearerToken(userAId, userAEmail))
         expect(cancelRes.status).toBe(204)
 
-        // userB が PROMOTED になっている
+        // userB の WaitlistEntry は物理削除されている（繰り上げ済み）
         const waitlistB = await prisma.waitlistEntry.findFirst({
             where: { scheduleId, userId: userBId },
         })
-        expect(waitlistB!.status).toBe('PROMOTED')
-        expect(waitlistB!.promotedAt).not.toBeNull()
+        expect(waitlistB).toBeNull()
 
-        // userB の Participation が ATTENDING で作成されている
+        // userB の WaitlistAuditLog に PROMOTED 記録
+        const wlAuditB = await prisma.waitlistAuditLog.findFirst({
+            where: { scheduleId, userId: userBId, action: 'PROMOTED' },
+        })
+        expect(wlAuditB).not.toBeNull()
+
+        // userB の Participation が作成されている
         const participationB = await prisma.participation.findFirst({
             where: { scheduleId, userId: userBId },
         })
         expect(participationB).not.toBeNull()
-        expect(participationB!.status).toBe('ATTENDING')
 
-        // userC はまだ WAITING
+        // userC はまだ WaitlistEntry が存在
         const waitlistC = await prisma.waitlistEntry.findFirst({
             where: { scheduleId, userId: userCId },
         })
-        expect(waitlistC!.status).toBe('WAITING')
+        expect(waitlistC).not.toBeNull()
     })
 
     // ========================================

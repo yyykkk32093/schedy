@@ -12,13 +12,13 @@ export class ListParticipationsUseCase {
             id: string
             userId: string
             displayName: string | null
-            status: string
             isVisitor: boolean
             respondedAt: Date
             paymentMethod: string | null
             paymentStatus: string | null
         }>
     }> {
+        // 物理削除方式: レコード存在 = 全員 ATTENDING
         const participations = await this.participationRepository.findsByScheduleId(input.scheduleId)
 
         // ユーザーIDを一括取得して displayName を解決
@@ -31,7 +31,6 @@ export class ListParticipationsUseCase {
                 id: p.getId(),
                 userId: p.getUserId().getValue(),
                 displayName: userMap.get(p.getUserId().getValue()) ?? null,
-                status: p.getStatus().getValue(),
                 isVisitor: p.getIsVisitor(),
                 respondedAt: p.getRespondedAt(),
                 paymentMethod: p.getPaymentMethod()?.getValue() ?? null,

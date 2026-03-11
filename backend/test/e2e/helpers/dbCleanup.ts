@@ -35,7 +35,9 @@ export async function cleanAllTables() {
     // Announcement (FK → Community)
     await prisma.announcement.deleteMany({})
 
-    // Participation / WaitlistEntry (FK → Schedule)
+    // Participation / WaitlistEntry + AuditLogs (FK → Schedule)
+    await prisma.participationAuditLog.deleteMany({})
+    await prisma.waitlistAuditLog.deleteMany({})
     await prisma.participation.deleteMany({})
     await prisma.waitlistEntry.deleteMany({})
 
@@ -55,7 +57,7 @@ export async function cleanAllTables() {
     await prisma.community.deleteMany({ where: { depth: 0 } })
 
     // Outbox / Audit
-    await prisma.auditLog.deleteMany({})
+    await prisma.authAuditLog.deleteMany({})
     await prisma.outboxEvent.deleteMany({})
     await prisma.outboxDeadLetter.deleteMany({})
 

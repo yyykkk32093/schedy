@@ -1,27 +1,28 @@
-// src/domains/audit/log/domain/model/entity/AuditLog.ts
-export class AuditLog {
-    readonly auditLogId: string
-    readonly idempotencyKey: string
-    readonly eventType: string
+/**
+ * AuthAuditLog: 認証関連の監査ログエンティティ。
+ * - TX内で直接INSERTされる（Outbox不要）
+ * - action: auth.login.success | auth.login.failed | user.registered
+ */
+export class AuthAuditLog {
+    readonly id: string | undefined
+    readonly action: string
     readonly userId: string
     readonly authMethod: string
-    readonly detail?: string | null
+    readonly detail: string | null
     readonly occurredAt: Date
     readonly createdAt: Date
 
     constructor(params: {
-        auditLogId?: string
-        idempotencyKey: string
-        eventType: string
+        id?: string
+        action: string
         userId: string
         authMethod: string
         detail?: string | null
         occurredAt?: Date
         createdAt?: Date
     }) {
-        this.auditLogId = params.auditLogId ?? crypto.randomUUID()
-        this.idempotencyKey = params.idempotencyKey
-        this.eventType = params.eventType
+        this.id = params.id
+        this.action = params.action
         this.userId = params.userId
         this.authMethod = params.authMethod
         this.detail = params.detail ?? null

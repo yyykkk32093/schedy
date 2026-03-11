@@ -7,7 +7,11 @@ import { IIdGenerator } from '@/domains/_sharedDomains/domain/service/IIdGenerat
 import { ScheduleId } from '@/domains/activity/schedule/domain/model/valueObject/ScheduleId.js'
 import type { IScheduleRepository } from '@/domains/activity/schedule/domain/repository/IScheduleRepository.js'
 import { Participation } from '@/domains/activity/schedule/participation/domain/model/entity/Participation.js'
+import { ParticipationAuditLog } from '@/domains/activity/schedule/participation/domain/model/entity/ParticipationAuditLog.js'
+import type { IParticipationAuditLogRepository } from '@/domains/activity/schedule/participation/domain/repository/IParticipationAuditLogRepository.js'
 import type { IParticipationRepository } from '@/domains/activity/schedule/participation/domain/repository/IParticipationRepository.js'
+import { WaitlistAuditLog } from '@/domains/activity/schedule/waitlist/domain/model/entity/WaitlistAuditLog.js'
+import type { IWaitlistAuditLogRepository } from '@/domains/activity/schedule/waitlist/domain/repository/IWaitlistAuditLogRepository.js'
 import type { IWaitlistEntryRepository } from '@/domains/activity/schedule/waitlist/domain/repository/IWaitlistEntryRepository.js'
 import type { IOutboxRepository } from '@/integration/outbox/repository/IOutboxRepository.js'
 import { OutboxRepository } from '@/integration/outbox/repository/OutboxRepository.js'
@@ -17,17 +21,20 @@ import { ParticipationError } from '../error/ParticipationError.js'
 export type CancelParticipationTxRepositories = {
     schedule: IScheduleRepository
     participation: IParticipationRepository
+    participationAuditLog: IParticipationAuditLogRepository
     waitlist: IWaitlistEntryRepository
+    waitlistAuditLog: IWaitlistAuditLogRepository
     notification: INotificationRepository
     outbox: IOutboxRepository
 }
 
 /**
- * 参加キャンセル UseCase。
- * - 参加をキャンセル
+ * 参加キャンセル UseCase（物理削除方式）。
+ * - Participation を物理削除し、AuditLog に CANCELLED を記録（支払スナップショット付き）
  * - 同一トランザクション内でキャンセル待ち繰り上げを実行
- *   1. WaitlistEntry (position=1, status=WAITING) を取得
- *   2. → Participation 作成 (ATTENDING) + WaitlistEntry.status = PROMOTED
+ *   1. WaitlistEntry (registeredAt 最古) を取得
+ *   2. → WaitlistEntry 物理削除 + WaitlistAuditLog PROMOTED
+ *   3. → Participation 新規作成 + ParticipationAuditLog JOINED
  * - 繰り上げ時に WAITLIST_PROMOTED 通知を生成（① DB + ② Outbox → ③ WS）
  */
 export class CancelParticipationUseCase {
@@ -50,7 +57,7 @@ export class CancelParticipationUseCase {
             const participation = await repos.participation.findByScheduleAndUser(
                 input.scheduleId, input.userId
             )
-            if (!participation || !participation.isAttending()) {
+            if (!participation) {
                 throw new ParticipationError('参加表明が見つかりません', 'PARTICIPATION_NOT_FOUND')
             }
 
@@ -58,9 +65,22 @@ export class CancelParticipationUseCase {
             const ps = participation.getPaymentStatus()
             hasPaidPayment = ps != null && (ps.isReported() || ps.isConfirmed())
 
-            // キャンセル
-            participation.cancel()
-            await repos.participation.save(participation)
+            // 支払スナップショットを保存してから物理削除
+            const paymentMethodSnapshot = participation.getPaymentMethod()?.getValue() ?? null
+            const paymentStatusSnapshot = participation.getPaymentStatus()?.getValue() ?? null
+
+            // 物理削除
+            await repos.participation.delete(input.scheduleId, input.userId)
+
+            // AuditLog: CANCELLED（支払スナップショット付き）
+            await repos.participationAuditLog.save(new ParticipationAuditLog({
+                scheduleId: input.scheduleId,
+                userId: input.userId,
+                action: 'CANCELLED',
+                cancelledAt: new Date(),
+                paymentMethod: paymentMethodSnapshot,
+                paymentStatus: paymentStatusSnapshot,
+            }))
 
             // 自動繰り上げ: 定員に空きがあればキャンセル待ちの先頭を繰り上げ
             const schedule = await repos.schedule.findById(input.scheduleId)
@@ -69,33 +89,36 @@ export class CancelParticipationUseCase {
             scheduleDate = schedule.getDate()
             activityId = schedule.getActivityId().getValue()
 
-            const attendingCount = await repos.participation.countAttending(input.scheduleId)
+            const attendingCount = await repos.participation.count(input.scheduleId)
             if (!schedule.isFull(attendingCount)) {
-                const nextEntry = await repos.waitlist.findNextWaiting(input.scheduleId)
+                const nextEntry = await repos.waitlist.findNext(input.scheduleId)
                 if (nextEntry) {
-                    // 繰り上げ: WaitlistEntry → PROMOTED + Participation 作成（or 再参加）
-                    nextEntry.promote()
-                    await repos.waitlist.save(nextEntry)
+                    const promotedUserId = nextEntry.getUserId().getValue()
 
-                    // 既存の CANCELLED Participation があれば reattend（@@unique 制約回避）
-                    const existingParticipation = await repos.participation.findByScheduleAndUser(
-                        input.scheduleId, nextEntry.getUserId().getValue()
-                    )
-                    if (existingParticipation && !existingParticipation.isAttending()) {
-                        existingParticipation.reattend()
-                        await repos.participation.save(existingParticipation)
-                    } else {
-                        const promotedParticipation = Participation.create({
-                            id: this.idGenerator.generate(),
-                            scheduleId: ScheduleId.create(input.scheduleId),
-                            userId: nextEntry.getUserId(),
-                        })
-                        await repos.participation.save(promotedParticipation)
-                    }
+                    // WaitlistEntry 物理削除 + WaitlistAuditLog PROMOTED
+                    await repos.waitlist.delete(input.scheduleId, promotedUserId)
+                    await repos.waitlistAuditLog.save(new WaitlistAuditLog({
+                        scheduleId: input.scheduleId,
+                        userId: promotedUserId,
+                        action: 'PROMOTED',
+                    }))
+
+                    // Participation 新規作成 + ParticipationAuditLog JOINED
+                    const promotedParticipation = Participation.create({
+                        id: this.idGenerator.generate(),
+                        scheduleId: ScheduleId.create(input.scheduleId),
+                        userId: nextEntry.getUserId(),
+                    })
+                    await repos.participation.add(promotedParticipation)
+                    await repos.participationAuditLog.save(new ParticipationAuditLog({
+                        scheduleId: input.scheduleId,
+                        userId: promotedUserId,
+                        action: 'JOINED',
+                    }))
 
                     // 通知: ① Notification INSERT + ② OutboxEvent INSERT（同一 TX 内）
                     await this.notificationService.prepareNotification(repos, {
-                        userId: nextEntry.getUserId().getValue(),
+                        userId: promotedUserId,
                         type: 'WAITLIST_PROMOTED',
                         title: 'キャンセル待ちから繰り上がりました',
                         body: `スケジュールに参加確定しました`,

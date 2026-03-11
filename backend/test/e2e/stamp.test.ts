@@ -47,7 +47,7 @@ describeE2E('Stamp & Reaction E2E', () => {
         channelId = chRes.body.channelId
 
         await prisma.outboxEvent.deleteMany({})
-        await prisma.auditLog.deleteMany({})
+        await prisma.authAuditLog.deleteMany({})
     })
 
     afterAll(async () => {

@@ -11,7 +11,7 @@ export interface AbsenceReportInput {
 }
 
 export interface AbsenceItem {
-    participationId: string
+    auditLogId: string
     scheduleId: string
     activityTitle: string
     scheduleDate: string // "YYYY-MM-DD"
@@ -43,6 +43,8 @@ export interface AbsenceReportOutput {
 
 /**
  * GetAbsenceReportUseCase — 欠席・当日キャンセル分析（UBL-18）
+ *
+ * 物理削除方式: キャンセル履歴は ParticipationAuditLog (action='CANCELLED') から取得
  */
 export class GetAbsenceReportUseCase {
     constructor(private readonly prisma: PrismaClient) { }
@@ -56,13 +58,13 @@ export class GetAbsenceReportUseCase {
             : new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
         const toDate = input.to ? new Date(input.to) : now
 
-        const cancellations = await this.prisma.participation.findMany({
+        // ParticipationAuditLog からキャンセル履歴を取得
+        const cancellations = await this.prisma.participationAuditLog.findMany({
             where: {
-                status: 'CANCELLED',
-                cancelledAt: { not: null },
+                action: 'CANCELLED',
+                createdAt: { gte: fromDate, lte: toDate },
                 schedule: {
                     activity: { communityId, deletedAt: null },
-                    date: { gte: fromDate, lte: toDate },
                 },
             },
             select: {
@@ -70,6 +72,7 @@ export class GetAbsenceReportUseCase {
                 scheduleId: true,
                 userId: true,
                 cancelledAt: true,
+                createdAt: true,
                 schedule: {
                     select: {
                         date: true,
@@ -77,7 +80,7 @@ export class GetAbsenceReportUseCase {
                     },
                 },
             },
-            orderBy: { cancelledAt: 'desc' },
+            orderBy: { createdAt: 'desc' },
         })
 
         // ユーザー名を一括取得
@@ -91,20 +94,20 @@ export class GetAbsenceReportUseCase {
         // アイテム生成 + 当日キャンセル判定
         const items: AbsenceItem[] = cancellations.map((c) => {
             const scheduleDate = new Date(c.schedule.date)
-            const cancelDate = new Date(c.cancelledAt!)
+            const cancelDate = c.cancelledAt ? new Date(c.cancelledAt) : new Date(c.createdAt)
             const isSameDay =
                 scheduleDate.getFullYear() === cancelDate.getFullYear() &&
                 scheduleDate.getMonth() === cancelDate.getMonth() &&
                 scheduleDate.getDate() === cancelDate.getDate()
 
             return {
-                participationId: c.id,
+                auditLogId: c.id,
                 scheduleId: c.scheduleId,
                 activityTitle: c.schedule.activity.title,
                 scheduleDate: scheduleDate.toISOString().slice(0, 10),
                 userId: c.userId,
                 displayName: userMap.get(c.userId) ?? null,
-                cancelledAt: c.cancelledAt!.toISOString(),
+                cancelledAt: (c.cancelledAt ?? c.createdAt).toISOString(),
                 isSameDayCancel: isSameDay,
             }
         })

@@ -59,7 +59,6 @@ export class ExportAccountingUseCase {
                 activity: { select: { title: true } },
                 participations: {
                     select: {
-                        status: true,
                         paymentStatus: true,
                     },
                 },
@@ -69,9 +68,7 @@ export class ExportAccountingUseCase {
 
         const rows: AccountingRow[] = schedules.map((s) => {
             const fee = s.participationFee ?? 0
-            const attending = s.participations.filter(
-                (p) => p.status === 'ATTENDING',
-            )
+            const attending = s.participations
             const paidCount = attending.filter(
                 (p) => p.paymentStatus === 'CONFIRMED',
             ).length

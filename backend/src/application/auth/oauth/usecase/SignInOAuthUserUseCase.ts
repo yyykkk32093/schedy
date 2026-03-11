@@ -1,7 +1,6 @@
 import { logger } from '@/_sharedTech/logger/logger.js'
 import { JwtTokenService } from '@/_sharedTech/security/JwtTokenService.js'
 import { ApplicationEventPublisher } from '@/application/_sharedApplication/event/ApplicationEventPublisher.js'
-import { OutboxEventFactory } from '@/application/_sharedApplication/outbox/OutboxEventFactory.js'
 import { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnitOfWork.js'
 import { AccountLinkRequiredError } from '@/application/auth/error/AccountLinkRequiredError.js'
 import { OAuthAuthenticationFailedError } from '@/application/auth/error/OAuthAuthenticationFailedError.js'
@@ -12,19 +11,19 @@ import type { SignInOAuthUserInput, SignInOAuthUserOutput } from '@/application/
 import { RegisterUserService } from '@/application/user/service/RegisterUserService.js'
 import type { IIdGenerator } from '@/domains/_sharedDomains/domain/service/IIdGenerator.js'
 import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
+import { AuthAuditLog } from '@/domains/audit/log/domain/model/entity/AuthAuditLog.js'
+import type { IAuthAuditLogRepository } from '@/domains/audit/log/domain/repository/IAuthAuditLogRepository.js'
 import type { IAppleCredentialRepository } from '@/domains/auth/oauth/domain/repository/IAppleCredentialRepository.js'
 import type { IGoogleCredentialRepository } from '@/domains/auth/oauth/domain/repository/IGoogleCredentialRepository.js'
 import type { ILineCredentialRepository } from '@/domains/auth/oauth/domain/repository/ILineCredentialRepository.js'
 import type { IAuthSecurityStateRepository } from '@/domains/auth/security/domain/repository/IAuthSecurityStateRepository.js'
 import type { IUserRepository } from '@/domains/user/domain/repository/IUserRepository.js'
-import type { IntegrationEventFactory } from '@/integration/IntegrationEventFactory.js'
 import { IOAuthProviderClient } from '@/integration/oauth/IOAuthProviderClient.js'
-import type { IOutboxRepository } from '@/integration/outbox/repository/IOutboxRepository.js'
 
 export type SignInOAuthUserTxRepositories = {
     user: IUserRepository
     authSecurityState: IAuthSecurityStateRepository
-    outbox: IOutboxRepository
+    authAuditLog: IAuthAuditLogRepository
     googleCredential: IGoogleCredentialRepository
     lineCredential: ILineCredentialRepository
     appleCredential: IAppleCredentialRepository
@@ -35,8 +34,6 @@ export class SignInOAuthUserUseCase {
         private readonly idGenerator: IIdGenerator,
         private readonly unitOfWork: IUnitOfWorkWithRepos<SignInOAuthUserTxRepositories>,
         private readonly registerUserService: RegisterUserService,
-        private readonly integrationEventFactory: IntegrationEventFactory,
-        private readonly outboxEventFactory: OutboxEventFactory,
         private readonly eventPublisher: ApplicationEventPublisher,
         private readonly jwtTokenService: JwtTokenService,
         private readonly providerClients: Record<AuthMethod, IOAuthProviderClient | undefined>
@@ -65,20 +62,23 @@ export class SignInOAuthUserUseCase {
             logger.warn({ error: err, provider: input.provider }, '[OAuth] failed to fetch profile')
 
             // ================================
-            // 失敗でも監査向けOutboxは確定させたい
+            // 失敗でも監査ログは確定させたい
             // ================================
             let appEvent: UserLoginFailedEvent | null = null
             await this.unitOfWork.run(async (repos) => {
+                await repos.authAuditLog.save(new AuthAuditLog({
+                    action: 'auth.login.failed',
+                    userId: 'unknown',
+                    authMethod: input.provider,
+                    detail: 'OAUTH_AUTHENTICATION_FAILED',
+                }))
+
                 const failed = new UserLoginFailedEvent({
                     email: null,
                     reason: 'OAUTH_AUTHENTICATION_FAILED',
                     method: input.provider,
                     ipAddress: input.ipAddress,
                 })
-
-                const integrationEvents = this.integrationEventFactory.createManyFrom(failed)
-                const outboxEvents = this.outboxEventFactory.createManyFrom(integrationEvents)
-                await repos.outbox.saveMany(outboxEvents)
 
                 appEvent = failed
             })
@@ -116,7 +116,14 @@ export class SignInOAuthUserUseCase {
                 })
 
                 if (securityState?.lockedUntil && securityState.lockedUntil > new Date()) {
-                    const failed = new UserLoginFailedEvent({
+                    await repos.authAuditLog.save(new AuthAuditLog({
+                        action: 'auth.login.failed',
+                        userId: user.getId().getValue(),
+                        authMethod: input.provider,
+                        detail: 'LOCKED_ACCOUNT',
+                    }))
+
+                    appEvent = new UserLoginFailedEvent({
                         email: user.getEmail() ?? null,
                         reason: 'LOCKED_ACCOUNT',
                         method: input.provider,
@@ -124,11 +131,6 @@ export class SignInOAuthUserUseCase {
                         ipAddress: input.ipAddress,
                     })
 
-                    const integrationEvents = this.integrationEventFactory.createManyFrom(failed)
-                    const outboxEvents = this.outboxEventFactory.createManyFrom(integrationEvents)
-                    await repos.outbox.saveMany(outboxEvents)
-
-                    appEvent = failed
                     failure = new OAuthAuthenticationFailedError({ code: 'LOCKED_ACCOUNT' })
                     return
                 }
@@ -138,18 +140,19 @@ export class SignInOAuthUserUseCase {
                     user.getEmail()?.getValue() ?? null
                 )
 
-                const succeeded = new UserLoginSucceededEvent({
+                await repos.authAuditLog.save(new AuthAuditLog({
+                    action: 'auth.login.success',
+                    userId: user.getId().getValue(),
+                    authMethod: input.provider,
+                }))
+
+                appEvent = new UserLoginSucceededEvent({
                     userId: user.getId(),
                     email: user.getEmail() ?? null,
                     method: input.provider,
                     ipAddress: input.ipAddress,
                 })
 
-                const integrationEvents = this.integrationEventFactory.createManyFrom(succeeded)
-                const outboxEvents = this.outboxEventFactory.createManyFrom(integrationEvents)
-                await repos.outbox.saveMany(outboxEvents)
-
-                appEvent = succeeded
                 userId = user.getId().getValue()
                 accessToken = generatedAccessToken
                 return
@@ -185,25 +188,27 @@ export class SignInOAuthUserUseCase {
                 }
             )
 
-            const generatedAccessToken = this.jwtTokenService.generate(
+            const generatedAccessToken2 = this.jwtTokenService.generate(
                 user.getId().getValue(),
                 user.getEmail()?.getValue() ?? null
             )
 
-            const succeeded = new UserLoginSucceededEvent({
+            await repos.authAuditLog.save(new AuthAuditLog({
+                action: 'auth.login.success',
+                userId: user.getId().getValue(),
+                authMethod: input.provider,
+                detail: 'new_registration',
+            }))
+
+            appEvent = new UserLoginSucceededEvent({
                 userId: user.getId(),
                 email: user.getEmail() ?? null,
                 method: input.provider,
                 ipAddress: input.ipAddress,
             })
 
-            const integrationEvents = this.integrationEventFactory.createManyFrom(succeeded)
-            const outboxEvents = this.outboxEventFactory.createManyFrom(integrationEvents)
-            await repos.outbox.saveMany(outboxEvents)
-
-            appEvent = succeeded
             userId = user.getId().getValue()
-            accessToken = generatedAccessToken
+            accessToken = generatedAccessToken2
         })
 
         if (!appEvent) {

@@ -28,7 +28,7 @@ export class ListSchedulesUseCase {
 
         // 参加人数を並列取得
         const counts = await Promise.all(
-            schedules.map((s) => this.participationRepository.countAttending(s.getId().getValue()))
+            schedules.map((s) => this.participationRepository.count(s.getId().getValue()))
         )
 
         return {

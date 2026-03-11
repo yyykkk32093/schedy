@@ -1,5 +1,4 @@
 import { DomainEventFlusher } from '@/application/_sharedApplication/event/DomainEventFlusher.js'
-import { OutboxEventFactory } from '@/application/_sharedApplication/outbox/OutboxEventFactory.js'
 import { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnitOfWork.js'
 import { BaseDomainEvent } from '@/domains/_sharedDomains/domain/event/BaseDomainEvent.js'
 import { IIdGenerator } from '@/domains/_sharedDomains/domain/service/IIdGenerator.js'
@@ -16,15 +15,12 @@ import { MembershipId } from '@/domains/community/membership/domain/model/valueO
 import { MembershipRole } from '@/domains/community/membership/domain/model/valueObject/MembershipRole.js'
 import type { ICommunityMembershipRepository } from '@/domains/community/membership/domain/repository/ICommunityMembershipRepository.js'
 import type { IUserRepository } from '@/domains/user/domain/repository/IUserRepository.js'
-import type { IntegrationEventFactory } from '@/integration/IntegrationEventFactory.js'
-import type { IOutboxRepository } from '@/integration/outbox/repository/IOutboxRepository.js'
 import type { Prisma } from '@prisma/client'
 
 export type CreateCommunityTxRepositories = {
     community: ICommunityRepository
     membership: ICommunityMembershipRepository
     user: IUserRepository
-    outbox: IOutboxRepository
     tx: Prisma.TransactionClient
 }
 
@@ -32,8 +28,6 @@ export class CreateCommunityUseCase {
     constructor(
         private readonly idGenerator: IIdGenerator,
         private readonly unitOfWork: IUnitOfWorkWithRepos<CreateCommunityTxRepositories>,
-        private readonly integrationEventFactory: IntegrationEventFactory,
-        private readonly outboxEventFactory: OutboxEventFactory,
         private readonly domainEventFlusher: DomainEventFlusher,
     ) { }
 
@@ -141,15 +135,8 @@ export class CreateCommunityUseCase {
             })
             await repos.membership.save(membership)
 
-            // ドメインイベント取り出し → Outbox 保存
-            const domainEvents = community.pullDomainEvents()
-            const integrationEvents = domainEvents.flatMap((e) =>
-                this.integrationEventFactory.createManyFrom(e)
-            )
-            const outboxEvents = this.outboxEventFactory.createManyFrom(integrationEvents)
-            await repos.outbox.saveMany(outboxEvents)
-
-            eventsToPublish = domainEvents
+            // ドメインイベント取り出し（in-process 配信用）
+            eventsToPublish = community.pullDomainEvents()
         })
 
         // commit 後: in-process イベント配信

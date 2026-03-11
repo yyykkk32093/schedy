@@ -44,10 +44,8 @@ export class ExportParticipationCsvUseCase {
             select: {
                 id: true,
                 userId: true,
-                status: true,
                 isVisitor: true,
                 respondedAt: true,
-                cancelledAt: true,
                 paymentMethod: true,
                 paymentStatus: true,
                 schedule: {
@@ -72,7 +70,7 @@ export class ExportParticipationCsvUseCase {
         })
         const userMap = new Map(users.map((u) => [u.id, u.displayName ?? '']))
 
-        // CSV ヘッダー
+        // CSV ヘッダー（物理削除方式: 全レコード = 参加中）
         const headers = [
             'アクティビティ',
             '日付',
@@ -80,13 +78,11 @@ export class ExportParticipationCsvUseCase {
             '終了時間',
             '場所',
             '参加者名',
-            '参加ステータス',
             'ビジター',
             '参加費(円)',
             '支払方法',
             '支払ステータス',
             '回答日時',
-            'キャンセル日時',
         ]
 
         const rows = participations.map((p) => [
@@ -96,13 +92,11 @@ export class ExportParticipationCsvUseCase {
             p.schedule.endTime,
             this.escapeCsv(p.schedule.location ?? ''),
             this.escapeCsv(userMap.get(p.userId) ?? ''),
-            p.status,
             p.isVisitor ? 'はい' : 'いいえ',
             p.schedule.participationFee?.toString() ?? '無料',
             p.paymentMethod ?? '-',
             p.paymentStatus ?? '-',
             p.respondedAt.toISOString(),
-            p.cancelledAt?.toISOString() ?? '',
         ])
 
         // BOM + CSV 文字列

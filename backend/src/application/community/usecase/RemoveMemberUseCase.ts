@@ -1,4 +1,5 @@
 import { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnitOfWork.js'
+import { CommunityAuditLog } from '@/domains/community/auditLog/domain/model/entity/CommunityAuditLog.js'
 import type { ICommunityAuditLogRepository } from '@/domains/community/auditLog/domain/repository/ICommunityAuditLogRepository.js'
 import type { ICommunityMembershipRepository } from '@/domains/community/membership/domain/repository/ICommunityMembershipRepository.js'
 import { CommunityPermissionError } from '../error/CommunityPermissionError.js'
@@ -50,12 +51,12 @@ export class RemoveMemberUseCase {
             await repos.membership.save(target)
 
             // 監査ログ
-            await repos.auditLog.save({
+            await repos.auditLog.save(new CommunityAuditLog({
                 communityId: input.communityId,
                 actorUserId: input.requesterId,
                 action: 'MEMBER_REMOVED',
                 summary: `メンバーを退室させました (userId: ${input.targetUserId})`,
-            })
+            }))
         })
     }
 }

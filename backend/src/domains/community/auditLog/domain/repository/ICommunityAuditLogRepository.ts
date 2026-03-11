@@ -1,23 +1,7 @@
-export interface ICommunityAuditLogRepository {
-    save(log: {
-        communityId: string
-        actorUserId: string
-        action: string
-        field?: string | null
-        before?: string | null
-        after?: string | null
-        summary: string
-    }): Promise<void>
+import type { CommunityAuditLog } from '../model/entity/CommunityAuditLog.js'
 
-    findByCommunityId(communityId: string, limit?: number): Promise<Array<{
-        id: string
-        communityId: string
-        actorUserId: string
-        action: string
-        field: string | null
-        before: string | null
-        after: string | null
-        summary: string
-        createdAt: Date
-    }>>
+export interface ICommunityAuditLogRepository {
+    save(log: CommunityAuditLog): Promise<void>
+
+    findByCommunityId(communityId: string, limit?: number): Promise<CommunityAuditLog[]>
 }

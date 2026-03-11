@@ -2,7 +2,6 @@ import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
 import { ScheduleId } from '@/domains/activity/schedule/domain/model/valueObject/ScheduleId.js'
 import type { Prisma, PrismaClient, Participation as PrismaParticipation } from '@prisma/client'
 import { Participation } from '../../domain/model/entity/Participation.js'
-import { ParticipationStatus } from '../../domain/model/valueObject/ParticipationStatus.js'
 import { PaymentMethod } from '../../domain/model/valueObject/PaymentMethod.js'
 import { PaymentStatus } from '../../domain/model/valueObject/PaymentStatus.js'
 import type { IParticipationRepository } from '../../domain/repository/IParticipationRepository.js'
@@ -26,44 +25,52 @@ export class ParticipationRepositoryImpl implements IParticipationRepository {
 
     async findsByScheduleId(scheduleId: string): Promise<Participation[]> {
         const rows = await this.prisma.participation.findMany({
-            where: { scheduleId, status: 'ATTENDING' },
+            where: { scheduleId },
             orderBy: { respondedAt: 'asc' },
         })
         return rows.map((r) => this.toDomain(r))
     }
 
-    async countAttending(scheduleId: string): Promise<number> {
+    async count(scheduleId: string): Promise<number> {
         return this.prisma.participation.count({
-            where: { scheduleId, status: 'ATTENDING' },
+            where: { scheduleId },
         })
     }
 
-    async save(participation: Participation): Promise<void> {
-        await this.prisma.participation.upsert({
-            where: { id: participation.getId() },
-            create: {
+    async add(participation: Participation): Promise<void> {
+        await this.prisma.participation.create({
+            data: {
                 id: participation.getId(),
                 scheduleId: participation.getScheduleId().getValue(),
                 userId: participation.getUserId().getValue(),
-                status: participation.getStatus().getValue(),
                 isVisitor: participation.getIsVisitor(),
                 respondedAt: participation.getRespondedAt(),
-                cancelledAt: participation.getCancelledAt(),
                 paymentMethod: participation.getPaymentMethod()?.getValue() ?? null,
                 paymentStatus: participation.getPaymentStatus()?.getValue() ?? null,
                 paymentReportedAt: participation.getPaymentReportedAt(),
                 paymentConfirmedAt: participation.getPaymentConfirmedAt(),
                 paymentConfirmedBy: participation.getPaymentConfirmedBy(),
             },
-            update: {
-                status: participation.getStatus().getValue(),
-                cancelledAt: participation.getCancelledAt(),
+        })
+    }
+
+    async update(participation: Participation): Promise<void> {
+        await this.prisma.participation.update({
+            where: { id: participation.getId() },
+            data: {
+                isVisitor: participation.getIsVisitor(),
                 paymentMethod: participation.getPaymentMethod()?.getValue() ?? null,
                 paymentStatus: participation.getPaymentStatus()?.getValue() ?? null,
                 paymentReportedAt: participation.getPaymentReportedAt(),
                 paymentConfirmedAt: participation.getPaymentConfirmedAt(),
                 paymentConfirmedBy: participation.getPaymentConfirmedBy(),
             },
+        })
+    }
+
+    async delete(scheduleId: string, userId: string): Promise<void> {
+        await this.prisma.participation.delete({
+            where: { scheduleId_userId: { scheduleId, userId } },
         })
     }
 
@@ -72,10 +79,8 @@ export class ParticipationRepositoryImpl implements IParticipationRepository {
             id: row.id,
             scheduleId: ScheduleId.reconstruct(row.scheduleId),
             userId: UserId.create(row.userId),
-            status: ParticipationStatus.reconstruct(row.status),
             isVisitor: row.isVisitor,
             respondedAt: row.respondedAt,
-            cancelledAt: row.cancelledAt,
             paymentMethod: row.paymentMethod ? PaymentMethod.reconstruct(row.paymentMethod) : null,
             paymentStatus: row.paymentStatus ? PaymentStatus.reconstruct(row.paymentStatus) : null,
             paymentReportedAt: row.paymentReportedAt,

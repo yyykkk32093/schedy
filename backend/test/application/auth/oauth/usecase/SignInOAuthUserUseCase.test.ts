@@ -1,52 +1,31 @@
 import { describe, expect, it } from 'vitest'
 
 import { JwtTokenService } from '@/_sharedTech/security/JwtTokenService.js'
-import { OutboxEventFactory } from '@/application/_sharedApplication/outbox/OutboxEventFactory.js'
 import type { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnitOfWork.js'
 import { AccountLinkRequiredError } from '@/application/auth/error/AccountLinkRequiredError.js'
 import { SignInOAuthUserUseCase } from '@/application/auth/oauth/usecase/SignInOAuthUserUseCase.js'
 import { RegisterUserService } from '@/application/user/service/RegisterUserService.js'
 import { UuidGenerator } from '@/domains/_sharedDomains/infrastructure/id/UuidGenerator.js'
+import type { AuthAuditLog } from '@/domains/audit/log/domain/model/entity/AuthAuditLog.js'
 import { User } from '@/domains/user/domain/model/entity/User.js'
-import { IntegrationEventFactory } from '@/integration/IntegrationEventFactory.js'
 import type {
     IOAuthProviderClient,
     OAuthProfile,
 } from '@/integration/oauth/IOAuthProviderClient.js'
 
-class FakeOutboxRepository {
-    events: any[] = []
+class FakeAuthAuditLogRepository {
+    logs: AuthAuditLog[] = []
 
     snapshot() {
-        return { events: [...this.events] }
+        return { logs: [...this.logs] }
     }
 
-    restore(s: { events: any[] }) {
-        this.events = [...s.events]
+    restore(s: { logs: AuthAuditLog[] }) {
+        this.logs = [...s.logs]
     }
 
-    async saveMany(events: any[]) {
-        this.events.push(...events)
-    }
-
-    // unused in these tests
-    async save(): Promise<void> {
-        throw new Error('not implemented')
-    }
-    async findPending(): Promise<any[]> {
-        throw new Error('not implemented')
-    }
-    async markAsPublished(): Promise<void> {
-        throw new Error('not implemented')
-    }
-    async markAsFailed(): Promise<void> {
-        throw new Error('not implemented')
-    }
-    async incrementRetryCount(): Promise<void> {
-        throw new Error('not implemented')
-    }
-    async updateNextRetryAt(): Promise<void> {
-        throw new Error('not implemented')
+    async save(log: AuthAuditLog): Promise<void> {
+        this.logs.push(log)
     }
 }
 
@@ -214,9 +193,9 @@ class FakeProviderClient implements IOAuthProviderClient {
 }
 
 describe('SignInOAuthUserUseCase', () => {
-    it('初回OAuthログインでUser作成 + credential link + outbox(registered+login)', async () => {
+    it('初回OAuthログインでUser作成 + credential link + authAuditLog', async () => {
         const userRepo = new FakeUserRepository()
-        const outboxRepo = new FakeOutboxRepository()
+        const authAuditLogRepo = new FakeAuthAuditLogRepository()
         const authSecurityStateRepo = new FakeAuthSecurityStateRepository()
         const googleCredRepo = new FakeGoogleCredentialRepository()
         const lineCredRepo = new FakeLineCredentialRepository()
@@ -224,19 +203,14 @@ describe('SignInOAuthUserUseCase', () => {
 
         const uow = new FakeUnitOfWork({
             user: userRepo,
-            outbox: outboxRepo,
+            authAuditLog: authAuditLogRepo,
             authSecurityState: authSecurityStateRepo,
             googleCredential: googleCredRepo,
             lineCredential: lineCredRepo,
             appleCredential: appleCredRepo,
         })
 
-        const integrationEventFactory = new IntegrationEventFactory()
-        const outboxEventFactory = new OutboxEventFactory()
-        const registerUserService = new RegisterUserService(
-            integrationEventFactory,
-            outboxEventFactory
-        )
+        const registerUserService = new RegisterUserService()
 
         const publisher = new FakeEventPublisher()
 
@@ -244,8 +218,6 @@ describe('SignInOAuthUserUseCase', () => {
             new UuidGenerator(),
             uow as any,
             registerUserService,
-            integrationEventFactory,
-            outboxEventFactory,
             publisher as any,
             new JwtTokenService('test-secret'),
             {
@@ -268,11 +240,9 @@ describe('SignInOAuthUserUseCase', () => {
         expect(result.userId).toBeTruthy()
         expect(result.accessToken).toBeTruthy()
 
-        // UserRegistered (fan-out 2) + auth.login.success (1)
-        expect(outboxRepo.events.length).toBe(3)
-        expect(outboxRepo.events.map((e) => e.eventType).sort()).toEqual(
-            ['auth.login.success', 'user.registered', 'user.registered'].sort()
-        )
+        // AuthAuditLog にログイン成功が記録される
+        expect(authAuditLogRepo.logs.length).toBe(1)
+        expect(authAuditLogRepo.logs[0].action).toBe('LOGIN_SUCCESS')
 
         // credential link
         expect(
@@ -286,7 +256,7 @@ describe('SignInOAuthUserUseCase', () => {
 
     it('既存credentialがあれば既存Userでログイン成功', async () => {
         const userRepo = new FakeUserRepository()
-        const outboxRepo = new FakeOutboxRepository()
+        const authAuditLogRepo = new FakeAuthAuditLogRepository()
         const authSecurityStateRepo = new FakeAuthSecurityStateRepository()
         const googleCredRepo = new FakeGoogleCredentialRepository()
         const lineCredRepo = new FakeLineCredentialRepository()
@@ -298,27 +268,20 @@ describe('SignInOAuthUserUseCase', () => {
 
         const uow = new FakeUnitOfWork({
             user: userRepo,
-            outbox: outboxRepo,
+            authAuditLog: authAuditLogRepo,
             authSecurityState: authSecurityStateRepo,
             googleCredential: googleCredRepo,
             lineCredential: lineCredRepo,
             appleCredential: appleCredRepo,
         })
 
-        const integrationEventFactory = new IntegrationEventFactory()
-        const outboxEventFactory = new OutboxEventFactory()
-        const registerUserService = new RegisterUserService(
-            integrationEventFactory,
-            outboxEventFactory
-        )
+        const registerUserService = new RegisterUserService()
         const publisher = new FakeEventPublisher()
 
         const usecase = new SignInOAuthUserUseCase(
             new UuidGenerator(),
             uow as any,
             registerUserService,
-            integrationEventFactory,
-            outboxEventFactory,
             publisher as any,
             new JwtTokenService('test-secret'),
             {
@@ -339,13 +302,13 @@ describe('SignInOAuthUserUseCase', () => {
         })
 
         expect(result.userId).toBe('u-001')
-        expect(outboxRepo.events.length).toBe(1)
-        expect(outboxRepo.events[0].eventType).toBe('auth.login.success')
+        expect(authAuditLogRepo.logs.length).toBe(1)
+        expect(authAuditLogRepo.logs[0].action).toBe('LOGIN_SUCCESS')
     })
 
     it('emailが既存Userと衝突した場合はACCOUNT_LINK_REQUIRED（自動リンクしない）', async () => {
         const userRepo = new FakeUserRepository()
-        const outboxRepo = new FakeOutboxRepository()
+        const authAuditLogRepo = new FakeAuthAuditLogRepository()
         const authSecurityStateRepo = new FakeAuthSecurityStateRepository()
         const googleCredRepo = new FakeGoogleCredentialRepository()
         const lineCredRepo = new FakeLineCredentialRepository()
@@ -356,27 +319,20 @@ describe('SignInOAuthUserUseCase', () => {
 
         const uow = new FakeUnitOfWork({
             user: userRepo,
-            outbox: outboxRepo,
+            authAuditLog: authAuditLogRepo,
             authSecurityState: authSecurityStateRepo,
             googleCredential: googleCredRepo,
             lineCredential: lineCredRepo,
             appleCredential: appleCredRepo,
         })
 
-        const integrationEventFactory = new IntegrationEventFactory()
-        const outboxEventFactory = new OutboxEventFactory()
-        const registerUserService = new RegisterUserService(
-            integrationEventFactory,
-            outboxEventFactory
-        )
+        const registerUserService = new RegisterUserService()
         const publisher = new FakeEventPublisher()
 
         const usecase = new SignInOAuthUserUseCase(
             new UuidGenerator(),
             uow as any,
             registerUserService,
-            integrationEventFactory,
-            outboxEventFactory,
             publisher as any,
             new JwtTokenService('test-secret'),
             {
@@ -395,8 +351,8 @@ describe('SignInOAuthUserUseCase', () => {
             usecase.execute({ provider: 'google', code: 'dummy-code' })
         ).rejects.toBeInstanceOf(AccountLinkRequiredError)
 
-        // tx rollbackでoutboxは増えない
-        expect(outboxRepo.events.length).toBe(0)
+        // tx rollbackでauthAuditLogは増えない
+        expect(authAuditLogRepo.logs.length).toBe(0)
         expect(
             await googleCredRepo.findUserIdByGoogleUid({ googleUid: 'g-002' })
         ).toBe(null)

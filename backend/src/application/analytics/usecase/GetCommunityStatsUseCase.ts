@@ -98,14 +98,14 @@ export class GetCommunityStatsUseCase {
                 continue
             }
 
-            const [attending, cancelled] = await Promise.all([
-                this.prisma.participation.count({
-                    where: { scheduleId: { in: scheduleIds }, status: 'ATTENDING' },
-                }),
-                this.prisma.participation.count({
-                    where: { scheduleId: { in: scheduleIds }, status: 'CANCELLED' },
-                }),
-            ])
+            // 物理削除方式: Participation テーブルのレコード = 全て ATTENDING
+            const attending = await this.prisma.participation.count({
+                where: { scheduleId: { in: scheduleIds } },
+            })
+            // キャンセル数は ParticipationAuditLog から取得
+            const cancelled = await this.prisma.participationAuditLog.count({
+                where: { scheduleId: { in: scheduleIds }, action: 'CANCELLED' },
+            })
 
             const total = attending + cancelled
             byActivity.push({
@@ -119,6 +119,7 @@ export class GetCommunityStatsUseCase {
         }
 
         // ── 月別集計（Native SQL） ──
+        // 物理削除方式: Participation レコードは全て参加中なので status フィルタ不要
         const monthlyRows = await this.prisma.$queryRaw<
             Array<{ month: string; total_schedules: bigint; total_attending: bigint }>
         >`
@@ -128,7 +129,7 @@ export class GetCommunityStatsUseCase {
                 COUNT(p."id")                 AS total_attending
             FROM "Schedule" s
             LEFT JOIN "Participation" p
-                ON p."scheduleId" = s."id" AND p."status" = 'ATTENDING'
+                ON p."scheduleId" = s."id"
             WHERE s."activityId" = ANY(${activityIds})
             GROUP BY TO_CHAR(s."date", 'YYYY-MM')
             ORDER BY month

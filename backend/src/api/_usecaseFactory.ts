@@ -7,7 +7,6 @@ import { JwtTokenService } from '@/_sharedTech/security/JwtTokenService.js'
 import { DomainEventFlusher } from '@/application/_sharedApplication/event/DomainEventFlusher.js'
 import { NotificationRepositoryImpl } from '@/application/_sharedApplication/notification/NotificationRepositoryImpl.js'
 import { NotificationService } from '@/application/_sharedApplication/notification/NotificationService.js'
-import { OutboxEventFactory } from '@/application/_sharedApplication/outbox/OutboxEventFactory.js'
 import { PrismaUnitOfWork } from '@/application/_sharedApplication/uow/PrismaUnitOfWork.js'
 import { CreateActivityTxRepositories, CreateActivityUseCase } from '@/application/activity/usecase/CreateActivityUseCase.js'
 import { FindActivityUseCase } from '@/application/activity/usecase/FindActivityUseCase.js'
@@ -122,9 +121,11 @@ import { PollRepositoryImpl } from '@/domains/poll/infrastructure/repository/Pol
 import { PollVoteRepositoryImpl } from '@/domains/poll/infrastructure/repository/PollVoteRepositoryImpl.js'
 import { CommunityWebhookConfigRepositoryImpl } from '@/domains/webhook/infrastructure/repository/CommunityWebhookConfigRepositoryImpl.js'
 
+import { ParticipationAuditLogRepositoryImpl } from '@/domains/activity/schedule/participation/infrastructure/repository/ParticipationAuditLogRepositoryImpl.js'
+import { WaitlistAuditLogRepositoryImpl } from '@/domains/activity/schedule/waitlist/infrastructure/repository/WaitlistAuditLogRepositoryImpl.js'
+import { AuthAuditLogRepositoryImpl } from '@/domains/audit/log/infrastructure/repository/AuthAuditLogRepositoryImpl.js'
 import { UserRepositoryImpl } from '@/domains/user/infrastructure/repository/UserRepositoryImpl.js'
 import { RevenueCatBillingService } from '@/integration/billing/RevenueCatBillingService.js'
-import { IntegrationEventFactory } from '@/integration/IntegrationEventFactory.js'
 import { AppleOAuthProviderClient } from '@/integration/oauth/AppleOAuthProviderClient.js'
 import { GoogleOAuthProviderClient } from '@/integration/oauth/GoogleOAuthProviderClient.js'
 import type { IOAuthProviderClient } from '@/integration/oauth/IOAuthProviderClient.js'
@@ -153,14 +154,12 @@ export const usecaseFactory = {
             user: new UserRepositoryImpl(tx),
             credential: new PasswordCredentialRepositoryImpl(tx),
             authSecurityState: new AuthSecurityStateRepositoryImpl(tx),
-            outbox: new OutboxRepository(tx),
+            authAuditLog: new AuthAuditLogRepositoryImpl(tx),
         }))
 
         return new SignInPasswordUserUseCase(
             new BcryptPasswordHasher(),
             unitOfWork,
-            new IntegrationEventFactory(),
-            new OutboxEventFactory(),
             ApplicationEventBootstrap.getEventBus(),
             new JwtTokenService(process.env.JWT_SECRET ?? 'dev-secret')
         )
@@ -170,17 +169,11 @@ export const usecaseFactory = {
         DomainEventBootstrap.bootstrap()
         ApplicationEventBootstrap.bootstrap()
 
-        const integrationEventFactory = new IntegrationEventFactory()
-        const outboxEventFactory = new OutboxEventFactory()
-        const registerUserService = new RegisterUserService(
-            integrationEventFactory,
-            outboxEventFactory
-        )
+        const registerUserService = new RegisterUserService()
 
         const unitOfWork = new PrismaUnitOfWork<SignUpUserTxRepositories>((tx) => ({
             user: new UserRepositoryImpl(tx),
             credential: new PasswordCredentialRepositoryImpl(tx),
-            outbox: new OutboxRepository(tx),
         }))
 
         return new SignUpUserUseCase(
@@ -197,17 +190,12 @@ export const usecaseFactory = {
         DomainEventBootstrap.bootstrap()
         ApplicationEventBootstrap.bootstrap()
 
-        const integrationEventFactory = new IntegrationEventFactory()
-        const outboxEventFactory = new OutboxEventFactory()
-        const registerUserService = new RegisterUserService(
-            integrationEventFactory,
-            outboxEventFactory
-        )
+        const registerUserService = new RegisterUserService()
 
         const unitOfWork = new PrismaUnitOfWork<SignInOAuthUserTxRepositories>((tx) => ({
             user: new UserRepositoryImpl(tx),
             authSecurityState: new AuthSecurityStateRepositoryImpl(tx),
-            outbox: new OutboxRepository(tx),
+            authAuditLog: new AuthAuditLogRepositoryImpl(tx),
             googleCredential: new GoogleCredentialRepositoryImpl(tx),
             lineCredential: new LineCredentialRepositoryImpl(tx),
             appleCredential: new AppleCredentialRepositoryImpl(tx),
@@ -217,8 +205,6 @@ export const usecaseFactory = {
             new UuidGenerator(),
             unitOfWork,
             registerUserService,
-            integrationEventFactory,
-            outboxEventFactory,
             ApplicationEventBootstrap.getEventBus(),
             new JwtTokenService(process.env.JWT_SECRET ?? 'dev-secret'),
             oauthProviderClientsOverride ?? {
@@ -234,39 +220,29 @@ export const usecaseFactory = {
 
     createCreateCommunityUseCase() {
         DomainEventBootstrap.bootstrap()
-        const integrationEventFactory = new IntegrationEventFactory()
-        const outboxEventFactory = new OutboxEventFactory()
         const unitOfWork = new PrismaUnitOfWork<CreateCommunityTxRepositories>((tx) => ({
             community: new CommunityRepositoryImpl(tx),
             membership: new CommunityMembershipRepositoryImpl(tx),
             user: new UserRepositoryImpl(tx),
-            outbox: new OutboxRepository(tx),
             tx,
         }))
         return new CreateCommunityUseCase(
             new UuidGenerator(),
             unitOfWork,
-            integrationEventFactory,
-            outboxEventFactory,
             new DomainEventFlusher(DomainEventBootstrap.getEventBus()),
         )
     },
 
     createCreateSubCommunityUseCase() {
         DomainEventBootstrap.bootstrap()
-        const integrationEventFactory = new IntegrationEventFactory()
-        const outboxEventFactory = new OutboxEventFactory()
         const unitOfWork = new PrismaUnitOfWork<CreateSubCommunityTxRepositories>((tx) => ({
             community: new CommunityRepositoryImpl(tx),
             membership: new CommunityMembershipRepositoryImpl(tx),
             user: new UserRepositoryImpl(tx),
-            outbox: new OutboxRepository(tx),
         }))
         return new CreateSubCommunityUseCase(
             new UuidGenerator(),
             unitOfWork,
-            integrationEventFactory,
-            outboxEventFactory,
             new DomainEventFlusher(DomainEventBootstrap.getEventBus()),
         )
     },
@@ -456,6 +432,7 @@ export const usecaseFactory = {
         const unitOfWork = new PrismaUnitOfWork<AttendScheduleTxRepositories>((tx) => ({
             schedule: new ScheduleRepositoryImpl(tx),
             participation: new ParticipationRepositoryImpl(tx),
+            participationAuditLog: new ParticipationAuditLogRepositoryImpl(tx),
         }))
         return new AttendScheduleUseCase(new UuidGenerator(), unitOfWork)
     },
@@ -464,7 +441,9 @@ export const usecaseFactory = {
         const unitOfWork = new PrismaUnitOfWork<CancelParticipationTxRepositories>((tx) => ({
             schedule: new ScheduleRepositoryImpl(tx),
             participation: new ParticipationRepositoryImpl(tx),
+            participationAuditLog: new ParticipationAuditLogRepositoryImpl(tx),
             waitlist: new WaitlistEntryRepositoryImpl(tx),
+            waitlistAuditLog: new WaitlistAuditLogRepositoryImpl(tx),
             notification: new NotificationRepositoryImpl(tx),
             outbox: new OutboxRepository(tx),
         }))
@@ -478,7 +457,9 @@ export const usecaseFactory = {
             activity: new ActivityRepositoryImpl(tx),
             membership: new CommunityMembershipRepositoryImpl(tx),
             participation: new ParticipationRepositoryImpl(tx),
+            participationAuditLog: new ParticipationAuditLogRepositoryImpl(tx),
             waitlist: new WaitlistEntryRepositoryImpl(tx),
+            waitlistAuditLog: new WaitlistAuditLogRepositoryImpl(tx),
             notification: new NotificationRepositoryImpl(tx),
             outbox: new OutboxRepository(tx),
         }))
@@ -491,6 +472,7 @@ export const usecaseFactory = {
             schedule: new ScheduleRepositoryImpl(tx),
             participation: new ParticipationRepositoryImpl(tx),
             waitlist: new WaitlistEntryRepositoryImpl(tx),
+            waitlistAuditLog: new WaitlistAuditLogRepositoryImpl(tx),
         }))
         return new JoinWaitlistUseCase(new UuidGenerator(), unitOfWork)
     },
@@ -498,6 +480,7 @@ export const usecaseFactory = {
     createCancelWaitlistUseCase() {
         const unitOfWork = new PrismaUnitOfWork<CancelWaitlistTxRepositories>((tx) => ({
             waitlist: new WaitlistEntryRepositoryImpl(tx),
+            waitlistAuditLog: new WaitlistAuditLogRepositoryImpl(tx),
         }))
         return new CancelWaitlistUseCase(unitOfWork)
     },

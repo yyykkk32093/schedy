@@ -48,7 +48,7 @@ describeE2E('Chat E2E', () => {
         activityId = actRes.body.activityId
 
         await prisma.outboxEvent.deleteMany({})
-        await prisma.auditLog.deleteMany({})
+        await prisma.authAuditLog.deleteMany({})
     })
 
     afterAll(async () => {

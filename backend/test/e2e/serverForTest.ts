@@ -63,6 +63,23 @@ AppSecretsLoader.setCache({
     database: {
         url: process.env.DATABASE_URL ?? "",
     },
+    stripe: {
+        secretKey: "test-stripe-secret-key",
+        webhookSecret: "test-stripe-webhook-secret",
+    },
+    revenueCat: {
+        apiKey: "test-revenuecat-api-key",
+        webhookAuthToken: "test-revenuecat-webhook-auth-token",
+    },
+    s3: {
+        bucket: "test-bucket",
+        region: "us-east-1",
+        endpoint: "http://localhost:4566",
+        forcePathStyle: true,
+    },
+    fcm: {
+        serviceAccountJson: "{}",
+    },
 });
 
 /* 3.6 Fake OAuthProviderClient を usecaseFactory に注入 */

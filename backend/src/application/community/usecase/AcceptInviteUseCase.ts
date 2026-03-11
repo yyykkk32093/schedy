@@ -4,6 +4,7 @@ import { NotificationService } from '@/application/_sharedApplication/notificati
 import { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnitOfWork.js'
 import { IIdGenerator } from '@/domains/_sharedDomains/domain/service/IIdGenerator.js'
 import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
+import { CommunityAuditLog } from '@/domains/community/auditLog/domain/model/entity/CommunityAuditLog.js'
 import type { ICommunityAuditLogRepository } from '@/domains/community/auditLog/domain/repository/ICommunityAuditLogRepository.js'
 import { CommunityId } from '@/domains/community/domain/model/valueObject/CommunityId.js'
 import type { ICommunityRepository } from '@/domains/community/domain/repository/ICommunityRepository.js'
@@ -92,12 +93,12 @@ export class AcceptInviteUseCase {
             await repos.inviteToken.markUsed(input.token, input.userId)
 
             // 監査ログ
-            await repos.auditLog.save({
+            await repos.auditLog.save(new CommunityAuditLog({
                 communityId,
                 actorUserId: input.userId,
                 action: 'MEMBER_JOINED_VIA_INVITE',
                 summary: `招待リンクでコミュニティに参加しました`,
-            })
+            }))
 
             // OWNER/ADMIN に INVITE_ACCEPTED 通知
             const allMembers = await repos.membership.findsByCommunityId(communityId)

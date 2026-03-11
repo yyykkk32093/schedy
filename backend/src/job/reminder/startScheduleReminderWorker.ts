@@ -41,7 +41,6 @@ interface UpcomingSchedule {
     participations: Array<{
         id: string
         userId: string
-        status: string
     }>
 }
 
@@ -69,8 +68,7 @@ async function runOnce(): Promise<void> {
                 },
             },
             participations: {
-                where: { status: 'ATTENDING' },
-                select: { id: true, userId: true, status: true },
+                select: { id: true, userId: true },
             },
         },
     }) as unknown as UpcomingSchedule[]

@@ -30,7 +30,6 @@ export class ExportCalendarUseCase {
         const participations = await this.prisma.participation.findMany({
             where: {
                 userId,
-                status: 'ATTENDING',
                 schedule: {
                     date: { gte: fromDate, lte: toDate },
                     status: 'SCHEDULED',
