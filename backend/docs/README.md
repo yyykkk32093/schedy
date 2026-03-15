@@ -9,6 +9,8 @@ docs/
 ├── README.md               ← 本ファイル（索引）
 ├── activity/
 │   └── activity-schedule-design.md  ← Activity / Schedule 分離設計
+├── outbox/
+│   └── outbox-design.md             ← Outbox パターン設計・AuditLog 分離経緯
 ├── community/               ← （今後追加）
 ├── auth/                    ← （今後追加）
 ├── announcement/            ← （今後追加）
@@ -21,6 +23,7 @@ docs/
 | ドメイン | ドキュメント                                                         | 概要                                                                                                                 |
 | -------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | activity | [Activity / Schedule 分離設計](activity/activity-schedule-design.md) | Activity（テンプレート）と Schedule（実開催）の集約分離の理由、`defaultStartTime/EndTime` の存在意義、画面表示ルール |
+| outbox   | [Outbox パターン設計](outbox/outbox-design.md)                       | Outbox の全体像、2 種類の投入フロー、AuditLog を TX 内 INSERT に移行した経緯と判断根拠                               |
 
 ## 対応するソースディレクトリ
 

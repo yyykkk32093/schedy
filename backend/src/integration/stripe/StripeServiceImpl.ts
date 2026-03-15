@@ -72,17 +72,15 @@ export class StripeServiceImpl implements IStripeService {
         amount: number
         currency: string
         destinationAccountId: string
+        transferAmount: number
         metadata?: Record<string, string>
     }): Promise<CreatePaymentIntentResult> {
-        // Model E: Stripe 手数料パススルー — ceil(amount × 0.036)
-        const applicationFeeAmount = Math.ceil(params.amount * 0.036)
-
         const paymentIntent = await this.stripe.paymentIntents.create({
             amount: params.amount,
             currency: params.currency,
-            application_fee_amount: applicationFeeAmount,
             transfer_data: {
                 destination: params.destinationAccountId,
+                amount: params.transferAmount,
             },
             metadata: params.metadata,
         })
@@ -93,9 +91,10 @@ export class StripeServiceImpl implements IStripeService {
         }
     }
 
-    async refundPaymentIntent(paymentIntentId: string): Promise<void> {
+    async refundPaymentIntent(paymentIntentId: string, amount?: number): Promise<void> {
         await this.stripe.refunds.create({
             payment_intent: paymentIntentId,
+            ...(amount !== undefined ? { amount } : {}),
         })
     }
 

@@ -1,3 +1,4 @@
+import { logger } from '@/_sharedTech/logger/logger.js'
 import type { INotificationRepository } from '@/application/_sharedApplication/notification/INotificationRepository.js'
 import { NotificationRepositoryImpl } from '@/application/_sharedApplication/notification/NotificationRepositoryImpl.js'
 import type { NotificationService } from '@/application/_sharedApplication/notification/NotificationService.js'
@@ -10,11 +11,14 @@ import { Participation } from '@/domains/activity/schedule/participation/domain/
 import { ParticipationAuditLog } from '@/domains/activity/schedule/participation/domain/model/entity/ParticipationAuditLog.js'
 import type { IParticipationAuditLogRepository } from '@/domains/activity/schedule/participation/domain/repository/IParticipationAuditLogRepository.js'
 import type { IParticipationRepository } from '@/domains/activity/schedule/participation/domain/repository/IParticipationRepository.js'
+import type { IPaymentRepository } from '@/domains/activity/schedule/participation/domain/repository/IPaymentRepository.js'
+import { calculatePaymentAmount } from '@/domains/activity/schedule/participation/domain/service/calculatePaymentAmount.js'
 import { WaitlistAuditLog } from '@/domains/activity/schedule/waitlist/domain/model/entity/WaitlistAuditLog.js'
 import type { IWaitlistAuditLogRepository } from '@/domains/activity/schedule/waitlist/domain/repository/IWaitlistAuditLogRepository.js'
 import type { IWaitlistEntryRepository } from '@/domains/activity/schedule/waitlist/domain/repository/IWaitlistEntryRepository.js'
 import type { IOutboxRepository } from '@/integration/outbox/repository/IOutboxRepository.js'
 import { OutboxRepository } from '@/integration/outbox/repository/OutboxRepository.js'
+import type { IStripeService } from '@/integration/stripe/IStripeService.js'
 import type { PrismaClient } from '@prisma/client'
 import { ParticipationError } from '../error/ParticipationError.js'
 
@@ -22,27 +26,20 @@ export type CancelParticipationTxRepositories = {
     schedule: IScheduleRepository
     participation: IParticipationRepository
     participationAuditLog: IParticipationAuditLogRepository
+    payment: IPaymentRepository
     waitlist: IWaitlistEntryRepository
     waitlistAuditLog: IWaitlistAuditLogRepository
     notification: INotificationRepository
     outbox: IOutboxRepository
 }
 
-/**
- * 参加キャンセル UseCase（物理削除方式）。
- * - Participation を物理削除し、AuditLog に CANCELLED を記録（支払スナップショット付き）
- * - 同一トランザクション内でキャンセル待ち繰り上げを実行
- *   1. WaitlistEntry (registeredAt 最古) を取得
- *   2. → WaitlistEntry 物理削除 + WaitlistAuditLog PROMOTED
- *   3. → Participation 新規作成 + ParticipationAuditLog JOINED
- * - 繰り上げ時に WAITLIST_PROMOTED 通知を生成（① DB + ② Outbox → ③ WS）
- */
 export class CancelParticipationUseCase {
     constructor(
         private readonly idGenerator: IIdGenerator,
         private readonly unitOfWork: IUnitOfWorkWithRepos<CancelParticipationTxRepositories>,
         private readonly notificationService: NotificationService,
         private readonly prisma: PrismaClient,
+        private readonly stripeService?: IStripeService,
     ) { }
 
     async execute(input: {
@@ -52,6 +49,7 @@ export class CancelParticipationUseCase {
         let scheduleDate: Date | null = null
         let activityId: string | null = null
         let hasPaidPayment = false
+        let stripeRefundInfo: { paymentIntentId: string; baseFee: number } | null = null
 
         await this.unitOfWork.run(async (repos) => {
             const participation = await repos.participation.findByScheduleAndUser(
@@ -61,18 +59,42 @@ export class CancelParticipationUseCase {
                 throw new ParticipationError('参加表明が見つかりません', 'PARTICIPATION_NOT_FOUND')
             }
 
-            // 有料参加かどうかを TX 内で記録（REPORTED / CONFIRMED → 返金アラート対象）
-            const ps = participation.getPaymentStatus()
-            hasPaidPayment = ps != null && (ps.isReported() || ps.isConfirmed())
+            // Payment テーブルから支払い情報を取得
+            const payment = await repos.payment.findLatestByScheduleAndUser(
+                input.scheduleId, input.userId
+            )
 
-            // 支払スナップショットを保存してから物理削除
-            const paymentMethodSnapshot = participation.getPaymentMethod()?.getValue() ?? null
-            const paymentStatusSnapshot = participation.getPaymentStatus()?.getValue() ?? null
+            let paymentMethodSnapshot: string | null = null
+            let paymentStatusSnapshot: string | null = null
 
-            // 物理削除
+            if (payment) {
+                const ps = payment.getPaymentStatus()
+                hasPaidPayment = ps.isReported() || ps.isConfirmed()
+                paymentMethodSnapshot = payment.getPaymentMethod().getValue()
+                paymentStatusSnapshot = ps.getValue()
+
+                if (payment.isStripePaid()) {
+                    const schedule = await repos.schedule.findById(input.scheduleId)
+                    if (schedule) {
+                        const baseFee = schedule.getParticipationFee()
+                        if (baseFee) {
+                            stripeRefundInfo = {
+                                paymentIntentId: payment.getStripePaymentIntentId()!,
+                                baseFee,
+                            }
+                        }
+                    }
+                    payment.markRefundPending()
+                    await repos.payment.update(payment)
+                } else if (ps.isConfirmed() || ps.isReported()) {
+                    // CONFIRMED / REPORTED → REFUND_PENDING（幹事が返金管理で判断）
+                    payment.markRefundPending()
+                    await repos.payment.update(payment)
+                }
+            }
+
             await repos.participation.delete(input.scheduleId, input.userId)
 
-            // AuditLog: CANCELLED（支払スナップショット付き）
             await repos.participationAuditLog.save(new ParticipationAuditLog({
                 scheduleId: input.scheduleId,
                 userId: input.userId,
@@ -82,7 +104,6 @@ export class CancelParticipationUseCase {
                 paymentStatus: paymentStatusSnapshot,
             }))
 
-            // 自動繰り上げ: 定員に空きがあればキャンセル待ちの先頭を繰り上げ
             const schedule = await repos.schedule.findById(input.scheduleId)
             if (!schedule) throw new ScheduleNotFoundError()
 
@@ -95,7 +116,6 @@ export class CancelParticipationUseCase {
                 if (nextEntry) {
                     const promotedUserId = nextEntry.getUserId().getValue()
 
-                    // WaitlistEntry 物理削除 + WaitlistAuditLog PROMOTED
                     await repos.waitlist.delete(input.scheduleId, promotedUserId)
                     await repos.waitlistAuditLog.save(new WaitlistAuditLog({
                         scheduleId: input.scheduleId,
@@ -103,7 +123,6 @@ export class CancelParticipationUseCase {
                         action: 'PROMOTED',
                     }))
 
-                    // Participation 新規作成 + ParticipationAuditLog JOINED
                     const promotedParticipation = Participation.create({
                         id: this.idGenerator.generate(),
                         scheduleId: ScheduleId.create(input.scheduleId),
@@ -116,7 +135,6 @@ export class CancelParticipationUseCase {
                         action: 'JOINED',
                     }))
 
-                    // 通知: ① Notification INSERT + ② OutboxEvent INSERT（同一 TX 内）
                     await this.notificationService.prepareNotification(repos, {
                         userId: promotedUserId,
                         type: 'WAITLIST_PROMOTED',
@@ -129,24 +147,39 @@ export class CancelParticipationUseCase {
             }
         })
 
-        // TX commit 後: 当日キャンセルなら管理者にアラート（UBL-18-3）
+        // TX commit 後の後処理
         if (scheduleDate && activityId) {
             await this.sendSameDayCancellationAlert(input.scheduleId, input.userId, scheduleDate, activityId)
         }
 
-        // TX commit 後: 有料参加者のキャンセル → 管理者に返金アラート
         if (hasPaidPayment && activityId) {
             await this.sendPaidCancellationAlert(input.scheduleId, input.userId, activityId)
         }
 
-        // ③ TX commit 後に WS 配信（fire-and-forget）
+        // Stripe 自動返金
+        if (stripeRefundInfo != null && this.stripeService) {
+            const refundInfo = stripeRefundInfo as { paymentIntentId: string; baseFee: number }
+            try {
+                const { refundAmount } = calculatePaymentAmount(refundInfo.baseFee)
+                await this.stripeService.refundPaymentIntent(
+                    refundInfo.paymentIntentId,
+                    refundAmount,
+                )
+                logger.info(
+                    { paymentIntentId: refundInfo.paymentIntentId, refundAmount },
+                    '[CancelParticipation] Stripe partial refund issued',
+                )
+            } catch (err) {
+                logger.error(
+                    { error: err, paymentIntentId: refundInfo.paymentIntentId },
+                    '[CancelParticipation] Stripe refund failed',
+                )
+            }
+        }
+
         this.notificationService.flush()
     }
 
-    /**
-     * 当日キャンセル時に OWNER/ADMIN へプッシュ通知を送信する。
-     * メイン TX の外で実行し、失敗しても参加キャンセル自体はロールバックしない。
-     */
     private async sendSameDayCancellationAlert(
         scheduleId: string,
         cancellerUserId: string,
@@ -154,7 +187,6 @@ export class CancelParticipationUseCase {
         activityId: string,
     ): Promise<void> {
         try {
-            // 当日判定
             const now = new Date()
             const isSameDay =
                 scheduleDate.getFullYear() === now.getFullYear() &&
@@ -162,7 +194,6 @@ export class CancelParticipationUseCase {
                 scheduleDate.getDate() === now.getDate()
             if (!isSameDay) return
 
-            // コミュニティ設定チェック
             const activity = await this.prisma.activity.findUnique({
                 where: { id: activityId },
                 select: { communityId: true, title: true },
@@ -175,7 +206,6 @@ export class CancelParticipationUseCase {
             })
             if (!community?.cancellationAlertEnabled) return
 
-            // OWNER/ADMIN を取得（キャンセルした本人は除外）
             const admins = await this.prisma.communityMembership.findMany({
                 where: {
                     communityId: activity.communityId,
@@ -187,14 +217,12 @@ export class CancelParticipationUseCase {
             })
             if (admins.length === 0) return
 
-            // キャンセルしたユーザー名を取得
             const canceller = await this.prisma.user.findUnique({
                 where: { id: cancellerUserId },
                 select: { displayName: true },
             })
             const cancellerName = canceller?.displayName ?? '不明なユーザー'
 
-            // 別 TX で通知を生成（メイン TX とは独立）
             await this.prisma.$transaction(async (tx) => {
                 const notifRepo = new NotificationRepositoryImpl(tx)
                 const outboxRepo = new OutboxRepository(tx)
@@ -213,16 +241,10 @@ export class CancelParticipationUseCase {
                 }
             })
         } catch (err) {
-            // アラート送信失敗は握りつぶす（キャンセル自体は成功済み）
-            // ログは出す
             console.error('[CancelParticipation] Failed to send same-day cancellation alert:', err)
         }
     }
 
-    /**
-     * 有料参加者がキャンセルした際に OWNER/ADMIN へ返金アラートを送信する。
-     * メイン TX の外で実行し、失敗しても参加キャンセル自体はロールバックしない。
-     */
     private async sendPaidCancellationAlert(
         scheduleId: string,
         cancellerUserId: string,
@@ -235,7 +257,6 @@ export class CancelParticipationUseCase {
             })
             if (!activity) return
 
-            // OWNER/ADMIN を取得（キャンセルした本人は除外）
             const admins = await this.prisma.communityMembership.findMany({
                 where: {
                     communityId: activity.communityId,

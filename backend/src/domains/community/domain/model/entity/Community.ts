@@ -35,6 +35,7 @@ export class Community extends AggregateRoot {
         // UBL-8: Payment settings
         private payPayId: string | null,
         private enabledPaymentMethods: string[],
+        private stripeAccountId: string | null,
         // Phase 3: Notification settings
         private reminderEnabled: boolean,
         private cancellationAlertEnabled: boolean,
@@ -88,6 +89,7 @@ export class Community extends AggregateRoot {
             params.ageRange ?? null,
             null,       // payPayId
             ['CASH'],   // enabledPaymentMethods
+            null,       // stripeAccountId
             true,       // reminderEnabled
             true,       // cancellationAlertEnabled
         )
@@ -156,6 +158,7 @@ export class Community extends AggregateRoot {
             params.ageRange ?? null,
             null,       // payPayId
             ['CASH'],   // enabledPaymentMethods
+            null,       // stripeAccountId
             true,       // reminderEnabled
             true,       // cancellationAlertEnabled
         )
@@ -194,6 +197,7 @@ export class Community extends AggregateRoot {
         ageRange: string | null
         payPayId: string | null
         enabledPaymentMethods: string[]
+        stripeAccountId: string | null
         reminderEnabled: boolean
         cancellationAlertEnabled: boolean
     }): Community {
@@ -219,6 +223,7 @@ export class Community extends AggregateRoot {
             params.ageRange,
             params.payPayId,
             params.enabledPaymentMethods,
+            params.stripeAccountId,
             params.reminderEnabled,
             params.cancellationAlertEnabled,
         )
@@ -242,6 +247,7 @@ export class Community extends AggregateRoot {
         ageRange?: string | null
         payPayId?: string | null
         enabledPaymentMethods?: string[]
+        stripeAccountId?: string | null
         reminderEnabled?: boolean
         cancellationAlertEnabled?: boolean
     }): void {
@@ -268,6 +274,7 @@ export class Community extends AggregateRoot {
         if (params.ageRange !== undefined) this.ageRange = params.ageRange
         if (params.payPayId !== undefined) this.payPayId = params.payPayId
         if (params.enabledPaymentMethods !== undefined) this.enabledPaymentMethods = params.enabledPaymentMethods
+        if (params.stripeAccountId !== undefined) this.stripeAccountId = params.stripeAccountId
         if (params.reminderEnabled !== undefined) this.reminderEnabled = params.reminderEnabled
         if (params.cancellationAlertEnabled !== undefined) this.cancellationAlertEnabled = params.cancellationAlertEnabled
     }
@@ -313,6 +320,7 @@ export class Community extends AggregateRoot {
     getAgeRange(): string | null { return this.ageRange }
     getPayPayId(): string | null { return this.payPayId }
     getEnabledPaymentMethods(): string[] { return this.enabledPaymentMethods }
+    getStripeAccountId(): string | null { return this.stripeAccountId }
     getReminderEnabled(): boolean { return this.reminderEnabled }
     getCancellationAlertEnabled(): boolean { return this.cancellationAlertEnabled }
 }

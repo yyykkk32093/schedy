@@ -44,10 +44,9 @@ export class ExportParticipationCsvUseCase {
             select: {
                 id: true,
                 userId: true,
+                scheduleId: true,
                 isVisitor: true,
                 respondedAt: true,
-                paymentMethod: true,
-                paymentStatus: true,
                 schedule: {
                     select: {
                         date: true,
@@ -61,6 +60,23 @@ export class ExportParticipationCsvUseCase {
             },
             orderBy: [{ schedule: { date: 'asc' } }, { respondedAt: 'asc' }],
         })
+
+        // Payment テーブルから支払い情報を取得
+        const scheduleIds = [...new Set(participations.map((p) => p.scheduleId))]
+        const payments = scheduleIds.length > 0
+            ? await this.prisma.payment.findMany({
+                where: { scheduleId: { in: scheduleIds } },
+                select: { scheduleId: true, userId: true, paymentMethod: true, status: true },
+                orderBy: { createdAt: 'desc' },
+            })
+            : []
+        const paymentMap = new Map<string, { method: string; status: string }>()
+        for (const pay of payments) {
+            const key = `${pay.scheduleId}:${pay.userId}`
+            if (!paymentMap.has(key)) {
+                paymentMap.set(key, { method: pay.paymentMethod, status: pay.status })
+            }
+        }
 
         // ユーザー名を一括取得
         const userIds = [...new Set(participations.map((p) => p.userId))]
@@ -85,19 +101,22 @@ export class ExportParticipationCsvUseCase {
             '回答日時',
         ]
 
-        const rows = participations.map((p) => [
-            this.escapeCsv(p.schedule.activity.title),
-            new Date(p.schedule.date).toISOString().slice(0, 10),
-            p.schedule.startTime,
-            p.schedule.endTime,
-            this.escapeCsv(p.schedule.location ?? ''),
-            this.escapeCsv(userMap.get(p.userId) ?? ''),
-            p.isVisitor ? 'はい' : 'いいえ',
-            p.schedule.participationFee?.toString() ?? '無料',
-            p.paymentMethod ?? '-',
-            p.paymentStatus ?? '-',
-            p.respondedAt.toISOString(),
-        ])
+        const rows = participations.map((p) => {
+            const pay = paymentMap.get(`${p.scheduleId}:${p.userId}`)
+            return [
+                this.escapeCsv(p.schedule.activity.title),
+                new Date(p.schedule.date).toISOString().slice(0, 10),
+                p.schedule.startTime,
+                p.schedule.endTime,
+                this.escapeCsv(p.schedule.location ?? ''),
+                this.escapeCsv(userMap.get(p.userId) ?? ''),
+                p.isVisitor ? 'はい' : 'いいえ',
+                p.schedule.participationFee?.toString() ?? '無料',
+                pay?.method ?? '-',
+                pay?.status ?? '-',
+                p.respondedAt.toISOString(),
+            ]
+        })
 
         // BOM + CSV 文字列
         const bom = '\uFEFF'

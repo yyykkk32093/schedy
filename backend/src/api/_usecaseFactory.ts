@@ -58,11 +58,20 @@ import { AttendScheduleTxRepositories, AttendScheduleUseCase } from '@/applicati
 import { CancelParticipationTxRepositories, CancelParticipationUseCase } from '@/application/participation/usecase/CancelParticipationUseCase.js'
 import { CancelWaitlistTxRepositories, CancelWaitlistUseCase } from '@/application/participation/usecase/CancelWaitlistUseCase.js'
 import { ConfirmPaymentUseCase } from '@/application/participation/usecase/ConfirmPaymentUseCase.js'
+import { CreateStripePaymentIntentUseCase } from '@/application/participation/usecase/CreateStripePaymentIntentUseCase.js'
+import { GetParticipationHistoryUseCase } from '@/application/participation/usecase/GetParticipationHistoryUseCase.js'
+import { HandleStripePaymentSucceededUseCase } from '@/application/participation/usecase/HandleStripePaymentSucceededUseCase.js'
+import { HandleStripeRefundCompletedUseCase } from '@/application/participation/usecase/HandleStripeRefundCompletedUseCase.js'
 import { JoinWaitlistTxRepositories, JoinWaitlistUseCase } from '@/application/participation/usecase/JoinWaitlistUseCase.js'
 import { ListParticipationsUseCase } from '@/application/participation/usecase/ListParticipationsUseCase.js'
+import { ListPaymentHistoryUseCase } from '@/application/participation/usecase/ListPaymentHistoryUseCase.js'
+import { ListRefundPendingPaymentsUseCase } from '@/application/participation/usecase/ListRefundPendingPaymentsUseCase.js'
 import { ListWaitlistEntriesUseCase } from '@/application/participation/usecase/ListWaitlistEntriesUseCase.js'
+import { MarkNoRefundUseCase } from '@/application/participation/usecase/MarkNoRefundUseCase.js'
+import { MarkRefundCompletedUseCase } from '@/application/participation/usecase/MarkRefundCompletedUseCase.js'
 import { RemoveParticipantByAdminTxRepositories, RemoveParticipantByAdminUseCase } from '@/application/participation/usecase/RemoveParticipantByAdminUseCase.js'
 import { ReportPaymentUseCase } from '@/application/participation/usecase/ReportPaymentUseCase.js'
+import { RevertRefundStatusUseCase } from '@/application/participation/usecase/RevertRefundStatusUseCase.js'
 
 import { AddAlbumPhotoUseCase } from '@/application/album/usecase/AddAlbumPhotoUseCase.js'
 import { CreateAlbumUseCase } from '@/application/album/usecase/CreateAlbumUseCase.js'
@@ -99,6 +108,7 @@ import { UuidGenerator } from '@/domains/_sharedDomains/infrastructure/id/UuidGe
 import { ActivityRepositoryImpl } from '@/domains/activity/infrastructure/repository/ActivityRepositoryImpl.js'
 import { ScheduleRepositoryImpl } from '@/domains/activity/schedule/infrastructure/repository/ScheduleRepositoryImpl.js'
 import { ParticipationRepositoryImpl } from '@/domains/activity/schedule/participation/infrastructure/repository/ParticipationRepositoryImpl.js'
+import { PaymentRepositoryImpl } from '@/domains/activity/schedule/participation/infrastructure/repository/PaymentRepositoryImpl.js'
 import { WaitlistEntryRepositoryImpl } from '@/domains/activity/schedule/waitlist/infrastructure/repository/WaitlistEntryRepositoryImpl.js'
 import { AlbumPhotoRepositoryImpl } from '@/domains/album/infrastructure/repository/AlbumPhotoRepositoryImpl.js'
 import { AlbumRepositoryImpl } from '@/domains/album/infrastructure/repository/AlbumRepositoryImpl.js'
@@ -131,6 +141,7 @@ import { GoogleOAuthProviderClient } from '@/integration/oauth/GoogleOAuthProvid
 import type { IOAuthProviderClient } from '@/integration/oauth/IOAuthProviderClient.js'
 import { LineOAuthProviderClient } from '@/integration/oauth/LineOAuthProviderClient.js'
 import { OutboxRepository } from '@/integration/outbox/repository/OutboxRepository.js'
+import { StripeServiceImpl } from '@/integration/stripe/StripeServiceImpl.js'
 
 
 /**
@@ -351,6 +362,7 @@ export const usecaseFactory = {
         return new FindActivityUseCase(
             new ActivityRepositoryImpl(prisma),
             new UserRepositoryImpl(prisma),
+            new CommunityRepositoryImpl(prisma),
         )
     },
 
@@ -394,6 +406,7 @@ export const usecaseFactory = {
             new ActivityRepositoryImpl(prisma),
             new ParticipationRepositoryImpl(prisma),
             new WaitlistEntryRepositoryImpl(prisma),
+            new PaymentRepositoryImpl(prisma),
         )
     },
 
@@ -433,6 +446,7 @@ export const usecaseFactory = {
             schedule: new ScheduleRepositoryImpl(tx),
             participation: new ParticipationRepositoryImpl(tx),
             participationAuditLog: new ParticipationAuditLogRepositoryImpl(tx),
+            payment: new PaymentRepositoryImpl(tx),
         }))
         return new AttendScheduleUseCase(new UuidGenerator(), unitOfWork)
     },
@@ -442,13 +456,15 @@ export const usecaseFactory = {
             schedule: new ScheduleRepositoryImpl(tx),
             participation: new ParticipationRepositoryImpl(tx),
             participationAuditLog: new ParticipationAuditLogRepositoryImpl(tx),
+            payment: new PaymentRepositoryImpl(tx),
             waitlist: new WaitlistEntryRepositoryImpl(tx),
             waitlistAuditLog: new WaitlistAuditLogRepositoryImpl(tx),
             notification: new NotificationRepositoryImpl(tx),
             outbox: new OutboxRepository(tx),
         }))
         const notificationService = new NotificationService(RealtimeEmitterBootstrap.getEmitter())
-        return new CancelParticipationUseCase(new UuidGenerator(), unitOfWork, notificationService, prisma)
+        const stripeService = new StripeServiceImpl()
+        return new CancelParticipationUseCase(new UuidGenerator(), unitOfWork, notificationService, prisma, stripeService)
     },
 
     createRemoveParticipantByAdminUseCase() {
@@ -458,6 +474,7 @@ export const usecaseFactory = {
             membership: new CommunityMembershipRepositoryImpl(tx),
             participation: new ParticipationRepositoryImpl(tx),
             participationAuditLog: new ParticipationAuditLogRepositoryImpl(tx),
+            payment: new PaymentRepositoryImpl(tx),
             waitlist: new WaitlistEntryRepositoryImpl(tx),
             waitlistAuditLog: new WaitlistAuditLogRepositoryImpl(tx),
             notification: new NotificationRepositoryImpl(tx),
@@ -489,6 +506,7 @@ export const usecaseFactory = {
         return new ListParticipationsUseCase(
             new ParticipationRepositoryImpl(prisma),
             new UserRepositoryImpl(prisma),
+            new PaymentRepositoryImpl(prisma),
         )
     },
 
@@ -612,11 +630,46 @@ export const usecaseFactory = {
 
     // ---- UBL-8: 支払 ----
     createReportPaymentUseCase() {
-        return new ReportPaymentUseCase(new ParticipationRepositoryImpl(prisma))
+        return new ReportPaymentUseCase(
+            new ParticipationRepositoryImpl(prisma),
+            new PaymentRepositoryImpl(prisma),
+        )
     },
 
     createConfirmPaymentUseCase() {
-        return new ConfirmPaymentUseCase(new ParticipationRepositoryImpl(prisma))
+        return new ConfirmPaymentUseCase(
+            new ParticipationRepositoryImpl(prisma),
+            new PaymentRepositoryImpl(prisma),
+        )
+    },
+
+    createGetParticipationHistoryUseCase() {
+        return new GetParticipationHistoryUseCase(new PaymentRepositoryImpl(prisma))
+    },
+
+    createStripePaymentIntentUseCase() {
+        return new CreateStripePaymentIntentUseCase(
+            new ParticipationRepositoryImpl(prisma),
+            new PaymentRepositoryImpl(prisma),
+            new ScheduleRepositoryImpl(prisma),
+            new ActivityRepositoryImpl(prisma),
+            new CommunityRepositoryImpl(prisma),
+            new StripeServiceImpl(),
+        )
+    },
+
+    // ---- Stripe Webhook ----
+
+    createHandleStripePaymentSucceededUseCase() {
+        return new HandleStripePaymentSucceededUseCase(
+            new PaymentRepositoryImpl(prisma),
+        )
+    },
+
+    createHandleStripeRefundCompletedUseCase() {
+        return new HandleStripeRefundCompletedUseCase(
+            new PaymentRepositoryImpl(prisma),
+        )
     },
 
     // ---- UBL-6: アルバム ----
@@ -792,6 +845,41 @@ export const usecaseFactory = {
         return new DeleteWebhookConfigUseCase(
             new CommunityWebhookConfigRepositoryImpl(),
             new CommunityMembershipRepositoryImpl(prisma),
+        )
+    },
+
+    // ---- Refund Management ----
+    createMarkRefundCompletedUseCase() {
+        return new MarkRefundCompletedUseCase(
+            new PaymentRepositoryImpl(prisma),
+        )
+    },
+
+    createMarkNoRefundUseCase() {
+        return new MarkNoRefundUseCase(
+            new PaymentRepositoryImpl(prisma),
+        )
+    },
+
+    createRevertRefundStatusUseCase() {
+        return new RevertRefundStatusUseCase(
+            new PaymentRepositoryImpl(prisma),
+        )
+    },
+
+    createListRefundPendingPaymentsUseCase() {
+        return new ListRefundPendingPaymentsUseCase(
+            new PaymentRepositoryImpl(prisma),
+            new UserRepositoryImpl(prisma),
+            prisma,
+        )
+    },
+
+    createListPaymentHistoryUseCase() {
+        return new ListPaymentHistoryUseCase(
+            new PaymentRepositoryImpl(prisma),
+            new UserRepositoryImpl(prisma),
+            prisma,
         )
     },
 }

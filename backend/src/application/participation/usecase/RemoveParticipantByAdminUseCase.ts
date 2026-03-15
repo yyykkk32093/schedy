@@ -12,6 +12,7 @@ import { Participation } from '@/domains/activity/schedule/participation/domain/
 import { ParticipationAuditLog } from '@/domains/activity/schedule/participation/domain/model/entity/ParticipationAuditLog.js'
 import type { IParticipationAuditLogRepository } from '@/domains/activity/schedule/participation/domain/repository/IParticipationAuditLogRepository.js'
 import type { IParticipationRepository } from '@/domains/activity/schedule/participation/domain/repository/IParticipationRepository.js'
+import type { IPaymentRepository } from '@/domains/activity/schedule/participation/domain/repository/IPaymentRepository.js'
 import { WaitlistAuditLog } from '@/domains/activity/schedule/waitlist/domain/model/entity/WaitlistAuditLog.js'
 import type { IWaitlistAuditLogRepository } from '@/domains/activity/schedule/waitlist/domain/repository/IWaitlistAuditLogRepository.js'
 import type { IWaitlistEntryRepository } from '@/domains/activity/schedule/waitlist/domain/repository/IWaitlistEntryRepository.js'
@@ -25,6 +26,7 @@ export type RemoveParticipantByAdminTxRepositories = {
     membership: ICommunityMembershipRepository
     participation: IParticipationRepository
     participationAuditLog: IParticipationAuditLogRepository
+    payment: IPaymentRepository
     waitlist: IWaitlistEntryRepository
     waitlistAuditLog: IWaitlistAuditLogRepository
     notification: INotificationRepository
@@ -75,9 +77,12 @@ export class RemoveParticipantByAdminUseCase {
                 throw new ParticipationError('対象の参加者が見つかりません', 'PARTICIPATION_NOT_FOUND')
             }
 
-            // 支払スナップショットを保存してから物理削除
-            const paymentMethodSnapshot = participation.getPaymentMethod()?.getValue() ?? null
-            const paymentStatusSnapshot = participation.getPaymentStatus()?.getValue() ?? null
+            // Payment テーブルから支払スナップショットを取得
+            const payment = await repos.payment.findLatestByScheduleAndUser(
+                input.scheduleId, input.targetUserId
+            )
+            const paymentMethodSnapshot = payment?.getPaymentMethod().getValue() ?? null
+            const paymentStatusSnapshot = payment?.getPaymentStatus().getValue() ?? null
 
             // 物理削除
             await repos.participation.delete(input.scheduleId, input.targetUserId)

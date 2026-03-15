@@ -46,8 +46,9 @@ export class CreateActivityUseCase {
         meetingUrl?: string | null
         capacity?: number | null
         userId: string
-    }): Promise<{ activityId: string }> {
+    }): Promise<{ activityId: string; scheduleId?: string }> {
         let activityId = ''
+        let scheduleId: string | undefined
 
         await this.unitOfWork.run(async (repos) => {
             // コミュニティ存在チェック
@@ -82,9 +83,9 @@ export class CreateActivityUseCase {
 
             // 日付が指定されていれば初回スケジュールを同一トランザクション内で作成
             if (input.date) {
-                const scheduleId = ScheduleId.create(this.idGenerator.generate())
+                const sid = ScheduleId.create(this.idGenerator.generate())
                 const schedule = Schedule.create({
-                    id: scheduleId,
+                    id: sid,
                     activityId: id,
                     date: new Date(input.date),
                     startTime: TimeOfDay.create(input.defaultStartTime ?? '09:00'),
@@ -96,9 +97,10 @@ export class CreateActivityUseCase {
                     capacity: input.capacity ?? null,
                 })
                 await repos.schedule.save(schedule)
+                scheduleId = sid.getValue()
             }
         })
 
-        return { activityId }
+        return { activityId, scheduleId }
     }
 }

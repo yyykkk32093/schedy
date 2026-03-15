@@ -114,6 +114,7 @@ model Schedule {
   participations         Participation[]
   waitlistEntries        WaitlistEntry[]
   participationAuditLogs ParticipationAuditLog[]
+  payments               Payment[]
 
   @@index([activityId])
   @@index([date])
@@ -126,17 +127,34 @@ model Participation {
   isVisitor   Boolean  @default(false)
   respondedAt DateTime @default(now())
 
-  // UBL-8: Payment fields
-  paymentMethod      String? // CASH | PAYPAY | STRIPE | null (free)
-  paymentStatus      String? // UNPAID | REPORTED | CONFIRMED | REJECTED | null (free)
-  paymentReportedAt  DateTime?
-  paymentConfirmedAt DateTime?
-  paymentConfirmedBy String? // userId of admin who confirmed
-
   schedule Schedule @relation(fields: [scheduleId], references: [id])
 
   @@unique([scheduleId, userId])
   @@index([userId])
+}
+
+// 決済テーブル — Participation とは独立したライフサイクルを持つ
+// キャンセル後も Payment レコードは残り、返金ステータスを追跡できる
+model Payment {
+  id                    String    @id @default(uuid())
+  scheduleId            String
+  userId                String
+  paymentMethod         String // CASH | PAYPAY | STRIPE
+  amount                Int // 参加費
+  feeAmount             Int       @default(0) // プラットフォーム手数料
+  status                String    @default("UNPAID") // UNPAID | REPORTED | CONFIRMED | REJECTED | REFUND_PENDING | REFUNDED | NO_REFUND
+  stripePaymentIntentId String?
+  paymentReportedAt     DateTime?
+  paymentConfirmedAt    DateTime?
+  paymentConfirmedBy    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id])
+
+  @@index([scheduleId, userId])
+  @@index([stripePaymentIntentId])
 }
 
 model WaitlistEntry {
@@ -264,6 +282,7 @@ model Community {
   // UBL-8: Payment settings
   payPayId              String?
   enabledPaymentMethods String[] @default(["CASH"])
+  stripeAccountId       String? // Stripe Connect アカウントID（Destination Charges 用）
 
   // Phase 3: Community Notification Settings
   reminderEnabled          Boolean @default(true) // スケジュール/支払いリマインダーを送信するか

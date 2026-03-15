@@ -1,6 +1,6 @@
 import { useAuth } from '@/app/providers/AuthProvider'
 import { communityApi } from '@/features/community/api/communityApi'
-import { communityKeys, communitySearchKeys, masterKeys, memberKeys } from '@/shared/lib/queryKeys'
+import { activityKeys, communityKeys, communitySearchKeys, masterKeys, memberKeys } from '@/shared/lib/queryKeys'
 import type { SearchCommunitiesParams } from '@/shared/types/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
@@ -35,6 +35,9 @@ export function useUpdateCommunity(id: string) {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: communityKeys.all })
             qc.invalidateQueries({ queryKey: communityKeys.detail(id) })
+            // コミュニティの支払い設定がアクティビティ詳細にネストされているため、
+            // アクティビティキャッシュも無効化する
+            qc.invalidateQueries({ queryKey: activityKeys.all })
         },
     })
 }

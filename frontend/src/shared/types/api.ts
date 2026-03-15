@@ -329,6 +329,7 @@ export interface CreateActivityRequest {
 
 export interface CreateActivityResponse {
     activityId: string
+    scheduleId?: string
 }
 
 export interface ListActivitiesResponse {
@@ -348,6 +349,7 @@ export interface ActivityListItem {
     createdBy: string
     createdByDisplayName: string | null
     upcomingSchedules: Array<{
+        id: string
         date: string
         startTime: string
         endTime: string
@@ -357,6 +359,11 @@ export interface ActivityListItem {
 export interface ActivityDetail extends ActivityListItem {
     recurrenceRule: string | null
     organizerDisplayName: string | null
+    communityPaymentSettings: {
+        enabledPaymentMethods: string[]
+        paypayId: string | null
+        stripeAccountId: string | null
+    }
 }
 
 export interface UpdateActivityRequest {
@@ -414,6 +421,9 @@ export interface ScheduleListItem {
     meetingUrl: string | null
     participantCount?: number
     myStatus?: 'none' | 'attending' | 'waitlisted'
+    myParticipationId?: string | null
+    myPaymentMethod?: string | null
+    myPaymentStatus?: string | null
     attendingCount?: number
     waitlistCount?: number
 }
@@ -500,6 +510,57 @@ export interface WaitlistItem {
 
 export interface ListWaitlistResponse {
     entries: WaitlistItem[]
+}
+
+/** 4-4: 参加履歴（直近キャンセル情報） */
+export interface GetParticipationHistoryResponse {
+    hasPaidCancellation: boolean
+    paymentMethod: string | null
+    paymentStatus: string | null
+    cancelledAt: string | null
+}
+
+// ---- 返金管理 ----
+
+export interface RefundPendingPaymentItem {
+    paymentId: string
+    scheduleId: string
+    userId: string
+    displayName: string | null
+    paymentMethod: string
+    amount: number
+    feeAmount: number
+    createdAt: string
+    updatedAt: string
+    activityTitle: string | null
+    scheduleDate: string | null
+    scheduleStartTime: string | null
+    paymentNumber: number
+}
+
+export interface ListRefundPendingResponse {
+    payments: RefundPendingPaymentItem[]
+}
+
+export interface ResolvedPaymentItem {
+    paymentId: string
+    scheduleId: string
+    userId: string
+    displayName: string | null
+    paymentMethod: string
+    amount: number
+    feeAmount: number
+    status: string // 'REFUNDED' | 'NO_REFUND'
+    createdAt: string
+    updatedAt: string
+    activityTitle: string | null
+    scheduleDate: string | null
+    scheduleStartTime: string | null
+    paymentNumber: number
+}
+
+export interface ListPaymentHistoryResponse {
+    payments: ResolvedPaymentItem[]
 }
 
 // ============================================================
@@ -774,6 +835,15 @@ export interface UnreadCountResponse {
 // ============================================================
 // Stripe Connect
 // ============================================================
+
+/** 4-2: Stripe PaymentIntent 作成レスポンス */
+export interface CreateStripePaymentIntentResponse {
+    clientSecret: string
+    paymentIntentId: string
+    totalAmount: number
+    platformFee: number
+    baseFee: number
+}
 
 // ============================================================
 // UBL-1: Announcement Like

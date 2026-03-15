@@ -4,8 +4,9 @@ import { AlbumTab, AnnouncementTab, ChatTab } from '@/features/community/compone
 import { useCommunity } from '@/features/community/hooks/useCommunityQueries'
 import { useSetHeaderTitle } from '@/shared/components/HeaderActionsContext'
 import { SectionTabs } from '@/shared/components/SectionTabs'
-import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+
+const VALID_TABS = ['announcements', 'activities', 'chat', 'album'] as const
 
 /**
  * CommunityDetailPage — コミュニティ詳細画面
@@ -18,7 +19,12 @@ export function CommunityDetailPage() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
     const { data: community, isLoading } = useCommunity(id!)
-    const [activeTab, setActiveTab] = useState('announcements')
+    const [searchParams, setSearchParams] = useSearchParams()
+    const tabParam = searchParams.get('tab')
+    const activeTab = tabParam && (VALID_TABS as readonly string[]).includes(tabParam) ? tabParam : 'announcements'
+    const setActiveTab = (tab: string) => {
+        setSearchParams({ tab }, { replace: true })
+    }
 
     // 2-4: ヘッダータイトルをコミュニティ名に動的変更
     useSetHeaderTitle(community?.name)
@@ -53,7 +59,7 @@ export function CommunityDetailPage() {
             <div className="mt-2 px-4">
                 <SectionTabs
                     tabs={tabs}
-                    defaultValue="announcements"
+                    value={activeTab}
                     onValueChange={(v) => setActiveTab(v)}
                 />
             </div>

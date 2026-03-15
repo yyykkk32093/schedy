@@ -1,10 +1,12 @@
 import type { IParticipationRepository } from '@/domains/activity/schedule/participation/domain/repository/IParticipationRepository.js'
+import type { IPaymentRepository } from '@/domains/activity/schedule/participation/domain/repository/IPaymentRepository.js'
 import type { IUserRepository } from '@/domains/user/domain/repository/IUserRepository.js'
 
 export class ListParticipationsUseCase {
     constructor(
         private readonly participationRepository: IParticipationRepository,
         private readonly userRepository: IUserRepository,
+        private readonly paymentRepository: IPaymentRepository,
     ) { }
 
     async execute(input: { scheduleId: string }): Promise<{
@@ -18,24 +20,41 @@ export class ListParticipationsUseCase {
             paymentStatus: string | null
         }>
     }> {
-        // 物理削除方式: レコード存在 = 全員 ATTENDING
-        const participations = await this.participationRepository.findsByScheduleId(input.scheduleId)
+        const [participations, payments] = await Promise.all([
+            this.participationRepository.findsByScheduleId(input.scheduleId),
+            this.paymentRepository.findsByScheduleId(input.scheduleId),
+        ])
 
-        // ユーザーIDを一括取得して displayName を解決
+        // ユーザーごとに最新の Payment をマッピング
+        const paymentMap = new Map<string, { method: string; status: string }>()
+        for (const p of payments) {
+            const userId = p.getUserId().getValue()
+            if (!paymentMap.has(userId)) {
+                paymentMap.set(userId, {
+                    method: p.getPaymentMethod().getValue(),
+                    status: p.getPaymentStatus().getValue(),
+                })
+            }
+        }
+
         const userIds = participations.map((p) => p.getUserId().getValue())
         const users = userIds.length > 0 ? await this.userRepository.findByIds(userIds) : []
         const userMap = new Map(users.map((u) => [u.getId().getValue(), u.getDisplayName()?.getValue() ?? null]))
 
         return {
-            participants: participations.map((p) => ({
-                id: p.getId(),
-                userId: p.getUserId().getValue(),
-                displayName: userMap.get(p.getUserId().getValue()) ?? null,
-                isVisitor: p.getIsVisitor(),
-                respondedAt: p.getRespondedAt(),
-                paymentMethod: p.getPaymentMethod()?.getValue() ?? null,
-                paymentStatus: p.getPaymentStatus()?.getValue() ?? null,
-            })),
+            participants: participations.map((p) => {
+                const userId = p.getUserId().getValue()
+                const pay = paymentMap.get(userId)
+                return {
+                    id: p.getId(),
+                    userId,
+                    displayName: userMap.get(userId) ?? null,
+                    isVisitor: p.getIsVisitor(),
+                    respondedAt: p.getRespondedAt(),
+                    paymentMethod: pay?.method ?? null,
+                    paymentStatus: pay?.status ?? null,
+                }
+            }),
         }
     }
 }

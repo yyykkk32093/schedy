@@ -1,7 +1,7 @@
 import { DomainValidationError } from '@/domains/_sharedDomains/error/DomainValidationError.js'
 import { ValueObject } from '@/domains/_sharedDomains/model/valueObject/ValueObject.js'
 
-const VALID_STATUSES = ['UNPAID', 'REPORTED', 'CONFIRMED', 'REJECTED'] as const
+const VALID_STATUSES = ['UNPAID', 'REPORTED', 'CONFIRMED', 'REJECTED', 'REFUND_PENDING', 'REFUNDED', 'NO_REFUND'] as const
 export type PaymentStatusType = (typeof VALID_STATUSES)[number]
 
 export class PaymentStatus extends ValueObject<PaymentStatusType> {
@@ -23,6 +23,9 @@ export class PaymentStatus extends ValueObject<PaymentStatusType> {
     static reported(): PaymentStatus { return new PaymentStatus('REPORTED') }
     static confirmed(): PaymentStatus { return new PaymentStatus('CONFIRMED') }
     static rejected(): PaymentStatus { return new PaymentStatus('REJECTED') }
+    static refundPending(): PaymentStatus { return new PaymentStatus('REFUND_PENDING') }
+    static refunded(): PaymentStatus { return new PaymentStatus('REFUNDED') }
+    static noRefund(): PaymentStatus { return new PaymentStatus('NO_REFUND') }
 
     static reconstruct(value: string): PaymentStatus {
         return new PaymentStatus(value as PaymentStatusType)
@@ -32,4 +35,10 @@ export class PaymentStatus extends ValueObject<PaymentStatusType> {
     isReported(): boolean { return this.value === 'REPORTED' }
     isConfirmed(): boolean { return this.value === 'CONFIRMED' }
     isRejected(): boolean { return this.value === 'REJECTED' }
+    isRefundPending(): boolean { return this.value === 'REFUND_PENDING' }
+    isRefunded(): boolean { return this.value === 'REFUNDED' }
+    isNoRefund(): boolean { return this.value === 'NO_REFUND' }
+
+    /** 支払い済み（REPORTED or CONFIRMED） */
+    isPaid(): boolean { return this.isReported() || this.isConfirmed() }
 }

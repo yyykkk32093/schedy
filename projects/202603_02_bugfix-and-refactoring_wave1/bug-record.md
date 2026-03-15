@@ -15,6 +15,7 @@
 - [Phase 3 レビュー後バグ修正（Session 3.2）](#phase-3-レビュー後バグ修正session-32)
 - [Phase 3 レビュー後バグ修正（Session 3.3）](#phase-3-レビュー後バグ修正session-33)
 - [Phase 3 レビュー後バグ修正（Session 3.4）](#phase-3-レビュー後バグ修正session-34)
+- [Phase 4: 新機能追加時のバグ修正](#phase-4-新機能追加時のバグ修正)
 
 ---
 
@@ -294,6 +295,21 @@
 
 ---
 
+## Phase 4: 新機能追加時のバグ修正
+
+### BUG-4-1: Prismaマイグレーション未実行によるコミュニティ一覧・参加処理全面障害
+
+| 項目         | 内容                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 事象         | ① コミュニティタブトップにコミュニティが表示されない（Helena, Daniel 両方で再現）。② アクティビティ詳細画面で参加ボタン押下時に「サーバーでエラーが発生しました。しばらく経ってからお試しください」エラー                                                                                                                                                                          |
+| 原因         | Phase 4-2 (Stripe決済) の実装で `schema.prisma` に `Community.stripeAccountId` と `Participation.stripePaymentIntentId` カラムを追加し `prisma generate` を実行したが、`prisma migrate dev` が未実行のままデプロイされた。Prisma Client はスキーマベースのSQLを生成するため、Community/Participation テーブルへの全クエリで `column "stripeAccountId" does not exist` エラーが発生 |
+| 影響範囲     | Community テーブルを参照する**全API**（コミュニティ一覧、コミュニティ詳細、メンバー一覧等）および Participation テーブルを参照する**全API**（参加、キャンセル、参加者一覧等）が 500 エラー                                                                                                                                                                                         |
+| 対応         | `prisma migrate dev --name add_stripe_fields` を実行し、`stripeAccountId` (Community, String?) と `stripePaymentIntentId` (Participation, String?) カラムをDBに追加                                                                                                                                                                                                                |
+| 対象ファイル | `backend/prisma/schema.prisma`, `backend/prisma/migrations/20260311063000_add_stripe_fields/migration.sql`                                                                                                                                                                                                                                                                         |
+| 根本対策     | スキーマ変更時は `prisma generate` だけでなく `prisma migrate dev` もセットで実施する運用ルールを徹底。CI/CD に `prisma migrate status` チェックを追加し、未適用マイグレーションがあればデプロイをブロック                                                                                                                                                                         |
+
+---
+
 ## 統計
 
 | Phase       | バグ件数 | クリティカル | 中     | 軽微   |
@@ -305,7 +321,8 @@
 | Session 3.2 | 5        | 0            | 3      | 2      |
 | Session 3.3 | 8        | 1            | 5      | 2      |
 | Session 3.4 | 3        | 3            | 0      | 0      |
-| **合計**    | **36**   | **7**        | **18** | **11** |
+| Phase 4     | 1        | 1            | 0      | 0      |
+| **合計**    | **37**   | **8**        | **18** | **11** |
 
 ---
 

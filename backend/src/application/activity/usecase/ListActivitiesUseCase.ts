@@ -19,6 +19,7 @@ export class ListActivitiesUseCase {
             organizerUserId: string | null
             createdBy: string
             upcomingSchedules: Array<{
+                id: string
                 date: string
                 startTime: string
                 endTime: string
@@ -46,6 +47,7 @@ export class ListActivitiesUseCase {
                     organizerUserId: a.getOrganizerUserId()?.getValue() ?? null,
                     createdBy: a.getCreatedBy().getValue(),
                     upcomingSchedules: upcoming.map((s) => ({
+                        id: s.getId().getValue(),
                         date: s.getDate().toISOString().slice(0, 10),
                         startTime: s.getStartTime().getValue(),
                         endTime: s.getEndTime().getValue(),

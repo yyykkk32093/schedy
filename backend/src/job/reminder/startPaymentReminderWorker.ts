@@ -24,7 +24,7 @@ const DAYS_AHEAD = 3 // 3日先までのスケジュールが対象
 
 let shuttingDown = false
 
-interface UnpaidParticipation {
+interface UnpaidPayment {
     id: string
     userId: string
     scheduleId: string
@@ -49,10 +49,10 @@ async function runOnce(): Promise<void> {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const cutoff = new Date(today.getTime() + DAYS_AHEAD * 24 * 60 * 60 * 1000)
 
-    // 未払い参加者を取得（コミュニティ設定を含む）
-    const unpaidParticipations = await prisma.participation.findMany({
+    // Payment テーブルから未払い情報を取得（コミュニティ設定を含む）
+    const unpaidPayments = await prisma.payment.findMany({
         where: {
-            paymentStatus: 'UNPAID',
+            status: 'UNPAID',
             schedule: {
                 date: { gte: today, lte: cutoff },
                 status: 'SCHEDULED',
@@ -74,15 +74,15 @@ async function runOnce(): Promise<void> {
                 },
             },
         },
-    }) as unknown as UnpaidParticipation[]
+    }) as unknown as UnpaidPayment[]
 
-    if (unpaidParticipations.length === 0) {
+    if (unpaidPayments.length === 0) {
         logger.info('💰 No unpaid participants found for upcoming schedules')
         return
     }
 
     logger.info(
-        { count: unpaidParticipations.length },
+        { count: unpaidPayments.length },
         '💰 Found unpaid participants — sending reminders',
     )
 
@@ -103,7 +103,7 @@ async function runOnce(): Promise<void> {
 
     let sentCount = 0
 
-    for (const p of unpaidParticipations) {
+    for (const p of unpaidPayments) {
         const key = `${p.userId}:${p.scheduleId}`
         if (alreadySent.has(key)) continue
 

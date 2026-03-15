@@ -2,8 +2,6 @@ import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
 import { ScheduleId } from '@/domains/activity/schedule/domain/model/valueObject/ScheduleId.js'
 import type { Prisma, PrismaClient, Participation as PrismaParticipation } from '@prisma/client'
 import { Participation } from '../../domain/model/entity/Participation.js'
-import { PaymentMethod } from '../../domain/model/valueObject/PaymentMethod.js'
-import { PaymentStatus } from '../../domain/model/valueObject/PaymentStatus.js'
 import type { IParticipationRepository } from '../../domain/repository/IParticipationRepository.js'
 
 type PrismaClientLike = PrismaClient | Prisma.TransactionClient
@@ -45,11 +43,6 @@ export class ParticipationRepositoryImpl implements IParticipationRepository {
                 userId: participation.getUserId().getValue(),
                 isVisitor: participation.getIsVisitor(),
                 respondedAt: participation.getRespondedAt(),
-                paymentMethod: participation.getPaymentMethod()?.getValue() ?? null,
-                paymentStatus: participation.getPaymentStatus()?.getValue() ?? null,
-                paymentReportedAt: participation.getPaymentReportedAt(),
-                paymentConfirmedAt: participation.getPaymentConfirmedAt(),
-                paymentConfirmedBy: participation.getPaymentConfirmedBy(),
             },
         })
     }
@@ -59,11 +52,6 @@ export class ParticipationRepositoryImpl implements IParticipationRepository {
             where: { id: participation.getId() },
             data: {
                 isVisitor: participation.getIsVisitor(),
-                paymentMethod: participation.getPaymentMethod()?.getValue() ?? null,
-                paymentStatus: participation.getPaymentStatus()?.getValue() ?? null,
-                paymentReportedAt: participation.getPaymentReportedAt(),
-                paymentConfirmedAt: participation.getPaymentConfirmedAt(),
-                paymentConfirmedBy: participation.getPaymentConfirmedBy(),
             },
         })
     }
@@ -81,11 +69,6 @@ export class ParticipationRepositoryImpl implements IParticipationRepository {
             userId: UserId.create(row.userId),
             isVisitor: row.isVisitor,
             respondedAt: row.respondedAt,
-            paymentMethod: row.paymentMethod ? PaymentMethod.reconstruct(row.paymentMethod) : null,
-            paymentStatus: row.paymentStatus ? PaymentStatus.reconstruct(row.paymentStatus) : null,
-            paymentReportedAt: row.paymentReportedAt,
-            paymentConfirmedAt: row.paymentConfirmedAt,
-            paymentConfirmedBy: row.paymentConfirmedBy,
         })
     }
 }

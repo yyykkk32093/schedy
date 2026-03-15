@@ -35,6 +35,9 @@ export type CommunityDetail = {
     nearestStation: string | null
     targetGender: string | null
     ageRange: string | null
+    payPayId: string | null
+    enabledPaymentMethods: string[]
+    stripeAccountId: string | null
     categories: Array<{ id: string; name: string; nameEn: string }>
     participationLevels: Array<{ id: string; name: string; nameEn: string }>
     activityDays: string[]

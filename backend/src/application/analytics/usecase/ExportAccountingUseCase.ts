@@ -57,10 +57,9 @@ export class ExportAccountingUseCase {
                 date: true,
                 participationFee: true,
                 activity: { select: { title: true } },
-                participations: {
-                    select: {
-                        paymentStatus: true,
-                    },
+                _count: { select: { participations: true } },
+                payments: {
+                    select: { status: true },
                 },
             },
             orderBy: { date: 'asc' },
@@ -68,17 +67,17 @@ export class ExportAccountingUseCase {
 
         const rows: AccountingRow[] = schedules.map((s) => {
             const fee = s.participationFee ?? 0
-            const attending = s.participations
-            const paidCount = attending.filter(
-                (p) => p.paymentStatus === 'CONFIRMED',
+            const attendingCount = s._count.participations
+            const paidCount = s.payments.filter(
+                (p) => p.status === 'CONFIRMED',
             ).length
-            const unpaidCount = attending.length - paidCount
+            const unpaidCount = attendingCount - paidCount
 
             return {
                 activityTitle: s.activity.title,
                 scheduleDate: new Date(s.date).toISOString().slice(0, 10),
                 participationFee: fee,
-                attendingCount: attending.length,
+                attendingCount,
                 paidCount,
                 unpaidCount,
                 totalRevenue: fee * paidCount,

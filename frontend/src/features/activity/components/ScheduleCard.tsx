@@ -26,7 +26,7 @@ export function ScheduleCard({ schedule, timeOnly, onRemove }: ScheduleCardProps
 
     return (
         <button
-            onClick={() => navigate(`/activities/${schedule.activityId}`)}
+            onClick={() => navigate(`/activities/${schedule.activityId}?schedule=${schedule.scheduleId}`)}
             className="w-full text-left p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors"
         >
             <div className="flex items-start justify-between">

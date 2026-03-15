@@ -27,12 +27,15 @@ import InviteAcceptPage from '@/features/community/pages/InviteAcceptPage'
 import { MemberListPage } from '@/features/community/pages/MemberListPage'
 import { HomePage } from '@/features/home/pages/HomePage'
 import { NotificationListPage } from '@/features/notification/pages/NotificationListPage'
+import { RefundHistoryPage } from '@/features/participation/pages/RefundHistoryPage'
+import { RefundManagementPage } from '@/features/participation/pages/RefundManagementPage'
 import { ScheduleDetailPage } from '@/features/schedule/pages/ScheduleDetailPage'
 import { ScheduleListPage } from '@/features/schedule/pages/ScheduleListPage'
 import { StampListPage } from '@/features/stamp/pages/StampListPage'
 import { MyPage } from '@/features/user/pages/MyPage'
 import { AppLayout } from '@/shared/components/AppLayout'
 import { ProtectedRoute } from '@/shared/components/ProtectedRoute'
+import { Toaster } from '@/shared/components/ui/sonner'
 import type { RouteHandle } from '@/shared/types/route'
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
 
@@ -191,6 +194,18 @@ const router = createBrowserRouter([
                         handle: { title: 'コミュニティ設定', showBack: true } satisfies RouteHandle,
                     },
 
+                    // 返金管理（管理者向け）
+                    {
+                        path: '/communities/:id/refunds',
+                        element: <RefundManagementPage />,
+                        handle: { title: '返金管理', showBack: true } satisfies RouteHandle,
+                    },
+                    {
+                        path: '/communities/:id/refunds/history',
+                        element: <RefundHistoryPage />,
+                        handle: { title: '返金履歴', showBack: true } satisfies RouteHandle,
+                    },
+
                     // MyPage (UBL-32)
                     {
                         path: '/mypage',
@@ -269,6 +284,7 @@ export default function App() {
         <PlatformProvider ports={ports}>
             <QueryProvider>
                 <RouterProvider router={router} />
+                <Toaster />
             </QueryProvider>
         </PlatformProvider>
     )

@@ -2,7 +2,8 @@ import { useActivity, useChangeOrganizer, useDeleteActivity } from '@/features/a
 import { useMyRole } from '@/features/community/hooks/useCommunityQueries'
 import { useMembers } from '@/features/community/hooks/useMemberQueries'
 import { ParticipationActionButton } from '@/features/participation/components/ParticipationActionButton'
-import { useParticipants, useWaitlistEntries } from '@/features/participation/hooks/useParticipationQueries'
+import { RefundPendingSection } from '@/features/participation/components/RefundPendingSection'
+import { useConfirmPayment, useParticipants, useWaitlistEntries } from '@/features/participation/hooks/useParticipationQueries'
 import { useSchedule, useSchedules } from '@/features/schedule/hooks/useScheduleQueries'
 import { useSetHeaderActions } from '@/shared/components/HeaderActionsContext'
 import {
@@ -15,9 +16,9 @@ import { Input } from '@/shared/components/ui/input'
 import { Separator } from '@/shared/components/ui/separator'
 import type { Member, ParticipantItem, ScheduleListItem } from '@/shared/types/api'
 import { formatDateLabel } from '@/shared/utils/dateGroup'
-import { ArrowLeftRight, Banknote, Calendar, Edit, ExternalLink, MapPin, Trash2, User } from 'lucide-react'
+import { ArrowLeftRight, Banknote, Calendar, Edit, ExternalLink, MapPin, Repeat, Trash2, User } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 /**
  * ActivityDetailPage — アクティビティ詳細画面
@@ -33,6 +34,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 export function ActivityDetailPage() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
+    const [searchParams, setSearchParams] = useSearchParams()
+    const scheduleIdParam = searchParams.get('schedule')
     const { data: activity, isLoading } = useActivity(id!)
     const deleteMutation = useDeleteActivity(activity?.communityId ?? '')
     const deleteMutationRef = useRef(deleteMutation)
@@ -41,6 +44,19 @@ export function ActivityDetailPage() {
     const schedules = schedulesData?.schedules ?? []
     const { isAdminOrAbove } = useMyRole(activity?.communityId ?? '')
     const [showOrganizerDialog, setShowOrganizerDialog] = useState(false)
+
+    // 表示対象のスケジュールを決定（scheduleIdParam 必須 — フォールバックなし）
+    const activeSchedule = useMemo(() => {
+        if (!scheduleIdParam || schedules.length === 0) return null
+        return schedules.find((s) => s.id === scheduleIdParam) ?? null
+    }, [schedules, scheduleIdParam])
+
+    const activeIndex = activeSchedule ? schedules.findIndex((s) => s.id === activeSchedule.id) : -1
+
+    const switchSchedule = (idx: number) => {
+        const s = schedules[idx]
+        if (s) setSearchParams({ schedule: s.id }, { replace: true })
+    }
 
     // ヘッダーに編集・削除アイコンを設定（useMemo で参照安定化 — 0-2 fix）
     const headerActions = useMemo(
@@ -122,11 +138,11 @@ export function ActivityDetailPage() {
                         </a>
                     </div>
                 )}
-                {schedules.length > 0 ? (
+                {activeSchedule ? (
                     <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
                         <span>
-                            日時：{formatDateLabel(schedules[0].date)} {schedules[0].startTime} 〜 {schedules[0].endTime}
+                            日時：{formatDateLabel(activeSchedule.date)} {activeSchedule.startTime} 〜 {activeSchedule.endTime}
                         </span>
                     </div>
                 ) : (activity.defaultStartTime || activity.defaultEndTime) ? (
@@ -151,24 +167,51 @@ export function ActivityDetailPage() {
                         </button>
                     )}
                 </div>
-                {/* 参加費（先頭スケジュールから取得） */}
-                {schedules.length > 0 && (
+                {/* 参加費（表示中のスケジュールから取得） */}
+                {activeSchedule && (
                     <div className="flex items-center gap-2">
                         <Banknote className="w-4 h-4 text-gray-400 shrink-0" />
                         <span>
-                            参加費：{schedules[0].participationFee != null && schedules[0].participationFee > 0
-                                ? `¥${schedules[0].participationFee.toLocaleString()}`
+                            参加費：{activeSchedule.participationFee != null && activeSchedule.participationFee > 0
+                                ? `¥${activeSchedule.participationFee.toLocaleString()}`
                                 : '無料'}
                         </span>
+                    </div>
+                )}
+                {/* 繰り返し予定ナビ（recurrenceRule あり かつ 複数スケジュール時のみ） */}
+                {activity.recurrenceRule && schedules.length > 1 && activeSchedule && (
+                    <div className="flex items-center gap-2">
+                        <Repeat className="w-4 h-4 text-gray-400 shrink-0" />
+                        <span className="text-sm text-gray-700">繰り返し予定：</span>
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => switchSchedule(activeIndex - 1)}
+                                disabled={activeIndex <= 0}
+                                className="text-xs text-blue-600 disabled:text-gray-300 disabled:cursor-not-allowed"
+                            >
+                                ← 前の予定
+                            </button>
+                            <span className="text-xs text-gray-400">
+                                {activeIndex + 1} / {schedules.length}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => switchSchedule(activeIndex + 1)}
+                                disabled={activeIndex >= schedules.length - 1}
+                                className="text-xs text-blue-600 disabled:text-gray-300 disabled:cursor-not-allowed"
+                            >
+                                次の予定 →
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
 
             <Separator />
 
-            {/* ── スケジュール一覧 ── */}
+            {/* ── スケジュール ── */}
             <div>
-                <h2 className="text-sm font-semibold text-gray-800 mb-3">スケジュール</h2>
                 {isSchedulesLoading ? (
                     <div className="flex items-center justify-center py-6">
                         <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
@@ -184,14 +227,15 @@ export function ActivityDetailPage() {
                             再読み込み
                         </button>
                     </div>
-                ) : schedules.length === 0 ? (
-                    <p className="text-sm text-gray-400 text-center py-4">スケジュールがありません</p>
+                ) : !activeSchedule ? (
+                    <p className="text-sm text-gray-400 text-center py-4">スケジュールが見つかりません</p>
                 ) : (
-                    <div className="space-y-3">
-                        {schedules.map((s) => (
-                            <ScheduleSection key={s.id} schedule={s} />
-                        ))}
-                    </div>
+                    <ScheduleSection
+                        schedule={activeSchedule}
+                        enabledPaymentMethods={activity.communityPaymentSettings?.enabledPaymentMethods}
+                        paypayId={activity.communityPaymentSettings?.paypayId}
+                        isAdminOrAbove={isAdminOrAbove}
+                    />
                 )}
             </div>
 
@@ -210,9 +254,10 @@ export function ActivityDetailPage() {
 
 // ─── スケジュール単位の参加セクション ────────────────────
 
-function ScheduleSection({ schedule }: { schedule: ScheduleListItem }) {
+function ScheduleSection({ schedule, enabledPaymentMethods, paypayId, isAdminOrAbove }: { schedule: ScheduleListItem; enabledPaymentMethods?: string[]; paypayId?: string | null; isAdminOrAbove?: boolean }) {
     const { data: participantsData } = useParticipants(schedule.id)
     const { data: waitlistData } = useWaitlistEntries(schedule.id)
+    const confirmPaymentMutation = useConfirmPayment(schedule.id)
     // 個別スケジュールAPIで myStatus / attendingCount / waitlistCount を取得
     const { data: scheduleDetail, isLoading: isDetailLoading } = useSchedule(schedule.id)
     const participants = participantsData?.participants ?? []
@@ -227,6 +272,12 @@ function ScheduleSection({ schedule }: { schedule: ScheduleListItem }) {
 
     return (
         <div className="border rounded-lg p-4 space-y-3">
+            {isCancelled && (
+                <div className="flex items-center">
+                    <span className="text-xs text-red-500 font-normal bg-red-50 px-1.5 py-0.5 rounded">キャンセル済</span>
+                </div>
+            )}
+
             {/* 参加者一覧 */}
             <div>
                 <h3 className="text-xs font-semibold text-gray-600 mb-1">
@@ -240,7 +291,8 @@ function ScheduleSection({ schedule }: { schedule: ScheduleListItem }) {
                                     <th className="px-2 py-1 text-left font-medium text-gray-600 w-8">No.</th>
                                     <th className="px-2 py-1 text-left font-medium text-gray-600">参加者</th>
                                     <th className="px-2 py-1 text-center font-medium text-gray-600 w-16">ビジター</th>
-                                    <th className="px-2 py-1 text-center font-medium text-gray-600 w-16">支払い</th>
+                                    {isAdminOrAbove && <th className="px-2 py-1 text-center font-medium text-gray-600 w-20">支払い方法</th>}
+                                    {isAdminOrAbove && <th className="px-2 py-1 text-center font-medium text-gray-600 w-16">支払い</th>}
                                 </tr>
                             </thead>
                             <tbody>
@@ -257,15 +309,41 @@ function ScheduleSection({ schedule }: { schedule: ScheduleListItem }) {
                                                 <td className="px-2 py-1 text-center">
                                                     {p ? (p.isVisitor ? '✓' : '—') : <span className="text-gray-300">—</span>}
                                                 </td>
-                                                <td className="px-2 py-1 text-center">
-                                                    {p ? (
-                                                        p.paymentStatus === 'CONFIRMED' ? (
-                                                            <span className="text-green-600">✓</span>
-                                                        ) : p.paymentStatus === 'REPORTED' ? (
-                                                            <span className="text-yellow-600">報告済</span>
-                                                        ) : '—'
-                                                    ) : <span className="text-gray-300">—</span>}
-                                                </td>
+                                                {isAdminOrAbove && (
+                                                    <td className="px-2 py-1 text-center">
+                                                        {p?.paymentMethod ? (
+                                                            <span className="text-gray-700">
+                                                                {p.paymentMethod === 'CASH' ? '現金' : p.paymentMethod === 'PAYPAY' ? 'PayPay' : p.paymentMethod === 'STRIPE' ? 'カード' : '—'}
+                                                            </span>
+                                                        ) : <span className="text-gray-300">—</span>}
+                                                    </td>
+                                                )}
+                                                {isAdminOrAbove && (
+                                                    <td className="px-2 py-1 text-center">
+                                                        {p ? (
+                                                            p.paymentStatus === 'CONFIRMED' ? (
+                                                                <span className="text-green-600">済</span>
+                                                            ) : p.paymentStatus === 'REPORTED' ? (
+                                                                <button
+                                                                    type="button"
+                                                                    className="text-yellow-600 hover:text-green-600 underline underline-offset-2 transition-colors"
+                                                                    onClick={() => confirmPaymentMutation.mutate(p.id)}
+                                                                    disabled={confirmPaymentMutation.isPending}
+                                                                >
+                                                                    確認待ち
+                                                                </button>
+                                                            ) : p.paymentStatus === 'UNPAID' ? (
+                                                                <span className="text-red-500">未済</span>
+                                                            ) : p.paymentStatus === 'REFUND_PENDING' ? (
+                                                                <span className="text-orange-500">返金待ち</span>
+                                                            ) : p.paymentStatus === 'REFUNDED' ? (
+                                                                <span className="text-gray-500">返金済</span>
+                                                            ) : p.paymentStatus === 'NO_REFUND' ? (
+                                                                <span className="text-gray-400">返金不要</span>
+                                                            ) : '—'
+                                                        ) : <span className="text-gray-300">—</span>}
+                                                    </td>
+                                                )}
                                             </tr>
                                         )
                                     })
@@ -317,11 +395,21 @@ function ScheduleSection({ schedule }: { schedule: ScheduleListItem }) {
                     <ParticipationActionButton
                         scheduleId={schedule.id}
                         hasFee={hasFee}
+                        participationFee={schedule.participationFee}
                         myStatus={myStatus}
                         isFull={isFull}
+                        enabledPaymentMethods={enabledPaymentMethods}
+                        isAdminOrAbove={isAdminOrAbove}
+                        paypayId={paypayId}
+                        myParticipationId={scheduleDetail?.myParticipationId}
+                        myPaymentMethod={scheduleDetail?.myPaymentMethod}
+                        myPaymentStatus={scheduleDetail?.myPaymentStatus}
                     />
                 )
             )}
+
+            {/* 管理者向け: 返金待ち一覧 */}
+            {isAdminOrAbove && <RefundPendingSection scheduleId={schedule.id} />}
         </div>
     )
 }

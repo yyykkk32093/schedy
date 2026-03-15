@@ -1,9 +1,15 @@
 import { useMyRole } from '@/features/community/hooks/useCommunityQueries'
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/components/ui/avatar'
 import { Badge } from '@/shared/components/ui/badge'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/shared/components/ui/dropdown-menu'
 import type { CommunityDetail } from '@/shared/types/api'
-import { BarChart3, Clock, MapPin, Settings, Train, Users } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Banknote, BarChart3, ChevronDown, Clock, MapPin, Settings, Train, Users } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 
 interface CommunityProfileHeaderProps {
     community: CommunityDetail
@@ -17,6 +23,7 @@ interface CommunityProfileHeaderProps {
 export function CommunityProfileHeader({ community }: CommunityProfileHeaderProps) {
     const initial = community.name.charAt(0)
     const { isAdminOrAbove } = useMyRole(community.id)
+    const navigate = useNavigate()
 
     return (
         <div>
@@ -95,6 +102,18 @@ export function CommunityProfileHeader({ community }: CommunityProfileHeaderProp
                                 <BarChart3 className="w-3.5 h-3.5" />
                                 統計
                             </Link>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger className="flex items-center gap-1 text-xs text-gray-500 hover:text-orange-600 transition-colors px-2 py-1 rounded-md hover:bg-gray-100 outline-none">
+                                    <Banknote className="w-3.5 h-3.5" />
+                                    決済管理
+                                    <ChevronDown className="w-3 h-3" />
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start">
+                                    <DropdownMenuItem onClick={() => navigate(`/communities/${community.id}/refunds`)}>
+                                        返金管理
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                             <Link
                                 to={`/communities/${community.id}/settings`}
                                 className="flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 transition-colors px-2 py-1 rounded-md hover:bg-gray-100"

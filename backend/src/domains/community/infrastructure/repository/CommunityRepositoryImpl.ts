@@ -53,6 +53,7 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
                 ageRange: community.getAgeRange(),
                 payPayId: community.getPayPayId(),
                 enabledPaymentMethods: community.getEnabledPaymentMethods(),
+                stripeAccountId: community.getStripeAccountId(),
                 reminderEnabled: community.getReminderEnabled(),
                 cancellationAlertEnabled: community.getCancellationAlertEnabled(),
             },
@@ -74,6 +75,7 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
                 ageRange: community.getAgeRange(),
                 payPayId: community.getPayPayId(),
                 enabledPaymentMethods: community.getEnabledPaymentMethods(),
+                stripeAccountId: community.getStripeAccountId(),
                 reminderEnabled: community.getReminderEnabled(),
                 cancellationAlertEnabled: community.getCancellationAlertEnabled(),
             },
@@ -103,6 +105,7 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
             ageRange: row.ageRange,
             payPayId: row.payPayId,
             enabledPaymentMethods: row.enabledPaymentMethods,
+            stripeAccountId: row.stripeAccountId,
             reminderEnabled: row.reminderEnabled,
             cancellationAlertEnabled: row.cancellationAlertEnabled,
         })
@@ -185,6 +188,9 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
             nearestStation: row.nearestStation,
             targetGender: row.targetGender,
             ageRange: row.ageRange,
+            payPayId: row.payPayId,
+            enabledPaymentMethods: row.enabledPaymentMethods,
+            stripeAccountId: row.stripeAccountId,
             categories: row.categories.map((c) => ({
                 id: c.category.id,
                 name: c.category.name,
@@ -306,6 +312,9 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
             nearestStation: row.nearestStation,
             targetGender: row.targetGender,
             ageRange: row.ageRange,
+            payPayId: row.payPayId,
+            enabledPaymentMethods: row.enabledPaymentMethods,
+            stripeAccountId: row.stripeAccountId,
             categories: row.categories.map((c) => ({
                 id: c.category.id,
                 name: c.category.name,

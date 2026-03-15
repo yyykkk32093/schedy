@@ -1,15 +1,24 @@
 import { ScheduleCard } from '@/features/activity/components/ScheduleCard'
+import { CalendarSchedulesContext } from '@/features/activity/components/dnd/CalendarDndContext'
+import { DateCellDragOverlay } from '@/features/activity/components/dnd/DateCellDragOverlay'
+import { DraggableScheduleCard } from '@/features/activity/components/dnd/DraggableScheduleCard'
+import { DroppableCalendarDay } from '@/features/activity/components/dnd/DroppableCalendarDay'
+import { ScheduleDndConfirmDialog, type DndAction } from '@/features/activity/components/dnd/ScheduleDndConfirmDialog'
+import { ScheduleSelectDialog } from '@/features/activity/components/dnd/ScheduleSelectDialog'
 import { useActivities } from '@/features/activity/hooks/useActivityQueries'
+import { useScheduleDnd } from '@/features/activity/hooks/useScheduleDnd'
+import { useMyRole } from '@/features/community/hooks/useCommunityQueries'
 import { useMembers } from '@/features/community/hooks/useMemberQueries'
 import { Calendar } from '@/shared/components/ui/calendar'
 import { Input } from '@/shared/components/ui/input'
 import { http } from '@/shared/lib/apiClient'
 import type { ListSchedulesResponse, UserScheduleItem } from '@/shared/types/api'
 import { formatDay, formatWeekday, groupByMonthAndDate } from '@/shared/utils/dateGroup'
+import { DndContext, DragOverlay, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core'
 import { useQuery } from '@tanstack/react-query'
 import { endOfMonth, format, startOfMonth } from 'date-fns'
 import { Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
 /**
@@ -216,6 +225,31 @@ function TimelineSubTab({ communityId }: { communityId: string }) {
 function CalendarSubTab({ communityId }: { communityId: string }) {
     const [currentMonth, setCurrentMonth] = useState(new Date())
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
+    const { isAdminOrAbove } = useMyRole(communityId)
+
+    // ─── D&D 状態 ───
+    /** ドラッグ中のオーバーレイに表示する日付（セル/カード共通） */
+    const [activeDragDate, setActiveDragDate] = useState<string | null>(null)
+    const [dndDialog, setDndDialog] = useState<{
+        schedules: UserScheduleItem[]
+        toDate: string
+    } | null>(null)
+    const [scheduleSelectDialog, setScheduleSelectDialog] = useState<{
+        schedules: UserScheduleItem[]
+        fromDate: string
+        toDate: string
+    } | null>(null)
+
+    const { execute: executeDnd, isLoading: isDndLoading } = useScheduleDnd({ communityId })
+
+    // ドラッグ開始に必要な距離を設定（誤操作防止）
+    const pointerSensor = useSensor(PointerSensor, {
+        activationConstraint: { distance: 8 },
+    })
+    const touchSensor = useSensor(TouchSensor, {
+        activationConstraint: { delay: 200, tolerance: 5 },
+    })
+    const sensors = useSensors(pointerSensor, touchSensor)
 
     const from = format(startOfMonth(currentMonth), 'yyyy-MM-dd')
     const to = format(endOfMonth(currentMonth), 'yyyy-MM-dd')
@@ -227,6 +261,17 @@ function CalendarSubTab({ communityId }: { communityId: string }) {
         return set
     }, [schedules])
 
+    /** 日付→スケジュール配列のMap（DroppableCalendarDay に Context で渡す） */
+    const schedulesMap = useMemo(() => {
+        const map = new Map<string, UserScheduleItem[]>()
+        schedules.forEach((s) => {
+            const list = map.get(s.date) ?? []
+            list.push(s)
+            map.set(s.date, list)
+        })
+        return map
+    }, [schedules])
+
     const selectedSchedules = useMemo(() => {
         if (!selectedDate) return []
         const dateStr = format(selectedDate, 'yyyy-MM-dd')
@@ -235,21 +280,83 @@ function CalendarSubTab({ communityId }: { communityId: string }) {
 
     const hasSchedule = (date: Date) => scheduleDates.has(format(date, 'yyyy-MM-dd'))
 
-    return (
+    // ─── D&D ハンドラ ───
+    const handleDragStart = useCallback((event: DragStartEvent) => {
+        const data = event.active.data.current
+        if (data?.type === 'date-cell') {
+            // セル経路
+            setActiveDragDate(data.date as string)
+        } else if (data?.schedule) {
+            // カード経路 — スケジュールの日付をオーバーレイに使う
+            setActiveDragDate((data.schedule as UserScheduleItem).date)
+        }
+    }, [])
+
+    const handleDragEnd = useCallback((event: DragEndEvent) => {
+        setActiveDragDate(null)
+        const { active, over } = event
+        if (!over) return
+
+        const toDate = over.data.current?.date as string | undefined
+        if (!toDate) return
+
+        const data = active.data.current
+
+        if (data?.type === 'date-cell') {
+            // ─── セル経路 ───
+            const fromDate = data.date as string
+            const cellSchedules = data.schedules as UserScheduleItem[]
+            if (fromDate === toDate || cellSchedules.length === 0) return
+
+            if (cellSchedules.length === 1) {
+                setDndDialog({ schedules: [cellSchedules[0]], toDate })
+            } else {
+                setScheduleSelectDialog({ schedules: cellSchedules, fromDate, toDate })
+            }
+        } else if (data?.schedule) {
+            // ─── カード経路（1件固定） ───
+            const schedule = data.schedule as UserScheduleItem
+            if (schedule.date === toDate) return
+            setDndDialog({ schedules: [schedule], toDate })
+        }
+    }, [])
+
+    const handleDndAction = useCallback(async (action: DndAction) => {
+        if (!dndDialog) return
+        if (action !== 'cancel') {
+            await executeDnd(action, dndDialog.schedules, dndDialog.toDate)
+        }
+        setDndDialog(null)
+    }, [dndDialog, executeDnd])
+
+    /** スケジュール選択ダイアログから複数件を確定 → コピー/移動ダイアログへ遷移 */
+    const handleScheduleConfirm = useCallback((selected: UserScheduleItem[]) => {
+        if (!scheduleSelectDialog) return
+        setDndDialog({ schedules: selected, toDate: scheduleSelectDialog.toDate })
+        setScheduleSelectDialog(null)
+    }, [scheduleSelectDialog])
+
+    // ─── レンダリング ───
+    const calendarContent = (
         <div className="px-4 py-3">
             <div className="flex justify-center">
-                <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    month={currentMonth}
-                    onMonthChange={setCurrentMonth}
-                    modifiers={{ hasSchedule }}
-                    modifiersClassNames={{
-                        hasSchedule: 'relative after:absolute after:bottom-0.5 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-blue-600 after:rounded-full',
-                    }}
-                    className="rounded-md border"
-                />
+                <CalendarSchedulesContext.Provider value={schedulesMap}>
+                    <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={setSelectedDate}
+                        month={currentMonth}
+                        onMonthChange={setCurrentMonth}
+                        modifiers={{ hasSchedule }}
+                        modifiersClassNames={{
+                            hasSchedule: 'relative after:absolute after:bottom-0.5 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-blue-600 after:rounded-full',
+                        }}
+                        className="rounded-md border"
+                        {...(isAdminOrAbove && {
+                            components: { Day: DroppableCalendarDay },
+                        })}
+                    />
+                </CalendarSchedulesContext.Provider>
             </div>
 
             <div className="mt-4">
@@ -258,9 +365,13 @@ function CalendarSubTab({ communityId }: { communityId: string }) {
                 ) : selectedDate ? (
                     selectedSchedules.length > 0 ? (
                         <div className="divide-y divide-gray-100">
-                            {selectedSchedules.map((s) => (
-                                <ScheduleCard key={s.scheduleId} schedule={s} timeOnly />
-                            ))}
+                            {selectedSchedules.map((s) =>
+                                isAdminOrAbove ? (
+                                    <DraggableScheduleCard key={s.scheduleId} schedule={s} timeOnly />
+                                ) : (
+                                    <ScheduleCard key={s.scheduleId} schedule={s} timeOnly />
+                                )
+                            )}
                         </div>
                     ) : (
                         <p className="py-8 text-center text-gray-400 text-sm">
@@ -273,6 +384,45 @@ function CalendarSubTab({ communityId }: { communityId: string }) {
                     </p>
                 )}
             </div>
+
+            {dndDialog && (
+                <ScheduleDndConfirmDialog
+                    open
+                    schedules={dndDialog.schedules}
+                    toDate={dndDialog.toDate}
+                    isLoading={isDndLoading}
+                    onAction={handleDndAction}
+                />
+            )}
+
+            {scheduleSelectDialog && (
+                <ScheduleSelectDialog
+                    open
+                    schedules={scheduleSelectDialog.schedules}
+                    fromDate={scheduleSelectDialog.fromDate}
+                    toDate={scheduleSelectDialog.toDate}
+                    onConfirm={handleScheduleConfirm}
+                    onCancel={() => setScheduleSelectDialog(null)}
+                />
+            )}
         </div>
+    )
+
+    // 管理者以上のみ DndContext でラップ
+    if (!isAdminOrAbove) return calendarContent
+
+    return (
+        <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+        >
+            {calendarContent}
+            <DragOverlay dropAnimation={null}>
+                {activeDragDate && (
+                    <DateCellDragOverlay date={activeDragDate} />
+                )}
+            </DragOverlay>
+        </DndContext>
     )
 }

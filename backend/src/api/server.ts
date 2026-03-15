@@ -72,7 +72,14 @@ app.use(cors({
 
 app.use(cookieParser());
 
-app.use(express.json());
+// Stripe Webhook は raw body が必要なため、/v1/webhooks/stripe を除外
+app.use((req, res, next) => {
+    if (req.originalUrl === '/v1/webhooks/stripe') {
+        next();
+    } else {
+        express.json()(req, res, next);
+    }
+});
 app.use(express.urlencoded({ extended: true }));
 
 // 静的ファイル配信（アップロードファイル）

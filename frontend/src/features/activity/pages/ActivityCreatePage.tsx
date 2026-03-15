@@ -36,7 +36,8 @@ export function ActivityCreatePage() {
                 capacity: values.capacity,
             })
 
-            navigate(`/activities/${result.activityId}`)
+            const scheduleParam = result.scheduleId ? `?schedule=${result.scheduleId}` : ''
+            navigate(`/activities/${result.activityId}${scheduleParam}`, { replace: true })
         } catch (e) {
             const msg =
                 e instanceof Error ? e.message : 'アクティビティの作成に失敗しました'

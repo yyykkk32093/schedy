@@ -41,7 +41,7 @@ export function ActivityEditPage() {
                 meetingUrl: values.meetingUrl,
             })
         }
-        navigate(`/activities/${id}`)
+        navigate(`/activities/${id}`, { replace: true })
     }
 
     if (isActivityLoading || isSchedulesLoading) {

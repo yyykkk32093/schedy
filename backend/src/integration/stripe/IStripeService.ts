@@ -54,19 +54,23 @@ export interface IStripeService {
 
     /**
      * Destination Charges で PaymentIntent を作成
-     * application_fee_amount = ceil(amount × 0.036)
+     *
+     * transfer_data.amount でコミュニティ入金額を直接指定。
+     * 残りはプラットフォーム（アプリ）受取。
      */
     createPaymentIntent(params: {
         amount: number
         currency: string
         destinationAccountId: string
+        transferAmount: number
         metadata?: Record<string, string>
     }): Promise<CreatePaymentIntentResult>
 
     /**
-     * 全額返金
+     * 返金（全額または部分）
+     * @param amount 返金額（指定なしで全額返金）
      */
-    refundPaymentIntent(paymentIntentId: string): Promise<void>
+    refundPaymentIntent(paymentIntentId: string, amount?: number): Promise<void>
 
     /**
      * Webhook 署名検証

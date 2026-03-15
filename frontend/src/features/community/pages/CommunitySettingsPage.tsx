@@ -201,7 +201,7 @@ export default function CommunitySettingsPage() {
 
                     <div>
                         <label className="text-xs text-gray-500 block mb-2">有効な支払い方法</label>
-                        {['CASH', 'PAYPAY'].map(method => (
+                        {([['CASH', '現金'], ['PAYPAY', 'PayPay'], ['STRIPE', 'クレジットカード']] as const).map(([method, label]) => (
                             <label key={method} className="flex items-center gap-2 py-1.5 cursor-pointer">
                                 <input
                                     type="checkbox"
@@ -209,7 +209,7 @@ export default function CommunitySettingsPage() {
                                     onChange={() => togglePaymentMethod(method)}
                                     className="rounded"
                                 />
-                                <span className="text-sm">{method === 'CASH' ? '現金' : 'PayPay'}</span>
+                                <span className="text-sm">{label}</span>
                             </label>
                         ))}
                     </div>

@@ -132,8 +132,21 @@ export const participationListKeys = {
     bySchedule: (scheduleId: string) => ['participations', 'list', scheduleId] as const,
 }
 
+export const participationHistoryKeys = {
+    bySchedule: (scheduleId: string) => ['participations', 'history', scheduleId] as const,
+}
+
 export const waitlistKeys = {
     bySchedule: (scheduleId: string) => ['waitlist', 'list', scheduleId] as const,
+}
+
+export const refundPendingKeys = {
+    bySchedule: (scheduleId: string) => ['refund-pending', 'schedule', scheduleId] as const,
+    byCommunity: (communityId: string) => ['refund-pending', 'community', communityId] as const,
+}
+
+export const paymentHistoryKeys = {
+    byCommunity: (communityId: string) => ['payment-history', 'community', communityId] as const,
 }
 
 // ─── Announcement Social Key ────────────────────────────

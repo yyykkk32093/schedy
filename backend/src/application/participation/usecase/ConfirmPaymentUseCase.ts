@@ -1,13 +1,11 @@
 import type { IParticipationRepository } from '@/domains/activity/schedule/participation/domain/repository/IParticipationRepository.js'
+import type { IPaymentRepository } from '@/domains/activity/schedule/participation/domain/repository/IPaymentRepository.js'
 import { ParticipationError } from '../error/ParticipationError.js'
 
-/**
- * 支払確認 UseCase。
- * 管理者が参加者の支払を確認する。
- */
 export class ConfirmPaymentUseCase {
     constructor(
         private readonly participationRepository: IParticipationRepository,
+        private readonly paymentRepository: IPaymentRepository,
     ) { }
 
     async execute(input: {
@@ -19,7 +17,15 @@ export class ConfirmPaymentUseCase {
             throw new ParticipationError('参加情報が見つかりません', 'PARTICIPATION_NOT_FOUND')
         }
 
-        participation.confirmPayment(input.confirmedBy)
-        await this.participationRepository.update(participation)
+        const payment = await this.paymentRepository.findLatestByScheduleAndUser(
+            participation.getScheduleId().getValue(),
+            participation.getUserId().getValue(),
+        )
+        if (!payment) {
+            throw new ParticipationError('支払い情報が見つかりません', 'PAYMENT_NOT_FOUND')
+        }
+
+        payment.confirmPayment(input.confirmedBy)
+        await this.paymentRepository.update(payment)
     }
 }
