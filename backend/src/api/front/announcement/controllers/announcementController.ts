@@ -7,9 +7,10 @@ export const announcementController = {
             const userId = req.user!.userId
             const cursor = req.query.cursor as string | undefined
             const limit = req.query.limit ? Number(req.query.limit) : undefined
+            const activityFilter = req.query.activityFilter === 'true'
 
             const useCase = usecaseFactory.createGetAnnouncementFeedUseCase()
-            const result = await useCase.execute({ userId, cursor, limit })
+            const result = await useCase.execute({ userId, cursor, limit, activityFilter })
 
             res.status(200).json(result)
         } catch (err) {
@@ -53,9 +54,10 @@ export const announcementController = {
         try {
             const { communityId } = req.params
             const userId = req.user!.userId
+            const activityFilter = req.query.activityFilter === 'true'
 
             const useCase = usecaseFactory.createListAnnouncementsUseCase()
-            const result = await useCase.execute({ communityId, userId })
+            const result = await useCase.execute({ communityId, userId, activityFilter })
             res.status(200).json(result)
         } catch (err) {
             next(err)
@@ -65,9 +67,10 @@ export const announcementController = {
     async findById(req: Request, res: Response, next: NextFunction) {
         try {
             const { id } = req.params
+            const userId = req.user!.userId
 
             const useCase = usecaseFactory.createFindAnnouncementUseCase()
-            const result = await useCase.execute({ announcementId: id })
+            const result = await useCase.execute({ announcementId: id, userId })
             res.status(200).json(result)
         } catch (err) {
             next(err)

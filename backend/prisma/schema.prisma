@@ -84,9 +84,10 @@ model Activity {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  community   Community    @relation(fields: [communityId], references: [id])
-  schedules   Schedule[]
-  chatChannel ChatChannel?
+  community     Community      @relation(fields: [communityId], references: [id])
+  schedules     Schedule[]
+  chatChannel   ChatChannel?
+  announcements Announcement[] // Phase3 #4: アクティビティ由来のお知らせ
 
   @@index([communityId])
   @@index([createdBy])
@@ -103,7 +104,8 @@ model Schedule {
   note             String?
   status           String   @default("SCHEDULED") // SCHEDULED | CANCELLED
   capacity         Int?
-  participationFee Int? // 参加費（円）。null = 無料
+  participationFee Int      @default(0) // 参加費（円）。0 = 無料
+  visitorFee       Int? // ビジター参加費（null = 通常参加費と同額）
   isOnline         Boolean  @default(false)
   meetingUrl       String? // オンライン時の会議URL
 
@@ -123,13 +125,17 @@ model Schedule {
 model Participation {
   id          String   @id @default(uuid())
   scheduleId  String
-  userId      String
+  userId      String? // 登録済みユーザーの場合はユーザーID。未登録ビジターの場合はnull
   isVisitor   Boolean  @default(false)
+  visitorName String?  @db.VarChar(50) // 未登録ビジターの表示名（isVisitor=true & userId=null 時に必須）
+  addedBy     String? // ビジター追加者のユーザーID
   respondedAt DateTime @default(now())
 
-  schedule Schedule @relation(fields: [scheduleId], references: [id])
+  schedule Schedule  @relation(fields: [scheduleId], references: [id])
+  payments Payment[] // Payment との1:N関連（通常1:1だが返金等で複数の可能性）
 
-  @@unique([scheduleId, userId])
+  // userId が NOT NULL の場合のみユニーク制約（部分インデックスはマイグレーションSQLで手動定義）
+  @@index([scheduleId])
   @@index([userId])
 }
 
@@ -138,8 +144,9 @@ model Participation {
 model Payment {
   id                    String    @id @default(uuid())
   scheduleId            String
-  userId                String
-  paymentMethod         String // CASH | PAYPAY | STRIPE
+  participationId       String? // Participation との紐付け（未登録ビジター含む全参加者を確実に辿れる）
+  userId                String? // 登録済みユーザーの場合のみ設定（高速参照用の補助カラム）
+  paymentMethod         String? // CASH | PAYPAY | STRIPE | null（未決定=ビジター初期状態「ー」）
   amount                Int // 参加費
   feeAmount             Int       @default(0) // プラットフォーム手数料
   status                String    @default("UNPAID") // UNPAID | REPORTED | CONFIRMED | REJECTED | REFUND_PENDING | REFUNDED | NO_REFUND
@@ -151,9 +158,11 @@ model Payment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  schedule Schedule @relation(fields: [scheduleId], references: [id])
+  schedule      Schedule       @relation(fields: [scheduleId], references: [id])
+  participation Participation? @relation(fields: [participationId], references: [id])
 
   @@index([scheduleId, userId])
+  @@index([participationId])
   @@index([stripePaymentIntentId])
 }
 
@@ -191,6 +200,12 @@ model User {
 
   // Phase 2.5: 参加リクエスト
   communityJoinRequests CommunityJoinRequest[]
+
+  // Chat: 送信メッセージ
+  messages Message[] @relation("UserMessages")
+
+  // Phase4: 収支機能
+  expenses Expense[]
 }
 
 model AuthSecurityState {
@@ -317,6 +332,13 @@ model Community {
   // UBL-29: Webhook 連携
   webhookConfigs CommunityWebhookConfig[]
 
+  // Phase3 #53: コミュニティブックマーク
+  bookmarks CommunityBookmark[]
+
+  // Phase4: 収支機能
+  expenses          Expense[]
+  expenseCategories ExpenseCategory[]
+
   @@index([createdBy])
   @@index([parentId])
   @@index([communityTypeId])
@@ -368,6 +390,7 @@ model Announcement {
   id          String    @id @default(uuid())
   communityId String
   authorId    String
+  activityId  String? // Phase3 #4: アクティビティ由来のお知らせ紐付け
   title       String
   content     String
   deletedAt   DateTime?
@@ -376,6 +399,7 @@ model Announcement {
   updatedAt DateTime @updatedAt
 
   community   Community                @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  activity    Activity?                @relation(fields: [activityId], references: [id], onDelete: SetNull)
   reads       AnnouncementRead[]
   likes       AnnouncementLike[]
   comments    AnnouncementComment[]
@@ -385,6 +409,7 @@ model Announcement {
 
   @@index([communityId])
   @@index([authorId])
+  @@index([activityId])
 }
 
 model AnnouncementRead {
@@ -662,11 +687,13 @@ model Message {
   content         String
   mentions        Json    @default("[]") // UserId[]
   isPinned        Boolean @default(false)
+  deletedBy       String? // Phase3 #19: ソフトデリート（削除したユーザーのID）
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   channel     ChatChannel         @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  sender      User                @relation("UserMessages", fields: [senderId], references: [id])
   parent      Message?            @relation("MessageThread", fields: [parentMessageId], references: [id])
   replies     Message[]           @relation("MessageThread")
   attachments MessageAttachment[]
@@ -722,17 +749,19 @@ model Stamp {
 }
 
 model MessageReaction {
-  id        String @id @default(uuid())
+  id        String  @id @default(uuid())
   messageId String
   userId    String
-  stampId   String
+  stampId   String? // Phase3 #18: nullable化（emojiリアクション時はnull）
+  emoji     String? // Phase3 #18: ネイティブ絵文字リアクション（stampId使用時はnull）
 
   createdAt DateTime @default(now())
 
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  stamp   Stamp   @relation(fields: [stampId], references: [id], onDelete: Cascade)
+  stamp   Stamp?  @relation(fields: [stampId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId, stampId])
+  @@unique([messageId, userId, emoji])
   @@index([messageId])
 }
 
@@ -927,4 +956,66 @@ model CommunityWebhookConfig {
 
   @@unique([communityId, service])
   @@index([communityId])
+}
+
+// ============================================================
+// Phase3 #53: CommunityBookmark（コミュニティブックマーク）
+// ============================================================
+
+model CommunityBookmark {
+  id          String @id @default(uuid())
+  communityId String
+  userId      String
+
+  createdAt DateTime @default(now())
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, userId])
+  @@index([userId])
+}
+
+// ============================================================
+// Phase4: ExpenseCategory（支出カテゴリマスタ）
+// ============================================================
+
+model ExpenseCategory {
+  id          String  @id @default(uuid())
+  communityId String? // null = システム共通プリセット
+  name        String
+  isSystem    Boolean @default(false) // true = プリセット（削除不可）
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  community Community? @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  expenses  Expense[]
+
+  @@index([communityId])
+}
+
+// ============================================================
+// Phase4: Expense（支出）
+// ============================================================
+
+model Expense {
+  id          String   @id @default(uuid())
+  communityId String
+  categoryId  String
+  amount      Int
+  description String?
+  date        DateTime @db.Date
+  createdBy   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  community Community       @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  category  ExpenseCategory @relation(fields: [categoryId], references: [id])
+  creator   User            @relation(fields: [createdBy], references: [id])
+
+  @@index([communityId])
+  @@index([categoryId])
+  @@index([createdBy])
 }

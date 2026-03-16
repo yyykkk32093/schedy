@@ -1,7 +1,8 @@
 import { CommunityProfileHeader } from '@/features/community/components/CommunityProfileHeader'
 import { ActivitiesTab } from '@/features/community/components/detail/tabs/ActivitiesTab'
 import { AlbumTab, AnnouncementTab, ChatTab } from '@/features/community/components/tabs'
-import { useCommunity } from '@/features/community/hooks/useCommunityQueries'
+import { useCommunity, useMyRole } from '@/features/community/hooks/useCommunityQueries'
+import { FloatingActionButton } from '@/shared/components/FloatingActionButton'
 import { useSetHeaderTitle } from '@/shared/components/HeaderActionsContext'
 import { SectionTabs } from '@/shared/components/SectionTabs'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -19,6 +20,7 @@ export function CommunityDetailPage() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
     const { data: community, isLoading } = useCommunity(id!)
+    const { isAdminOrAbove } = useMyRole(id!)
     const [searchParams, setSearchParams] = useSearchParams()
     const tabParam = searchParams.get('tab')
     const activeTab = tabParam && (VALID_TABS as readonly string[]).includes(tabParam) ? tabParam : 'announcements'
@@ -64,19 +66,16 @@ export function CommunityDetailPage() {
                 />
             </div>
 
-            {/* 2-9, 2-10: FAB — タブ固有アイコンの1ボタン即遷移 */}
+            {/* 2-9, 2-10: FAB — タブ固有アイコンの1ボタン即遷移（OWNER/ADMINのみ） */}
             {fabAction && (
-                <button
-                    className="fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full shadow-lg hover:opacity-80 active:scale-95 transition-all"
-                    onClick={() => navigate(fabAction.path)}
-                    aria-label={fabAction.label}
-                >
-                    <img
-                        src={fabAction.icon}
-                        alt={fabAction.label}
-                        className="w-full h-full rounded-full"
-                    />
-                </button>
+                <FloatingActionButton
+                    visible={isAdminOrAbove}
+                    actions={[{
+                        icon: <img src={fabAction.icon} alt={fabAction.label} className="w-full h-full rounded-full" />,
+                        onClick: () => navigate(fabAction.path),
+                        label: fabAction.label,
+                    }]}
+                />
             )}
         </div>
     )

@@ -44,6 +44,7 @@ export class ExportParticipationCsvUseCase {
             select: {
                 id: true,
                 userId: true,
+                visitorName: true,
                 scheduleId: true,
                 isVisitor: true,
                 respondedAt: true,
@@ -74,12 +75,12 @@ export class ExportParticipationCsvUseCase {
         for (const pay of payments) {
             const key = `${pay.scheduleId}:${pay.userId}`
             if (!paymentMap.has(key)) {
-                paymentMap.set(key, { method: pay.paymentMethod, status: pay.status })
+                paymentMap.set(key, { method: pay.paymentMethod ?? '-', status: pay.status })
             }
         }
 
         // ユーザー名を一括取得
-        const userIds = [...new Set(participations.map((p) => p.userId))]
+        const userIds = [...new Set(participations.map((p) => p.userId).filter((id): id is string => id != null))]
         const users = await this.prisma.user.findMany({
             where: { id: { in: userIds } },
             select: { id: true, displayName: true },
@@ -102,14 +103,14 @@ export class ExportParticipationCsvUseCase {
         ]
 
         const rows = participations.map((p) => {
-            const pay = paymentMap.get(`${p.scheduleId}:${p.userId}`)
+            const pay = paymentMap.get(`${p.scheduleId}:${p.userId ?? ''}`)
             return [
                 this.escapeCsv(p.schedule.activity.title),
                 new Date(p.schedule.date).toISOString().slice(0, 10),
                 p.schedule.startTime,
                 p.schedule.endTime,
                 this.escapeCsv(p.schedule.location ?? ''),
-                this.escapeCsv(userMap.get(p.userId) ?? ''),
+                this.escapeCsv(p.userId ? (userMap.get(p.userId) ?? '') : (p.visitorName ?? 'ゲスト')),
                 p.isVisitor ? 'はい' : 'いいえ',
                 p.schedule.participationFee?.toString() ?? '無料',
                 pay?.method ?? '-',

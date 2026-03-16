@@ -31,6 +31,9 @@ export interface IPaymentRepository {
     /** 返金履歴用: 指定コミュニティ配下の REFUNDED / NO_REFUND な Payment 一覧 */
     findResolvedByCommunityId(communityId: string): Promise<Payment[]>
 
+    /** Participation ID から Payment を取得（ビジター支払い管理用） */
+    findByParticipationId(participationId: string): Promise<Payment | null>
+
     add(payment: Payment): Promise<void>
     update(payment: Payment): Promise<void>
 }

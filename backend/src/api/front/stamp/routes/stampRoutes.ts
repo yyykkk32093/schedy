@@ -99,15 +99,20 @@ router.delete('/v1/stamps/:stampId', authMiddleware, async (req: Request, res: R
 /**
  * POST /v1/messages/:messageId/reactions
  * メッセージへのリアクション追加（REST版）
+ * stampId または emoji のいずれかを指定（排他）
  */
 router.post('/v1/messages/:messageId/reactions', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = req.user!.userId;
         const { messageId } = req.params;
-        const { stampId } = req.body as { stampId: string };
+        const { stampId, emoji } = req.body as { stampId?: string; emoji?: string };
 
-        if (!stampId) {
-            res.status(400).json({ code: 'INVALID_REQUEST', message: 'stampIdは必須です' });
+        if (!stampId && !emoji) {
+            res.status(400).json({ code: 'INVALID_REQUEST', message: 'stampId または emoji のいずれかは必須です' });
+            return;
+        }
+        if (stampId && emoji) {
+            res.status(400).json({ code: 'INVALID_REQUEST', message: 'stampId と emoji は同時に指定できません' });
             return;
         }
 
@@ -117,22 +122,30 @@ router.post('/v1/messages/:messageId/reactions', authMiddleware, async (req: Req
             return;
         }
 
-        const reaction = await prisma.messageReaction.upsert({
-            where: {
-                messageId_userId_stampId: { messageId, userId, stampId },
-            },
-            create: { messageId, userId, stampId },
-            update: {},
-        });
+        let reaction;
+        if (stampId) {
+            reaction = await prisma.messageReaction.upsert({
+                where: {
+                    messageId_userId_stampId: { messageId, userId, stampId },
+                },
+                create: { messageId, userId, stampId },
+                update: {},
+            });
+        } else {
+            reaction = await prisma.messageReaction.upsert({
+                where: {
+                    messageId_userId_emoji: { messageId, userId, emoji: emoji! },
+                },
+                create: { messageId, userId, emoji },
+                update: {},
+            });
+        }
 
         // WebSocket 通知
         const io = req.app.get('io');
         if (io) {
-            io.to(`channel:${message.channelId}`).emit('reaction:added', {
+            io.to(`channel:${message.channelId}`).emit('reaction:updated', {
                 messageId,
-                userId,
-                stampId,
-                reactionId: reaction.id,
             });
         }
 
@@ -143,27 +156,35 @@ router.post('/v1/messages/:messageId/reactions', authMiddleware, async (req: Req
 });
 
 /**
- * DELETE /v1/messages/:messageId/reactions/:stampId
+ * DELETE /v1/messages/:messageId/reactions/:identifier
  * メッセージからのリアクション削除（REST版）
+ * identifier は stampId（UUID形式）または emoji（絵文字文字列）
  */
-router.delete('/v1/messages/:messageId/reactions/:stampId', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/v1/messages/:messageId/reactions/:identifier', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = req.user!.userId;
-        const { messageId, stampId } = req.params;
+        const { messageId, identifier } = req.params;
 
-        await prisma.messageReaction.deleteMany({
-            where: { messageId, userId, stampId },
-        });
+        // UUID形式ならstampId、それ以外ならemoji
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
+
+        if (isUuid) {
+            await prisma.messageReaction.deleteMany({
+                where: { messageId, userId, stampId: identifier },
+            });
+        } else {
+            await prisma.messageReaction.deleteMany({
+                where: { messageId, userId, emoji: decodeURIComponent(identifier) },
+            });
+        }
 
         // WebSocket 通知
         const message = await prisma.message.findUnique({ where: { id: messageId } });
         if (message) {
             const io = req.app.get('io');
             if (io) {
-                io.to(`channel:${message.channelId}`).emit('reaction:removed', {
+                io.to(`channel:${message.channelId}`).emit('reaction:updated', {
                     messageId,
-                    userId,
-                    stampId,
                 });
             }
         }

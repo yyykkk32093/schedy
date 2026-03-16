@@ -1,5 +1,11 @@
 import { userApi } from '@/features/user/api/userApi'
-import { authKeys, userKeys } from '@/shared/lib/queryKeys'
+import {
+    announcementFeedKeys,
+    announcementListKeys,
+    authKeys,
+    memberKeys,
+    userKeys,
+} from '@/shared/lib/queryKeys'
 import type { UpdateUserProfileRequest } from '@/shared/types/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
@@ -19,6 +25,11 @@ export function useUpdateUserProfile() {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: userKeys.profile() })
             qc.invalidateQueries({ queryKey: authKeys.me() })
+            // プロフィール情報 (displayName / avatarUrl) を含むキャッシュを再取得
+            qc.invalidateQueries({ queryKey: announcementListKeys.all })
+            qc.invalidateQueries({ queryKey: announcementFeedKeys.all })
+            qc.invalidateQueries({ queryKey: ['announcements', 'comments'] })
+            qc.invalidateQueries({ queryKey: memberKeys.all })
         },
     })
 }

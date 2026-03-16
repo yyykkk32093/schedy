@@ -43,7 +43,7 @@ export class CreateStripePaymentIntentUseCase {
         if (!payment) {
             throw new ParticipationError('支払い情報が見つかりません', 'PAYMENT_NOT_FOUND')
         }
-        if (!payment.getPaymentMethod().isStripe()) {
+        if (!payment.getPaymentMethod()?.isStripe()) {
             throw new ParticipationError('Stripe 支払方法が指定されていません', 'INVALID_PAYMENT_METHOD')
         }
         if (payment.getStripePaymentIntentId()) {

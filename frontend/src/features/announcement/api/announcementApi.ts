@@ -15,8 +15,10 @@ import type {
 } from '@/shared/types/api'
 
 export const announcementApi = {
-    list: (communityId: string) =>
-        http<ListAnnouncementsResponse>(`/v1/communities/${communityId}/announcements`),
+    list: (communityId: string, params?: { activityFilter?: boolean }) =>
+        http<ListAnnouncementsResponse>(`/v1/communities/${communityId}/announcements`, {
+            query: params?.activityFilter ? { activityFilter: 'true' } : undefined,
+        }),
 
     findById: (id: string) =>
         http<AnnouncementDetail>(`/v1/announcements/${id}`),

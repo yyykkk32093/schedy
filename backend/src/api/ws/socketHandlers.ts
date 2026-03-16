@@ -166,38 +166,54 @@ export function registerSocketHandlers(io: Server): void {
         });
 
         // ----- reaction:add -----
-        socket.on('reaction:add', async (data: { messageId: string; stampId: string }) => {
+        socket.on('reaction:add', async (data: { messageId: string; stampId?: string; emoji?: string }) => {
             try {
-                const { messageId, stampId } = data;
+                const { messageId, stampId, emoji } = data;
+                if (!stampId && !emoji) return;
+
                 const message = await prisma.message.findUnique({ where: { id: messageId }, select: { channelId: true } });
                 if (!message) return;
 
-                await prisma.messageReaction.upsert({
-                    where: { messageId_userId_stampId: { messageId, userId, stampId } },
-                    create: { messageId, userId, stampId },
-                    update: {},
-                });
+                if (stampId) {
+                    await prisma.messageReaction.upsert({
+                        where: { messageId_userId_stampId: { messageId, userId, stampId } },
+                        create: { messageId, userId, stampId },
+                        update: {},
+                    });
+                } else if (emoji) {
+                    await prisma.messageReaction.upsert({
+                        where: { messageId_userId_emoji: { messageId, userId, emoji } },
+                        create: { messageId, userId, emoji },
+                        update: {},
+                    });
+                }
 
                 io.to(`channel:${message.channelId}`).emit('reaction:updated', { messageId });
-                logger.info({ userId, messageId, stampId }, '[WS] reaction:add');
+                logger.info({ userId, messageId, stampId, emoji }, '[WS] reaction:add');
             } catch (err) {
                 logger.error({ err }, '[WS] reaction:add error');
             }
         });
 
         // ----- reaction:remove -----
-        socket.on('reaction:remove', async (data: { messageId: string; stampId: string }) => {
+        socket.on('reaction:remove', async (data: { messageId: string; stampId?: string; emoji?: string }) => {
             try {
-                const { messageId, stampId } = data;
+                const { messageId, stampId, emoji } = data;
                 const message = await prisma.message.findUnique({ where: { id: messageId }, select: { channelId: true } });
                 if (!message) return;
 
-                await prisma.messageReaction.deleteMany({
-                    where: { messageId, userId, stampId },
-                });
+                if (stampId) {
+                    await prisma.messageReaction.deleteMany({
+                        where: { messageId, userId, stampId },
+                    });
+                } else if (emoji) {
+                    await prisma.messageReaction.deleteMany({
+                        where: { messageId, userId, emoji },
+                    });
+                }
 
                 io.to(`channel:${message.channelId}`).emit('reaction:updated', { messageId });
-                logger.info({ userId, messageId, stampId }, '[WS] reaction:remove');
+                logger.info({ userId, messageId, stampId, emoji }, '[WS] reaction:remove');
             } catch (err) {
                 logger.error({ err }, '[WS] reaction:remove error');
             }

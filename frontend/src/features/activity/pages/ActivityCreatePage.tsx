@@ -31,9 +31,11 @@ export function ActivityCreatePage() {
                 organizerUserId: values.organizerUserId || null,
                 date: values.date || undefined,
                 participationFee: values.participationFee,
+                visitorFee: values.visitorFee,
                 isOnline: values.isOnline,
                 meetingUrl: values.meetingUrl,
                 capacity: values.capacity,
+                shouldPostAnnouncement: values.shouldPostAnnouncement,
             })
 
             const scheduleParam = result.scheduleId ? `?schedule=${result.scheduleId}` : ''

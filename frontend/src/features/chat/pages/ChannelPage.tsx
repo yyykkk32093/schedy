@@ -22,7 +22,13 @@ export function ChannelPage() {
         const community = channelsData.community.find((c) => c.channelId === channelId)
         if (community) return community.name
         const activity = channelsData.activity.find((a) => a.channelId === channelId)
-        if (activity) return activity.name
+        if (activity) {
+            const communityLabel = activity.communityName || activity.subtitle || ''
+            const scheduleLabel = activity.scheduleDate && activity.scheduleStartTime && activity.scheduleEndTime
+                ? `${activity.scheduleDate} ${activity.scheduleStartTime}〜${activity.scheduleEndTime}`
+                : ''
+            return [communityLabel, activity.name, scheduleLabel].filter(Boolean).join('：')
+        }
         const dm = channelsData.dm.find((d) => d.channelId === channelId)
         if (dm) return dm.participants.filter((p) => p !== currentUserId).join(', ') || 'DM'
         return 'チャット'

@@ -3,6 +3,7 @@ import { CommunityAuditLog } from '@/domains/community/auditLog/domain/model/ent
 import type { ICommunityAuditLogRepository } from '@/domains/community/auditLog/domain/repository/ICommunityAuditLogRepository.js'
 import { CommunityDescription } from '@/domains/community/domain/model/valueObject/CommunityDescription.js'
 import { CommunityName } from '@/domains/community/domain/model/valueObject/CommunityName.js'
+import { JoinMethod } from '@/domains/community/domain/model/valueObject/JoinMethod.js'
 import type { ICommunityRepository } from '@/domains/community/domain/repository/ICommunityRepository.js'
 import type { ICommunityMembershipRepository } from '@/domains/community/membership/domain/repository/ICommunityMembershipRepository.js'
 import { CommunityNotFoundError } from '../error/CommunityNotFoundError.js'
@@ -30,6 +31,10 @@ export class UpdateCommunityUseCase {
         enabledPaymentMethods?: string[]
         reminderEnabled?: boolean
         cancellationAlertEnabled?: boolean
+        joinMethod?: string
+        isPublic?: boolean
+        mainActivityArea?: string | null
+        activityFrequency?: string | null
     }): Promise<void> {
         await this.unitOfWork.run(async (repos) => {
             const community = await repos.community.findById(input.communityId)
@@ -77,6 +82,18 @@ export class UpdateCommunityUseCase {
             if (input.cancellationAlertEnabled !== undefined && input.cancellationAlertEnabled !== community.getCancellationAlertEnabled()) {
                 changes.push({ field: 'cancellationAlertEnabled', before: String(community.getCancellationAlertEnabled()), after: String(input.cancellationAlertEnabled) })
             }
+            if (input.joinMethod !== undefined && input.joinMethod !== community.getJoinMethod().getValue()) {
+                changes.push({ field: 'joinMethod', before: community.getJoinMethod().getValue(), after: input.joinMethod })
+            }
+            if (input.isPublic !== undefined && input.isPublic !== community.getIsPublic()) {
+                changes.push({ field: 'isPublic', before: String(community.getIsPublic()), after: String(input.isPublic) })
+            }
+            if (input.mainActivityArea !== undefined && input.mainActivityArea !== community.getMainActivityArea()) {
+                changes.push({ field: 'mainActivityArea', before: community.getMainActivityArea(), after: input.mainActivityArea })
+            }
+            if (input.activityFrequency !== undefined && input.activityFrequency !== community.getActivityFrequency()) {
+                changes.push({ field: 'activityFrequency', before: community.getActivityFrequency(), after: input.activityFrequency })
+            }
 
             community.update({
                 name: input.name ? CommunityName.create(input.name) : undefined,
@@ -89,6 +106,10 @@ export class UpdateCommunityUseCase {
                 enabledPaymentMethods: input.enabledPaymentMethods,
                 reminderEnabled: input.reminderEnabled,
                 cancellationAlertEnabled: input.cancellationAlertEnabled,
+                joinMethod: input.joinMethod ? JoinMethod.create(input.joinMethod) : undefined,
+                isPublic: input.isPublic,
+                mainActivityArea: input.mainActivityArea !== undefined ? input.mainActivityArea : undefined,
+                activityFrequency: input.activityFrequency !== undefined ? input.activityFrequency : undefined,
             })
 
             await repos.community.save(community)

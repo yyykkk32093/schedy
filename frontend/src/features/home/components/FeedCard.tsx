@@ -1,36 +1,16 @@
-import { announcementApi } from '@/features/announcement/api/announcementApi'
 import { useToggleAnnouncementBookmark, useToggleAnnouncementLike } from '@/features/announcement/hooks/useAnnouncementSocialQueries'
 import { useMyRole } from '@/features/community/hooks/useCommunityQueries'
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/components/ui/avatar'
-import { announcementFeedKeys } from '@/shared/lib/queryKeys'
+import { ImagePreviewGallery, SingleImagePreview } from '@/shared/components/ui/ImagePreviewModal'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip'
 import type { AnnouncementFeedItem } from '@/shared/types/api'
-import { useQueryClient } from '@tanstack/react-query'
-import { Bookmark, Heart, MessageCircle, MoreHorizontal } from 'lucide-react'
+import { formatAbsoluteDateTime, formatRelativeTime } from '@/shared/utils/dateFormat'
+import { Bookmark, Eye, Heart, MessageCircle, MoreHorizontal } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { CommentSection } from './CommentSection'
 
 interface FeedCardProps {
     item: AnnouncementFeedItem
-}
-
-function timeAgo(dateStr: string): string {
-    const now = Date.now()
-    const then = new Date(dateStr).getTime()
-    const diffMs = now - then
-    const diffMin = Math.floor(diffMs / 60_000)
-
-    if (diffMin < 1) return 'たった今'
-    if (diffMin < 60) return `${diffMin}分前`
-
-    const diffHr = Math.floor(diffMin / 60)
-    if (diffHr < 24) return `${diffHr}時間前`
-
-    const diffDay = Math.floor(diffHr / 24)
-    if (diffDay < 30) return `${diffDay}日前`
-
-    const diffMonth = Math.floor(diffDay / 30)
-    return `${diffMonth}ヶ月前`
 }
 
 function getInitial(name: string | null): string {
@@ -39,20 +19,12 @@ function getInitial(name: string | null): string {
 }
 
 export function FeedCard({ item }: FeedCardProps) {
-    const qc = useQueryClient()
     const navigate = useNavigate()
     const [menuOpen, setMenuOpen] = useState(false)
-    const [commentsOpen, setCommentsOpen] = useState(false)
 
     const likeMutation = useToggleAnnouncementLike()
     const bookmarkMutation = useToggleAnnouncementBookmark()
     const { isAdminOrAbove } = useMyRole(item.communityId)
-
-    const handleMarkAsRead = async () => {
-        await announcementApi.markAsRead(item.id)
-        qc.invalidateQueries({ queryKey: announcementFeedKeys.all })
-        setMenuOpen(false)
-    }
 
     const handleToggleBookmark = () => {
         bookmarkMutation.mutate(item.id)
@@ -60,8 +32,13 @@ export function FeedCard({ item }: FeedCardProps) {
     }
 
     const handleEdit = () => {
-        navigate(`/communities/${item.communityId}/announcements/create?edit=${item.id}`)
+        navigate(`/communities/${item.communityId}/announcements/new?edit=${item.id}`)
         setMenuOpen(false)
+    }
+
+    /** #6: お知らせ詳細画面へ遷移 */
+    const goToDetail = () => {
+        navigate(`/announcements/${item.id}`)
     }
 
     const imageAttachments = item.attachments?.filter((a) => a.mimeType.startsWith('image/')) ?? []
@@ -71,15 +48,26 @@ export function FeedCard({ item }: FeedCardProps) {
             {/* ヘッダー: アバター + 名前 + 時間 + メニュー */}
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2.5">
-                    <Avatar className="h-8 w-8">
-                        <AvatarImage
-                            src={item.authorAvatarUrl ?? undefined}
-                            alt={item.authorName ?? 'ユーザー'}
-                        />
-                        <AvatarFallback className="text-xs">
-                            {getInitial(item.authorName)}
-                        </AvatarFallback>
-                    </Avatar>
+                    {/* #2: プロフィール画像クリックで拡大表示 */}
+                    {item.authorAvatarUrl ? (
+                        <SingleImagePreview src={item.authorAvatarUrl} alt={item.authorName ?? 'ユーザー'}>
+                            <Avatar className="h-8 w-8">
+                                <AvatarImage
+                                    src={item.authorAvatarUrl}
+                                    alt={item.authorName ?? 'ユーザー'}
+                                />
+                                <AvatarFallback className="text-xs">
+                                    {getInitial(item.authorName)}
+                                </AvatarFallback>
+                            </Avatar>
+                        </SingleImagePreview>
+                    ) : (
+                        <Avatar className="h-8 w-8">
+                            <AvatarFallback className="text-xs">
+                                {getInitial(item.authorName)}
+                            </AvatarFallback>
+                        </Avatar>
+                    )}
                     <div className="min-w-0">
                         <p className="text-sm leading-tight">
                             <span className="font-semibold">{item.authorName ?? '名前なし'}</span>
@@ -91,11 +79,21 @@ export function FeedCard({ item }: FeedCardProps) {
                                 {item.communityName}
                             </Link>
                         </p>
-                        <p className="text-xs text-gray-400">{timeAgo(item.createdAt)}</p>
+                        {/* #3: 相対時刻 + ツールチップで絶対日時 */}
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <p className="text-xs text-gray-400 cursor-default">{formatRelativeTime(item.createdAt)}</p>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>{formatAbsoluteDateTime(item.createdAt)}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                 </div>
 
-                {/* 3ドットメニュー */}
+                {/* 3ドットメニュー (#7: 「既読にする」削除済み) */}
                 <div className="relative">
                     <button
                         type="button"
@@ -108,15 +106,6 @@ export function FeedCard({ item }: FeedCardProps) {
                         <>
                             <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
                             <div className="absolute right-0 top-8 z-20 w-44 rounded-lg border bg-white py-1 shadow-md">
-                                {!item.isRead && (
-                                    <button
-                                        type="button"
-                                        onClick={handleMarkAsRead}
-                                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
-                                    >
-                                        既読にする
-                                    </button>
-                                )}
                                 <button
                                     type="button"
                                     onClick={handleToggleBookmark}
@@ -139,37 +128,32 @@ export function FeedCard({ item }: FeedCardProps) {
                 </div>
             </div>
 
-            {/* 本文（クリックでコメント展開） */}
+            {/* #6: 本文クリックで詳細画面へ遷移 / #8: 4行制限 */}
             <button
                 type="button"
-                onClick={() => setCommentsOpen(!commentsOpen)}
+                onClick={goToDetail}
                 className="mt-2.5 pl-[42px] text-left w-full"
             >
                 {item.title && (
                     <h3 className="text-sm font-semibold leading-snug">{item.title}</h3>
                 )}
-                <p className="mt-1 text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">
+                <p className="mt-1 text-sm leading-relaxed text-gray-700 whitespace-pre-wrap line-clamp-4">
                     {item.content}
                 </p>
             </button>
 
-            {/* UBL-3: 添付画像カルーセル */}
+            {/* #2: 添付画像カルーセル（タップで拡大表示） */}
             {imageAttachments.length > 0 && (
                 <div className="mt-2 pl-[42px]">
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                        {imageAttachments.map((att) => (
-                            <img
-                                key={att.id}
-                                src={att.fileUrl}
-                                alt=""
-                                className="h-40 w-auto max-w-[240px] rounded-lg object-cover flex-shrink-0"
-                            />
-                        ))}
+                    <div className="flex gap-2 overflow-x-auto pb-1" onClick={goToDetail}>
+                        <ImagePreviewGallery
+                            images={imageAttachments.map((att) => ({ src: att.fileUrl }))}
+                        />
                     </div>
                 </div>
             )}
 
-            {/* UBL-1 / UBL-2 / 3-1: いいね＋コメント＋ブックマーク アクションバー */}
+            {/* いいね＋コメント＋既読数＋ブックマーク アクションバー */}
             <div className="mt-2 pl-[42px] flex items-center gap-4">
                 <button
                     type="button"
@@ -183,14 +167,34 @@ export function FeedCard({ item }: FeedCardProps) {
                     {item.likeCount > 0 && <span>{item.likeCount}</span>}
                 </button>
 
+                {/* #6: コメントボタンも詳細画面へ遷移 */}
                 <button
                     type="button"
-                    onClick={() => setCommentsOpen(!commentsOpen)}
+                    onClick={goToDetail}
                     className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-500 transition-colors"
                 >
                     <MessageCircle className="h-4 w-4" />
                     {item.commentCount > 0 && <span>{item.commentCount}</span>}
                 </button>
+
+                {/* #9: 既読数表示 */}
+                {'readCount' in item && typeof item.readCount === 'number' && (
+                    <span className="flex items-center gap-1 text-sm text-gray-400">
+                        <Eye className="h-4 w-4" />
+                        {item.readCount}
+                    </span>
+                )}
+
+                {/* #4: アクティビティ詳細へのリンク */}
+                {item.activityId && (
+                    <button
+                        type="button"
+                        onClick={() => navigate(`/activities/${item.activityId}${item.scheduleInfo ? `?schedule=${item.scheduleInfo.scheduleId}` : ''}`)}
+                        className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+                    >
+                        詳細へ
+                    </button>
+                )}
 
                 <button
                     type="button"
@@ -208,13 +212,6 @@ export function FeedCard({ item }: FeedCardProps) {
             {!item.isRead && (
                 <div className="mt-2 pl-[42px]">
                     <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
-                </div>
-            )}
-
-            {/* UBL-2: コメントセクション */}
-            {commentsOpen && (
-                <div className="mt-2 pl-[42px]">
-                    <CommentSection announcementId={item.id} />
                 </div>
             )}
         </article>

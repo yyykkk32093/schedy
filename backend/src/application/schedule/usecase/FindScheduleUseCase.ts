@@ -21,6 +21,7 @@ export class FindScheduleUseCase {
         date: string; startTime: string; endTime: string;
         location: string | null; note: string | null; status: string;
         capacity: number | null; participationFee: number | null;
+        visitorFee: number | null;
         isOnline: boolean; meetingUrl: string | null;
         myStatus: MyScheduleStatus; myParticipationId: string | null;
         myPaymentMethod: string | null; myPaymentStatus: string | null;
@@ -62,11 +63,12 @@ export class FindScheduleUseCase {
             status: schedule.getStatus().getValue(),
             capacity: schedule.getCapacity().getValue(),
             participationFee: schedule.getParticipationFee(),
+            visitorFee: schedule.getVisitorFee(),
             isOnline: schedule.getIsOnline(),
             meetingUrl: schedule.getMeetingUrl(),
             myStatus,
             myParticipationId: participation?.getId() ?? null,
-            myPaymentMethod: payment?.getPaymentMethod().getValue() ?? null,
+            myPaymentMethod: payment?.getPaymentMethod()?.getValue() ?? null,
             myPaymentStatus: payment?.getPaymentStatus().getValue() ?? null,
             attendingCount,
             waitlistCount,

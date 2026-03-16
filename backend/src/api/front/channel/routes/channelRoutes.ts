@@ -65,6 +65,43 @@ router.get('/v1/channels', authMiddleware, async (req: Request, res: Response, n
             })
             : [];
 
+        // ── 3b. Activity チャンネルに紐づくスケジュール情報を取得 ──
+        const activityIdsForChannels = activityChannels
+            .map((ch) => ch.activityId)
+            .filter((id): id is string => id !== null);
+
+        const scheduleMap = new Map<string, { date: string; startTime: string; endTime: string }>();
+        if (activityIdsForChannels.length > 0) {
+            const now = new Date();
+            const schedules = await prisma.schedule.findMany({
+                where: { activityId: { in: activityIdsForChannels } },
+                select: { activityId: true, date: true, startTime: true, endTime: true },
+                orderBy: { date: 'asc' },
+            });
+
+            // アクティビティごとに最も近い未来 or 最新の過去のスケジュールを選択
+            const grouped = new Map<string, typeof schedules>();
+            for (const s of schedules) {
+                const arr = grouped.get(s.activityId) ?? [];
+                arr.push(s);
+                grouped.set(s.activityId, arr);
+            }
+
+            for (const [actId, items] of grouped) {
+                const future = items.find((s) => s.date >= now);
+                const picked = future ?? items[items.length - 1];
+                if (picked) {
+                    // DateTime @db.Date → "YYYY-MM-DD" 形式に変換
+                    const dateStr = picked.date.toISOString().slice(0, 10);
+                    scheduleMap.set(actId, {
+                        date: dateStr,
+                        startTime: picked.startTime,
+                        endTime: picked.endTime,
+                    });
+                }
+            }
+        }
+
         // ── 4. DM チャンネル ──
         const dmParticipations = await prisma.dMParticipant.findMany({
             where: { userId },
@@ -110,14 +147,21 @@ router.get('/v1/channels', authMiddleware, async (req: Request, res: Response, n
         );
 
         const activity = sortByLatest(
-            activityChannels.map((ch) => ({
-                channelId: ch.id,
-                type: 'ACTIVITY' as const,
-                name: ch.activity?.title ?? '',
-                subtitle: ch.activity?.community?.name ?? '',
-                activityId: ch.activityId,
-                lastMessage: formatLastMessage(ch.messages),
-            })),
+            activityChannels.map((ch) => {
+                const sched = ch.activityId ? scheduleMap.get(ch.activityId) : undefined;
+                return {
+                    channelId: ch.id,
+                    type: 'ACTIVITY' as const,
+                    name: ch.activity?.title ?? '',
+                    subtitle: ch.activity?.community?.name ?? '',
+                    communityName: ch.activity?.community?.name ?? '',
+                    activityId: ch.activityId,
+                    scheduleDate: sched?.date ?? null,
+                    scheduleStartTime: sched?.startTime ?? null,
+                    scheduleEndTime: sched?.endTime ?? null,
+                    lastMessage: formatLastMessage(ch.messages),
+                };
+            }),
         );
 
         const dm = sortByLatest(

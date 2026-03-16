@@ -15,8 +15,9 @@ export class ParticipationRepositoryImpl implements IParticipationRepository {
     }
 
     async findByScheduleAndUser(scheduleId: string, userId: string): Promise<Participation | null> {
-        const row = await this.prisma.participation.findUnique({
-            where: { scheduleId_userId: { scheduleId, userId } },
+        // 部分ユニークインデックスのため findFirst を使用
+        const row = await this.prisma.participation.findFirst({
+            where: { scheduleId, userId },
         })
         return row ? this.toDomain(row) : null
     }
@@ -40,8 +41,10 @@ export class ParticipationRepositoryImpl implements IParticipationRepository {
             data: {
                 id: participation.getId(),
                 scheduleId: participation.getScheduleId().getValue(),
-                userId: participation.getUserId().getValue(),
+                userId: participation.getUserId()?.getValue() ?? null,
                 isVisitor: participation.getIsVisitor(),
+                visitorName: participation.getVisitorName(),
+                addedBy: participation.getAddedBy(),
                 respondedAt: participation.getRespondedAt(),
             },
         })
@@ -52,22 +55,31 @@ export class ParticipationRepositoryImpl implements IParticipationRepository {
             where: { id: participation.getId() },
             data: {
                 isVisitor: participation.getIsVisitor(),
+                visitorName: participation.getVisitorName(),
+                addedBy: participation.getAddedBy(),
             },
         })
     }
 
     async delete(scheduleId: string, userId: string): Promise<void> {
-        await this.prisma.participation.delete({
-            where: { scheduleId_userId: { scheduleId, userId } },
+        // 部分ユニークインデックスのため deleteMany を使用
+        await this.prisma.participation.deleteMany({
+            where: { scheduleId, userId },
         })
+    }
+
+    async deleteById(id: string): Promise<void> {
+        await this.prisma.participation.delete({ where: { id } })
     }
 
     private toDomain(row: PrismaParticipation): Participation {
         return Participation.reconstruct({
             id: row.id,
             scheduleId: ScheduleId.reconstruct(row.scheduleId),
-            userId: UserId.create(row.userId),
+            userId: row.userId ? UserId.create(row.userId) : null,
             isVisitor: row.isVisitor,
+            visitorName: row.visitorName,
+            addedBy: row.addedBy,
             respondedAt: row.respondedAt,
         })
     }

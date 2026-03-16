@@ -10,13 +10,18 @@ import { PaymentStatus } from '../valueObject/PaymentStatus.js'
  *
  * Participation（参加）とは独立したライフサイクルを持つ。
  * キャンセル後も Payment レコードは残り、返金ステータスを追跡できる。
+ *
+ * Phase4: participationId で Participation と直接紐付け。
+ * paymentMethod は nullable（null = 未決定、ビジター初期状態「ー」）
+ * userId は nullable（未登録ビジターの場合は null）
  */
 export class Payment extends AggregateRoot {
     private constructor(
         private readonly id: string,
         private readonly scheduleId: ScheduleId,
-        private readonly userId: UserId,
-        private readonly paymentMethod: PaymentMethod,
+        private readonly participationId: string | null,
+        private readonly userId: UserId | null,
+        private paymentMethod: PaymentMethod | null,
         private readonly amount: number,
         private readonly feeAmount: number,
         private paymentStatus: PaymentStatus,
@@ -33,16 +38,18 @@ export class Payment extends AggregateRoot {
     static create(params: {
         id: string
         scheduleId: ScheduleId
-        userId: UserId
-        paymentMethod: PaymentMethod
+        participationId?: string | null
+        userId?: UserId | null
+        paymentMethod?: PaymentMethod | null
         amount: number
         feeAmount?: number
     }): Payment {
         return new Payment(
             params.id,
             params.scheduleId,
-            params.userId,
-            params.paymentMethod,
+            params.participationId ?? null,
+            params.userId ?? null,
+            params.paymentMethod ?? null,
             params.amount,
             params.feeAmount ?? 0,
             PaymentStatus.unpaid(),
@@ -58,8 +65,9 @@ export class Payment extends AggregateRoot {
     static reconstruct(params: {
         id: string
         scheduleId: ScheduleId
-        userId: UserId
-        paymentMethod: PaymentMethod
+        participationId: string | null
+        userId: UserId | null
+        paymentMethod: PaymentMethod | null
         amount: number
         feeAmount: number
         paymentStatus: PaymentStatus
@@ -73,6 +81,7 @@ export class Payment extends AggregateRoot {
         return new Payment(
             params.id,
             params.scheduleId,
+            params.participationId,
             params.userId,
             params.paymentMethod,
             params.amount,
@@ -99,8 +108,8 @@ export class Payment extends AggregateRoot {
     }
 
     confirmPayment(confirmedBy: string): void {
-        if (!this.paymentStatus.isReported()) {
-            throw new DomainValidationError('支払報告がされていません', 'PAYMENT_NOT_REPORTED')
+        if (!this.paymentStatus.isReported() && !this.paymentStatus.isUnpaid()) {
+            throw new DomainValidationError('確認可能な支払い状態ではありません', 'PAYMENT_NOT_CONFIRMABLE')
         }
         this.paymentStatus = PaymentStatus.confirmed()
         this.paymentConfirmedAt = new Date()
@@ -155,8 +164,16 @@ export class Payment extends AggregateRoot {
         this.updatedAt = new Date()
     }
 
+    /** ビジター支払い管理: 管理者が支払い方法・ステータスを設定 */
+    updateVisitorPayment(method: PaymentMethod | null, status: PaymentStatus): void {
+        this.paymentMethod = method
+        this.paymentStatus = status
+        this.updatedAt = new Date()
+    }
+
     isStripePaid(): boolean {
         return (
+            this.paymentMethod != null &&
             this.paymentMethod.isStripe() &&
             this.paymentStatus.isPaid() &&
             this.stripePaymentIntentId != null
@@ -167,8 +184,9 @@ export class Payment extends AggregateRoot {
 
     getId(): string { return this.id }
     getScheduleId(): ScheduleId { return this.scheduleId }
-    getUserId(): UserId { return this.userId }
-    getPaymentMethod(): PaymentMethod { return this.paymentMethod }
+    getParticipationId(): string | null { return this.participationId }
+    getUserId(): UserId | null { return this.userId }
+    getPaymentMethod(): PaymentMethod | null { return this.paymentMethod }
     getAmount(): number { return this.amount }
     getFeeAmount(): number { return this.feeAmount }
     getPaymentStatus(): PaymentStatus { return this.paymentStatus }

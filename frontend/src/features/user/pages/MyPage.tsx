@@ -1,12 +1,15 @@
 import { useUpdateUserProfile, useUserProfile } from '@/features/user/hooks/useUserQueries'
+import { UnsavedChangesDialog } from '@/shared/components/UnsavedChangesDialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/components/ui/avatar'
 import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { uploadFile } from '@/shared/lib/uploadClient'
+import { useUnsavedChangesWarning } from '@/shared/lib/useUnsavedChangesWarning'
 import { Camera, Save } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { toast } from 'sonner'
 
 /**
  * MyPage — マイページ（UBL-32）
@@ -28,6 +31,10 @@ export function MyPage() {
     const currentDisplayName = displayName ?? profile?.displayName ?? ''
     const currentBiography = biography ?? profile?.biography ?? ''
     const currentAvatarUrl = avatarPreview ?? profile?.avatarUrl ?? null
+
+    // isDirty + useUnsavedChangesWarning は早期returnより前に配置（Hooksのルール）
+    const isDirty = displayName !== null || biography !== null || avatarPreview !== null
+    const { isBlocked, proceed, cancel } = useUnsavedChangesWarning(isDirty)
 
     if (isLoading) {
         return (
@@ -61,13 +68,23 @@ export function MyPage() {
             displayName: displayName !== null ? displayName : undefined,
             biography: biography !== null ? biography : undefined,
             avatarUrl: avatarPreview !== null ? avatarPreview : undefined,
+        }, {
+            onSuccess: () => {
+                // #58: 保存成功トースト
+                toast.success('保存しました')
+                // ローカル state をリセット → サーバーデータにフォールバック
+                setDisplayName(null)
+                setBiography(null)
+                setAvatarPreview(null)
+            },
         })
     }
 
-    const isDirty = displayName !== null || biography !== null || avatarPreview !== null
-
     return (
         <div className="p-4 space-y-6">
+            {/* #57: 未保存警告ダイアログ */}
+            <UnsavedChangesDialog open={isBlocked} onDiscard={proceed} onCancel={cancel} />
+
             <h1 className="text-xl font-bold text-gray-900">マイページ</h1>
 
             {/* Avatar Section */}

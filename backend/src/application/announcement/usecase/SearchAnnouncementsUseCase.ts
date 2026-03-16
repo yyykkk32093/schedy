@@ -43,12 +43,13 @@ export class SearchAnnouncementsUseCase {
         )
 
         const announcementIds = rows.map((r) => r.id)
-        const [readIds, likeCounts, commentCounts, likedIds, bookmarkedIds] = await Promise.all([
+        const [readIds, likeCounts, commentCounts, likedIds, bookmarkedIds, readCounts] = await Promise.all([
             this.announcementReadRepository.findReadAnnouncementIds(input.userId, announcementIds),
             this.likeRepository.countByAnnouncementIds(announcementIds),
             this.commentRepository.countByAnnouncementIds(announcementIds),
             this.likeRepository.findLikedIds(input.userId, announcementIds),
             this.bookmarkRepository.findBookmarkedIds(input.userId, announcementIds),
+            this.announcementReadRepository.countByAnnouncementIds(announcementIds),
         ])
 
         const readSet = new Set(readIds)
@@ -59,6 +60,7 @@ export class SearchAnnouncementsUseCase {
             items: rows.map((r) => ({
                 id: r.id,
                 communityId: r.communityId,
+                activityId: r.activityId,
                 authorId: r.authorId,
                 authorName: r.authorName,
                 authorAvatarUrl: r.authorAvatarUrl,
@@ -72,7 +74,9 @@ export class SearchAnnouncementsUseCase {
                 likeCount: likeCounts.get(r.id) ?? 0,
                 commentCount: commentCounts.get(r.id) ?? 0,
                 isLiked: likedSet.has(r.id),
+                readCount: readCounts.get(r.id) ?? 0,
                 attachments: r.attachments,
+                scheduleInfo: r.scheduleInfo,
             })),
         }
     }

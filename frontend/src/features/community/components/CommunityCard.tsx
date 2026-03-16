@@ -1,5 +1,7 @@
+import { useToggleBookmark } from '@/features/community/hooks/useCommunityQueries'
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/components/ui/avatar'
 import type { CommunityListItem } from '@/shared/types/api'
+import { Bookmark } from 'lucide-react'
 
 interface CommunityCardProps {
     community: CommunityListItem
@@ -9,7 +11,7 @@ interface CommunityCardProps {
 /**
  * CommunityCard — チャットリスト風のコミュニティ行コンポーネント
  *
- * [Avatar] コミュニティ名            相対時刻
+ * [Avatar] コミュニティ名            ⭐ 相対時刻
  *          最新お知らせタイトル
  */
 export function CommunityCard({ community, onClick }: CommunityCardProps) {
@@ -17,6 +19,12 @@ export function CommunityCard({ community, onClick }: CommunityCardProps) {
     const relativeTime = community.latestAnnouncementAt
         ? formatRelative(community.latestAnnouncementAt)
         : null
+    const toggleBookmark = useToggleBookmark()
+
+    const handleBookmarkClick = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        toggleBookmark.mutate({ communityId: community.id, bookmarked: community.bookmarked })
+    }
 
     return (
         <button
@@ -38,11 +46,24 @@ export function CommunityCard({ community, onClick }: CommunityCardProps) {
                     <span className="font-semibold text-sm text-gray-900 truncate">
                         {community.name}
                     </span>
-                    {relativeTime && (
-                        <span className="text-xs text-gray-400 shrink-0">
-                            {relativeTime}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <span
+                            role="button"
+                            onClick={handleBookmarkClick}
+                            className="p-0.5 rounded hover:bg-gray-200 transition-colors"
+                            title={community.bookmarked ? 'ブックマーク解除' : 'ブックマーク'}
+                        >
+                            <Bookmark
+                                size={14}
+                                className={community.bookmarked ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
+                            />
                         </span>
-                    )}
+                        {relativeTime && (
+                            <span className="text-xs text-gray-400">
+                                {relativeTime}
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <p className="text-xs text-gray-500 truncate mt-0.5">
                     {community.latestAnnouncementTitle ?? community.description ?? 'お知らせはまだありません'}

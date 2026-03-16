@@ -81,7 +81,7 @@ export class RemoveParticipantByAdminUseCase {
             const payment = await repos.payment.findLatestByScheduleAndUser(
                 input.scheduleId, input.targetUserId
             )
-            const paymentMethodSnapshot = payment?.getPaymentMethod().getValue() ?? null
+            const paymentMethodSnapshot = payment?.getPaymentMethod()?.getValue() ?? null
             const paymentStatusSnapshot = payment?.getPaymentStatus().getValue() ?? null
 
             // 物理削除

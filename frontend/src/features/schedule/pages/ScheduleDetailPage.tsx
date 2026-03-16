@@ -82,7 +82,7 @@ export function ScheduleDetailPage() {
             location: location || null,
             note: note || null,
             capacity: capacity ? Number(capacity) : null,
-            participationFee: participationFee ? Number(participationFee) : null,
+            participationFee: participationFee ? Number(participationFee) : 0,
         })
         setEditing(false)
     }
@@ -186,7 +186,7 @@ export function ScheduleDetailPage() {
                             <div key={p.id} className="flex items-center justify-between py-2">
                                 <div className="flex items-center gap-2">
                                     <span className="text-sm font-medium">
-                                        {p.displayName ?? p.userId.slice(0, 8) + '…'}
+                                        {p.displayName ?? p.visitorName ?? (p.userId ? p.userId.slice(0, 8) + '…' : '—')}
                                         {p.isVisitor && <span className="ml-1 text-xs text-gray-400">(ビジター)</span>}
                                     </span>
                                     <span className={`text-xs px-1.5 py-0.5 rounded ${p.status === 'ATTENDING' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
@@ -231,9 +231,9 @@ export function ScheduleDetailPage() {
                                     )}
 
                                     {/* 管理者による参加者除外ボタン */}
-                                    {isAdminOrAbove && p.status === 'ATTENDING' && (
+                                    {isAdminOrAbove && p.status === 'ATTENDING' && p.userId && (
                                         <button
-                                            onClick={() => handleRemoveParticipant(p.userId)}
+                                            onClick={() => handleRemoveParticipant(p.userId!)}
                                             disabled={removeParticipantMutation.isPending}
                                             className="text-xs p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
                                             title="参加者を除外"

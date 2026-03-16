@@ -17,13 +17,14 @@ export class ReportPaymentUseCase {
             throw new ParticipationError('参加情報が見つかりません', 'PARTICIPATION_NOT_FOUND')
         }
 
-        if (participation.getUserId().getValue() !== input.userId) {
+        const userId = participation.getUserId()
+        if (!userId || userId.getValue() !== input.userId) {
             throw new ParticipationError('他のユーザーの支払報告はできません', 'FORBIDDEN')
         }
 
         const payment = await this.paymentRepository.findLatestByScheduleAndUser(
             participation.getScheduleId().getValue(),
-            participation.getUserId().getValue(),
+            userId.getValue(),
         )
         if (!payment) {
             throw new ParticipationError('支払い情報が見つかりません', 'PAYMENT_NOT_FOUND')

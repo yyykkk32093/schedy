@@ -7,6 +7,7 @@ import type { IAnnouncementRepository } from '@/domains/announcement/domain/repo
 export interface CommunityAnnouncementItemDto {
     id: string
     communityId: string
+    activityId: string | null
     authorId: string
     authorName: string | null
     authorAvatarUrl: string | null
@@ -20,7 +21,9 @@ export interface CommunityAnnouncementItemDto {
     likeCount: number
     commentCount: number
     isLiked: boolean
+    readCount: number
     attachments: Array<{ id: string; fileUrl: string; mimeType: string }>
+    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string } | null
 }
 
 export class ListAnnouncementsUseCase {
@@ -32,13 +35,13 @@ export class ListAnnouncementsUseCase {
         private readonly bookmarkRepository: IAnnouncementBookmarkRepository,
     ) { }
 
-    async execute(input: { communityId: string; userId: string }): Promise<{
+    async execute(input: { communityId: string; userId: string; activityFilter?: boolean }): Promise<{
         announcements: CommunityAnnouncementItemDto[]
     }> {
         // フィード用リッチ行をコミュニティ単位で取得（上限100件）
         const rows = await this.announcementRepository.findFeedByCommunityIds(
             [input.communityId],
-            { limit: 100 },
+            { limit: 100, activityFilter: input.activityFilter },
         )
 
         if (rows.length === 0) {
@@ -48,12 +51,13 @@ export class ListAnnouncementsUseCase {
         const ids = rows.map((r) => r.id)
 
         // ソーシャルデータを一括取得（GetAnnouncementFeedUseCase と同パターン）
-        const [readIds, likeCounts, commentCounts, likedIds, bookmarkedIds] = await Promise.all([
+        const [readIds, likeCounts, commentCounts, likedIds, bookmarkedIds, readCounts] = await Promise.all([
             this.announcementReadRepository.findReadAnnouncementIds(input.userId, ids),
             this.likeRepository.countByAnnouncementIds(ids),
             this.commentRepository.countByAnnouncementIds(ids),
             this.likeRepository.findLikedIds(input.userId, ids),
             this.bookmarkRepository.findBookmarkedIds(input.userId, ids),
+            this.announcementReadRepository.countByAnnouncementIds(ids),
         ])
 
         const readSet = new Set(readIds)
@@ -64,6 +68,7 @@ export class ListAnnouncementsUseCase {
             announcements: rows.map((r) => ({
                 id: r.id,
                 communityId: r.communityId,
+                activityId: r.activityId,
                 authorId: r.authorId,
                 authorName: r.authorName,
                 authorAvatarUrl: r.authorAvatarUrl,
@@ -77,7 +82,9 @@ export class ListAnnouncementsUseCase {
                 likeCount: likeCounts.get(r.id) ?? 0,
                 commentCount: commentCounts.get(r.id) ?? 0,
                 isLiked: likedSet.has(r.id),
+                readCount: readCounts.get(r.id) ?? 0,
                 attachments: r.attachments,
+                scheduleInfo: r.scheduleInfo,
             })),
         }
     }

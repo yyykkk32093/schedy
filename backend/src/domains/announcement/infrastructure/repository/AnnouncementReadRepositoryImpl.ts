@@ -32,4 +32,14 @@ export class AnnouncementReadRepositoryImpl implements IAnnouncementReadReposito
         })
         return rows.map((r) => r.announcementId)
     }
+
+    async countByAnnouncementIds(announcementIds: string[]): Promise<Map<string, number>> {
+        if (announcementIds.length === 0) return new Map()
+        const groups = await this.prisma.announcementRead.groupBy({
+            by: ['announcementId'],
+            where: { announcementId: { in: announcementIds } },
+            _count: { announcementId: true },
+        })
+        return new Map(groups.map((g) => [g.announcementId, g._count.announcementId]))
+    }
 }

@@ -23,6 +23,9 @@ router.delete('/v1/schedules/:id/waitlist-entries/me', authMiddleware, participa
 router.patch('/v1/participations/:participationId/report-payment', authMiddleware, participationController.reportPayment)
 router.patch('/v1/participations/:participationId/confirm-payment', authMiddleware, participationController.confirmPayment)
 
+// #40: 現金支払い一括確認
+router.patch('/v1/schedules/:id/payments/bulk-confirm', authMiddleware, participationController.bulkConfirmPayment)
+
 // 4-2: Stripe PaymentIntent 作成
 router.post('/v1/schedules/:id/participations/me/stripe-payment-intent', authMiddleware, participationController.createStripePaymentIntent)
 
@@ -36,5 +39,9 @@ router.get('/v1/communities/:id/payments/resolved', authMiddleware, participatio
 router.patch('/v1/payments/:paymentId/mark-refunded', authMiddleware, participationController.markRefundCompleted)
 router.patch('/v1/payments/:paymentId/mark-no-refund', authMiddleware, participationController.markNoRefund)
 router.patch('/v1/payments/:paymentId/revert-refund', authMiddleware, participationController.revertRefundStatus)
+
+// ビジター管理
+router.post('/v1/schedules/:id/guest-visitors', authMiddleware, participationController.addGuestVisitor)
+router.patch('/v1/participations/:participationId/visitor-payment', authMiddleware, participationController.updateVisitorPayment)
 
 export default router

@@ -12,9 +12,12 @@ export class ListParticipationsUseCase {
     async execute(input: { scheduleId: string }): Promise<{
         participants: Array<{
             id: string
-            userId: string
+            userId: string | null
             displayName: string | null
+            visitorName: string | null
+            addedBy: string | null
             isVisitor: boolean
+            isGuestVisitor: boolean
             respondedAt: Date
             paymentMethod: string | null
             paymentStatus: string | null
@@ -25,31 +28,49 @@ export class ListParticipationsUseCase {
             this.paymentRepository.findsByScheduleId(input.scheduleId),
         ])
 
-        // ユーザーごとに最新の Payment をマッピング
-        const paymentMap = new Map<string, { method: string; status: string }>()
+        // participationId ベースで Payment をマッピング（ゲストビジター対応）
+        const paymentByParticipationId = new Map<string, { method: string | null; status: string }>()
+        // userId ベースのフォールバック（既存データ互換）
+        const paymentByUserId = new Map<string, { method: string | null; status: string }>()
         for (const p of payments) {
-            const userId = p.getUserId().getValue()
-            if (!paymentMap.has(userId)) {
-                paymentMap.set(userId, {
-                    method: p.getPaymentMethod().getValue(),
+            const participationId = p.getParticipationId()
+            if (participationId && !paymentByParticipationId.has(participationId)) {
+                paymentByParticipationId.set(participationId, {
+                    method: p.getPaymentMethod()?.getValue() ?? null,
+                    status: p.getPaymentStatus().getValue(),
+                })
+            }
+            const userId = p.getUserId()?.getValue()
+            if (userId && !paymentByUserId.has(userId)) {
+                paymentByUserId.set(userId, {
+                    method: p.getPaymentMethod()?.getValue() ?? null,
                     status: p.getPaymentStatus().getValue(),
                 })
             }
         }
 
-        const userIds = participations.map((p) => p.getUserId().getValue())
+        // 登録済みユーザーの表示名を取得
+        const userIds = participations
+            .map((p) => p.getUserId()?.getValue())
+            .filter((id): id is string => id != null)
         const users = userIds.length > 0 ? await this.userRepository.findByIds(userIds) : []
         const userMap = new Map(users.map((u) => [u.getId().getValue(), u.getDisplayName()?.getValue() ?? null]))
 
         return {
             participants: participations.map((p) => {
-                const userId = p.getUserId().getValue()
-                const pay = paymentMap.get(userId)
+                const userId = p.getUserId()?.getValue() ?? null
+                const participationId = p.getId()
+                // participationId → userId の順でPaymentを探す
+                const pay = paymentByParticipationId.get(participationId) ??
+                    (userId ? paymentByUserId.get(userId) : undefined)
                 return {
-                    id: p.getId(),
+                    id: participationId,
                     userId,
-                    displayName: userMap.get(userId) ?? null,
+                    displayName: userId ? (userMap.get(userId) ?? null) : null,
+                    visitorName: p.getVisitorName(),
+                    addedBy: p.getAddedBy(),
                     isVisitor: p.getIsVisitor(),
+                    isGuestVisitor: p.isGuestVisitor(),
                     respondedAt: p.getRespondedAt(),
                     paymentMethod: pay?.method ?? null,
                     paymentStatus: pay?.status ?? null,

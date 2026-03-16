@@ -33,8 +33,8 @@ export function useDeleteStamp() {
 export function useAddReaction(channelId: string) {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: ({ messageId, stampId }: { messageId: string; stampId: string }) =>
-            stampApi.addReaction(messageId, stampId),
+        mutationFn: ({ messageId, stampId, emoji }: { messageId: string; stampId?: string; emoji?: string }) =>
+            stampApi.addReaction(messageId, { stampId, emoji }),
         onSuccess: () =>
             qc.invalidateQueries({ queryKey: messageListKeys.byChannel(channelId) }),
     })
@@ -44,8 +44,8 @@ export function useAddReaction(channelId: string) {
 export function useRemoveReaction(channelId: string) {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: ({ messageId, stampId }: { messageId: string; stampId: string }) =>
-            stampApi.removeReaction(messageId, stampId),
+        mutationFn: ({ messageId, identifier }: { messageId: string; identifier: string }) =>
+            stampApi.removeReaction(messageId, identifier),
         onSuccess: () =>
             qc.invalidateQueries({ queryKey: messageListKeys.byChannel(channelId) }),
     })

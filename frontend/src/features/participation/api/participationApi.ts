@@ -1,5 +1,5 @@
-import { http } from '@/shared/lib/apiClient'
-import type { AttendScheduleRequest, AttendScheduleResponse, CreateStripePaymentIntentResponse, GetParticipationHistoryResponse, JoinWaitlistResponse, ListParticipantsResponse, ListPaymentHistoryResponse, ListRefundPendingResponse, ListWaitlistResponse } from '@/shared/types/api'
+import { http } from '@/shared/lib/apiClient';
+import type { AddGuestVisitorRequest, AddGuestVisitorResponse, AttendScheduleRequest, AttendScheduleResponse, CreateStripePaymentIntentResponse, GetParticipationHistoryResponse, JoinWaitlistResponse, ListParticipantsResponse, ListPaymentHistoryResponse, ListRefundPendingResponse, ListWaitlistResponse, UpdateVisitorPaymentRequest } from '@/shared/types/api';
 
 export const participationApi = {
     list: (scheduleId: string) =>
@@ -27,6 +27,13 @@ export const participationApi = {
     /** UBL-8: 支払確認（管理者） */
     confirmPayment: (participationId: string) =>
         http<void>(`/v1/participations/${participationId}/confirm-payment`, { method: 'PATCH' }),
+
+    /** #40: 現金支払い一括確認（管理者） */
+    bulkConfirmPayment: (scheduleId: string, participationIds: string[]) =>
+        http<{ results: { participationId: string; success: boolean; error?: string }[] }>(
+            `/v1/schedules/${scheduleId}/payments/bulk-confirm`,
+            { method: 'PATCH', json: { participationIds } },
+        ),
 
     /** 管理者による参加者除外 */
     removeParticipant: (scheduleId: string, userId: string) =>
@@ -64,4 +71,13 @@ export const participationApi = {
     /** 返金ステータス巻き戻し（管理者）REFUNDED/NO_REFUND → REFUND_PENDING */
     revertRefundStatus: (paymentId: string) =>
         http<void>(`/v1/payments/${paymentId}/revert-refund`, { method: 'PATCH' }),
+
+    // ---- ビジター管理 ----
+    /** ゲストビジター追加 */
+    addGuestVisitor: (scheduleId: string, data: AddGuestVisitorRequest) =>
+        http<AddGuestVisitorResponse>(`/v1/schedules/${scheduleId}/guest-visitors`, { method: 'POST', json: data }),
+
+    /** ビジター支払い更新（管理者） */
+    updateVisitorPayment: (participationId: string, data: UpdateVisitorPaymentRequest) =>
+        http<void>(`/v1/participations/${participationId}/visitor-payment`, { method: 'PATCH', json: data }),
 }

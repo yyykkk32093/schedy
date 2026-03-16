@@ -1,6 +1,7 @@
 import { DomainValidationError } from '@/domains/_sharedDomains/error/DomainValidationError.js'
 import { AggregateRoot } from '@/domains/_sharedDomains/model/entity/AggregateRoot.js'
 import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
+import { ActivityId } from '@/domains/activity/domain/model/valueObject/ActivityId.js'
 import { CommunityId } from '@/domains/community/domain/model/valueObject/CommunityId.js'
 import { AnnouncementContent } from '../valueObject/AnnouncementContent.js'
 import { AnnouncementId } from '../valueObject/AnnouncementId.js'
@@ -10,12 +11,14 @@ import { AnnouncementTitle } from '../valueObject/AnnouncementTitle.js'
  * Announcement: コミュニティ内のお知らせ
  * - OWNER or ADMIN のみ作成可能
  * - 論理削除対応（deletedAt）
+ * - activityId: アクティビティ由来のお知らせ紐付け（Phase3 #4）
  */
 export class Announcement extends AggregateRoot {
     private constructor(
         private readonly id: AnnouncementId,
         private readonly communityId: CommunityId,
         private readonly authorId: UserId,
+        private readonly activityId: ActivityId | null,
         private title: AnnouncementTitle,
         private content: AnnouncementContent,
         private deletedAt: Date | null,
@@ -30,11 +33,13 @@ export class Announcement extends AggregateRoot {
         authorId: UserId
         title: AnnouncementTitle
         content: AnnouncementContent
+        activityId?: ActivityId | null
     }): Announcement {
         return new Announcement(
             params.id,
             params.communityId,
             params.authorId,
+            params.activityId ?? null,
             params.title,
             params.content,
             null,
@@ -46,6 +51,7 @@ export class Announcement extends AggregateRoot {
         id: AnnouncementId
         communityId: CommunityId
         authorId: UserId
+        activityId: ActivityId | null
         title: AnnouncementTitle
         content: AnnouncementContent
         deletedAt: Date | null
@@ -55,6 +61,7 @@ export class Announcement extends AggregateRoot {
             params.id,
             params.communityId,
             params.authorId,
+            params.activityId,
             params.title,
             params.content,
             params.deletedAt,
@@ -90,6 +97,7 @@ export class Announcement extends AggregateRoot {
     getId(): AnnouncementId { return this.id }
     getCommunityId(): CommunityId { return this.communityId }
     getAuthorId(): UserId { return this.authorId }
+    getActivityId(): ActivityId | null { return this.activityId }
     getTitle(): AnnouncementTitle { return this.title }
     getContent(): AnnouncementContent { return this.content }
     getDeletedAt(): Date | null { return this.deletedAt }

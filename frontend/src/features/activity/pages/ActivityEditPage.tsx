@@ -37,6 +37,7 @@ export function ActivityEditPage() {
                 endTime: values.defaultEndTime || undefined,
                 capacity: values.capacity,
                 participationFee: values.participationFee,
+                visitorFee: values.visitorFee,
                 isOnline: values.isOnline,
                 meetingUrl: values.meetingUrl,
             })
@@ -74,7 +75,8 @@ export function ActivityEditPage() {
                 organizerUserId: activity.organizerUserId ?? '',
                 date: firstSchedule?.date ?? '',
                 capacity: firstSchedule?.capacity ?? null,
-                participationFee: firstSchedule?.participationFee ?? null,
+                participationFee: firstSchedule?.participationFee ?? 0,
+                visitorFee: firstSchedule?.visitorFee ?? null,
                 isOnline: firstSchedule?.isOnline ?? false,
                 meetingUrl: firstSchedule?.meetingUrl ?? null,
             }}

@@ -1,3 +1,4 @@
+import { prisma } from '@/_sharedTech/db/client.js'
 import { usecaseFactory } from '@/api/_usecaseFactory.js'
 import type { NextFunction, Request, Response } from 'express'
 
@@ -63,7 +64,19 @@ export const communityController = {
             const useCase = usecaseFactory.createListCommunitiesUseCase()
             const result = await useCase.execute({ userId })
 
-            res.status(200).json(result)
+            // Phase 3 #53: ブックマーク状態を付与
+            const bookmarks = await prisma.communityBookmark.findMany({
+                where: { userId },
+                select: { communityId: true },
+            })
+            const bookmarkedIds = new Set(bookmarks.map(b => b.communityId))
+
+            const communities = result.communities.map(c => ({
+                ...c,
+                bookmarked: bookmarkedIds.has(c.id),
+            }))
+
+            res.status(200).json({ communities })
         } catch (err) {
             next(err)
         }
@@ -72,11 +85,11 @@ export const communityController = {
     async update(req: Request, res: Response, next: NextFunction) {
         try {
             const { id } = req.params
-            const { name, description, logoUrl, coverUrl, payPayId, enabledPaymentMethods, reminderEnabled, cancellationAlertEnabled } = req.body
+            const { name, description, logoUrl, coverUrl, payPayId, enabledPaymentMethods, reminderEnabled, cancellationAlertEnabled, joinMethod, isPublic, mainActivityArea, activityFrequency } = req.body
             const userId = req.user!.userId
 
             const useCase = usecaseFactory.createUpdateCommunityUseCase()
-            await useCase.execute({ communityId: id, userId, name, description, logoUrl, coverUrl, payPayId, enabledPaymentMethods, reminderEnabled, cancellationAlertEnabled })
+            await useCase.execute({ communityId: id, userId, name, description, logoUrl, coverUrl, payPayId, enabledPaymentMethods, reminderEnabled, cancellationAlertEnabled, joinMethod, isPublic, mainActivityArea, activityFrequency })
 
             res.status(204).send()
         } catch (err) {

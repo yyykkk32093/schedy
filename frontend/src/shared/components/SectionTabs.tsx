@@ -58,7 +58,12 @@ export function SectionTabs({
             </TabsList>
 
             {tabs.map((tab) => (
-                <TabsContent key={tab.value} value={tab.value}>
+                <TabsContent
+                    key={tab.value}
+                    value={tab.value}
+                    forceMount
+                    className="data-[state=inactive]:hidden"
+                >
                     {tab.content}
                 </TabsContent>
             ))}

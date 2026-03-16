@@ -70,7 +70,7 @@ export class CancelParticipationUseCase {
             if (payment) {
                 const ps = payment.getPaymentStatus()
                 hasPaidPayment = ps.isReported() || ps.isConfirmed()
-                paymentMethodSnapshot = payment.getPaymentMethod().getValue()
+                paymentMethodSnapshot = payment.getPaymentMethod()?.getValue() ?? null
                 paymentStatusSnapshot = ps.getValue()
 
                 if (payment.isStripePaid()) {

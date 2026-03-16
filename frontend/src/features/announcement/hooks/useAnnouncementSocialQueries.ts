@@ -2,9 +2,10 @@ import { announcementApi } from '@/features/announcement/api/announcementApi'
 import {
     announcementCommentKeys,
     announcementFeedKeys,
+    announcementListKeys,
     announcementSearchKeys,
 } from '@/shared/lib/queryKeys'
-import type { AnnouncementFeedItem, CreateCommentRequest } from '@/shared/types/api'
+import type { AnnouncementFeedItem, AnnouncementListItem, CreateCommentRequest } from '@/shared/types/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 // ─── UBL-1: いいねトグル ─────────────────────────────────
@@ -51,7 +52,11 @@ export function useToggleAnnouncementBookmark() {
     return useMutation({
         mutationFn: (announcementId: string) => announcementApi.toggleBookmark(announcementId),
         onMutate: async (announcementId) => {
+            // Optimistic update: フィードキャッシュ + コミュニティタブキャッシュを即時更新
             await qc.cancelQueries({ queryKey: announcementFeedKeys.all })
+            await qc.cancelQueries({ queryKey: announcementListKeys.all })
+
+            // ホームフィード（無限スクロール形式）
             qc.setQueriesData<{ pages: Array<{ items: AnnouncementFeedItem[]; nextCursor: string | null }> }>(
                 { queryKey: announcementFeedKeys.all },
                 (old) => {
@@ -69,9 +74,26 @@ export function useToggleAnnouncementBookmark() {
                     }
                 },
             )
+
+            // コミュニティお知らせタブ（フラットリスト形式）
+            qc.setQueriesData<{ announcements: AnnouncementListItem[] }>(
+                { queryKey: announcementListKeys.all },
+                (old) => {
+                    if (!old) return old
+                    return {
+                        ...old,
+                        announcements: old.announcements.map((item) =>
+                            item.id === announcementId
+                                ? { ...item, isBookmarked: !item.isBookmarked }
+                                : item,
+                        ),
+                    }
+                },
+            )
         },
         onSettled: () => {
             qc.invalidateQueries({ queryKey: announcementFeedKeys.all })
+            qc.invalidateQueries({ queryKey: announcementListKeys.all })
         },
     })
 }

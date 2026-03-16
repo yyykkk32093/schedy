@@ -89,13 +89,22 @@ export class PaymentRepositoryImpl implements IPaymentRepository {
         return rows.map((r) => this.toDomain(r))
     }
 
+    async findByParticipationId(participationId: string): Promise<Payment | null> {
+        const row = await this.prisma.payment.findFirst({
+            where: { participationId },
+            orderBy: { updatedAt: 'desc' },
+        })
+        return row ? this.toDomain(row) : null
+    }
+
     async add(payment: Payment): Promise<void> {
         await this.prisma.payment.create({
             data: {
                 id: payment.getId(),
                 scheduleId: payment.getScheduleId().getValue(),
-                userId: payment.getUserId().getValue(),
-                paymentMethod: payment.getPaymentMethod().getValue(),
+                participationId: payment.getParticipationId(),
+                userId: payment.getUserId()?.getValue() ?? null,
+                paymentMethod: payment.getPaymentMethod()?.getValue() ?? null,
                 amount: payment.getAmount(),
                 feeAmount: payment.getFeeAmount(),
                 status: payment.getPaymentStatus().getValue(),
@@ -111,6 +120,7 @@ export class PaymentRepositoryImpl implements IPaymentRepository {
         await this.prisma.payment.update({
             where: { id: payment.getId() },
             data: {
+                paymentMethod: payment.getPaymentMethod()?.getValue() ?? null,
                 status: payment.getPaymentStatus().getValue(),
                 stripePaymentIntentId: payment.getStripePaymentIntentId(),
                 paymentReportedAt: payment.getPaymentReportedAt(),
@@ -124,8 +134,9 @@ export class PaymentRepositoryImpl implements IPaymentRepository {
         return Payment.reconstruct({
             id: row.id,
             scheduleId: ScheduleId.reconstruct(row.scheduleId),
-            userId: UserId.create(row.userId),
-            paymentMethod: PaymentMethod.reconstruct(row.paymentMethod),
+            participationId: row.participationId,
+            userId: row.userId ? UserId.create(row.userId) : null,
+            paymentMethod: row.paymentMethod ? PaymentMethod.reconstruct(row.paymentMethod) : null,
             amount: row.amount,
             feeAmount: row.feeAmount,
             paymentStatus: PaymentStatus.reconstruct(row.status),

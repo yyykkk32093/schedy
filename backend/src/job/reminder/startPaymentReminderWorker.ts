@@ -56,7 +56,7 @@ async function runOnce(): Promise<void> {
             schedule: {
                 date: { gte: today, lte: cutoff },
                 status: 'SCHEDULED',
-                participationFee: { not: null },
+                participationFee: { gt: 0 },
             },
         },
         include: {

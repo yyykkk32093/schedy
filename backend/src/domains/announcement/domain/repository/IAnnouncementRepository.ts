@@ -4,17 +4,20 @@ import type { Announcement } from '../model/entity/Announcement.js'
 export interface AnnouncementDetailRow {
     id: string
     communityId: string
+    activityId: string | null
     authorId: string
     title: string
     content: string
     createdAt: Date
     attachments: Array<{ id: string; fileUrl: string; mimeType: string }>
+    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string } | null
 }
 
 /** フィード取得用の生データ行（Prisma JOIN結果をそのまま返す） */
 export interface AnnouncementFeedRow {
     id: string
     communityId: string
+    activityId: string | null
     authorId: string
     title: string
     content: string
@@ -24,6 +27,7 @@ export interface AnnouncementFeedRow {
     communityName: string
     communityLogoUrl: string | null
     attachments: Array<{ id: string; fileUrl: string; mimeType: string }>
+    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string } | null
 }
 
 export interface IAnnouncementRepository {
@@ -41,7 +45,7 @@ export interface IAnnouncementRepository {
      */
     findFeedByCommunityIds(
         communityIds: string[],
-        options: { cursor?: string; limit: number },
+        options: { cursor?: string; limit: number; activityFilter?: boolean },
     ): Promise<AnnouncementFeedRow[]>
 
     /** UBL-4: テキスト検索 */

@@ -3,10 +3,10 @@ import { announcementFeedKeys, announcementKeys, announcementListKeys } from '@/
 import type { UpdateAnnouncementRequest } from '@/shared/types/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-export function useAnnouncements(communityId: string) {
+export function useAnnouncements(communityId: string, params?: { activityFilter?: boolean }) {
     return useQuery({
-        queryKey: announcementListKeys.byCommunity(communityId),
-        queryFn: () => announcementApi.list(communityId),
+        queryKey: [...announcementListKeys.byCommunity(communityId), { activityFilter: params?.activityFilter }],
+        queryFn: () => announcementApi.list(communityId, params),
         enabled: !!communityId,
     })
 }

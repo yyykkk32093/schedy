@@ -1,3 +1,4 @@
+import { NotFoundPage } from '@/app/pages/NotFoundPage'
 import { createPlatformPorts } from '@/app/platformDetect'
 import { PlatformProvider } from '@/app/providers/PlatformProvider'
 import { QueryProvider } from '@/app/providers/QueryProvider'
@@ -6,6 +7,7 @@ import { ActivityDetailPage } from '@/features/activity/pages/ActivityDetailPage
 import { ActivityEditPage } from '@/features/activity/pages/ActivityEditPage'
 import { ActivityListPage } from '@/features/activity/pages/ActivityListPage'
 import { ActivityTopPage } from '@/features/activity/pages/ActivityTopPage'
+import { AlbumCreatePage } from '@/features/album/pages/AlbumCreatePage'
 import { AnnouncementCreatePage } from '@/features/announcement/pages/AnnouncementCreatePage'
 import { AnnouncementDetailPage } from '@/features/announcement/pages/AnnouncementDetailPage'
 import { AnnouncementListPage } from '@/features/announcement/pages/AnnouncementListPage'
@@ -25,6 +27,7 @@ import { CommunitySearchPage } from '@/features/community/pages/CommunitySearchP
 import CommunitySettingsPage from '@/features/community/pages/CommunitySettingsPage'
 import InviteAcceptPage from '@/features/community/pages/InviteAcceptPage'
 import { MemberListPage } from '@/features/community/pages/MemberListPage'
+import { FinancePage } from '@/features/expense/pages/FinancePage'
 import { HomePage } from '@/features/home/pages/HomePage'
 import { NotificationListPage } from '@/features/notification/pages/NotificationListPage'
 import { RefundHistoryPage } from '@/features/participation/pages/RefundHistoryPage'
@@ -117,6 +120,13 @@ const router = createBrowserRouter([
                         handle: { title: '統計', showBack: true } satisfies RouteHandle,
                     },
 
+                    // Album
+                    {
+                        path: '/communities/:communityId/albums/new',
+                        element: <AlbumCreatePage />,
+                        handle: { title: 'アルバム作成', showBack: true } satisfies RouteHandle,
+                    },
+
                     // Activity（コミュニティ配下）
                     {
                         path: '/communities/:communityId/activities',
@@ -206,6 +216,13 @@ const router = createBrowserRouter([
                         handle: { title: '返金履歴', showBack: true } satisfies RouteHandle,
                     },
 
+                    // 経費・収支管理（管理者向け）
+                    {
+                        path: '/communities/:id/finance',
+                        element: <FinancePage />,
+                        handle: { title: '経費管理', showBack: true } satisfies RouteHandle,
+                    },
+
                     // MyPage (UBL-32)
                     {
                         path: '/mypage',
@@ -273,7 +290,7 @@ const router = createBrowserRouter([
             },
             {
                 path: '*',
-                element: <Navigate to="/login" replace />,
+                element: <NotFoundPage />,
             },
         ],
     },

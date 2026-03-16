@@ -63,14 +63,20 @@ export class AttendScheduleUseCase {
             })
             await repos.participation.add(participation)
 
-            // 有料参加の場合、Payment レコードを作成
+            // 有料参加の場合、Payment レコードを作成（participationId を紐付け）
+            const isVisitor = input.isVisitor ?? false
+            const fee = isVisitor
+                ? (schedule.getVisitorFee() ?? schedule.getParticipationFee() ?? 0)
+                : (schedule.getParticipationFee() ?? 0)
+
             if (input.paymentMethod) {
                 const payment = Payment.create({
                     id: this.idGenerator.generate(),
                     scheduleId: ScheduleId.create(input.scheduleId),
+                    participationId: id,
                     userId: UserId.create(input.userId),
                     paymentMethod: PaymentMethod.create(input.paymentMethod),
-                    amount: schedule.getParticipationFee() ?? 0,
+                    amount: fee,
                 })
                 await repos.payment.add(payment)
             }

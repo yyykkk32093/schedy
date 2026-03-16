@@ -27,7 +27,8 @@ export class UpdateScheduleUseCase {
         location?: string | null
         note?: string | null
         capacity?: number | null
-        participationFee?: number | null
+        participationFee?: number
+        visitorFee?: number | null
         isOnline?: boolean
         meetingUrl?: string | null
     }): Promise<void> {
@@ -54,6 +55,7 @@ export class UpdateScheduleUseCase {
                 note: input.note !== undefined ? input.note : undefined,
                 capacity: input.capacity !== undefined ? input.capacity : undefined,
                 participationFee: input.participationFee !== undefined ? input.participationFee : undefined,
+                visitorFee: input.visitorFee !== undefined ? input.visitorFee : undefined,
                 isOnline: input.isOnline !== undefined ? input.isOnline : undefined,
                 meetingUrl: input.meetingUrl !== undefined ? input.meetingUrl : undefined,
             })

@@ -12,6 +12,11 @@ import type { IActivityRepository } from '@/domains/activity/domain/repository/I
 import { Schedule } from '@/domains/activity/schedule/domain/model/entity/Schedule.js'
 import { ScheduleId } from '@/domains/activity/schedule/domain/model/valueObject/ScheduleId.js'
 import type { IScheduleRepository } from '@/domains/activity/schedule/domain/repository/IScheduleRepository.js'
+import { Announcement } from '@/domains/announcement/domain/model/entity/Announcement.js'
+import { AnnouncementContent } from '@/domains/announcement/domain/model/valueObject/AnnouncementContent.js'
+import { AnnouncementId } from '@/domains/announcement/domain/model/valueObject/AnnouncementId.js'
+import { AnnouncementTitle } from '@/domains/announcement/domain/model/valueObject/AnnouncementTitle.js'
+import type { IAnnouncementRepository } from '@/domains/announcement/domain/repository/IAnnouncementRepository.js'
 import { CommunityId } from '@/domains/community/domain/model/valueObject/CommunityId.js'
 import type { ICommunityRepository } from '@/domains/community/domain/repository/ICommunityRepository.js'
 import type { ICommunityMembershipRepository } from '@/domains/community/membership/domain/repository/ICommunityMembershipRepository.js'
@@ -22,6 +27,7 @@ export type CreateActivityTxRepositories = {
     community: ICommunityRepository
     membership: ICommunityMembershipRepository
     schedule: IScheduleRepository
+    announcement: IAnnouncementRepository
 }
 
 export class CreateActivityUseCase {
@@ -42,10 +48,12 @@ export class CreateActivityUseCase {
         organizerUserId?: string | null
         date?: string | null          // 初回 Schedule の開催日 (YYYY-MM-DD)。Activity の属性ではない
         participationFee?: number | null
+        visitorFee?: number | null
         isOnline?: boolean
         meetingUrl?: string | null
         capacity?: number | null
         userId: string
+        shouldPostAnnouncement?: boolean  // Phase3 #4: お知らせ同時投稿
     }): Promise<{ activityId: string; scheduleId?: string }> {
         let activityId = ''
         let scheduleId: string | undefined
@@ -92,12 +100,29 @@ export class CreateActivityUseCase {
                     endTime: TimeOfDay.create(input.defaultEndTime ?? '10:00'),
                     location: input.defaultLocation ?? null,
                     participationFee: input.participationFee ?? null,
+                    visitorFee: input.visitorFee ?? null,
                     isOnline: input.isOnline ?? false,
                     meetingUrl: input.meetingUrl ?? null,
                     capacity: input.capacity ?? null,
                 })
                 await repos.schedule.save(schedule)
                 scheduleId = sid.getValue()
+            }
+
+            // Phase3 #4: お知らせ同時投稿
+            if (input.shouldPostAnnouncement) {
+                const announcementId = AnnouncementId.create(this.idGenerator.generate())
+                const announcement = Announcement.create({
+                    id: announcementId,
+                    communityId: CommunityId.create(input.communityId),
+                    authorId: UserId.create(input.userId),
+                    title: AnnouncementTitle.create(input.title),
+                    content: AnnouncementContent.create(
+                        `アクティビティ「${input.title}」が作成されました。`,
+                    ),
+                    activityId: id,
+                })
+                await repos.announcement.save(announcement)
             }
         })
 

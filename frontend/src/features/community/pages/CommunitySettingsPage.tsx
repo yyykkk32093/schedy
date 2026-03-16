@@ -1,31 +1,37 @@
 import { useAuth } from '@/app/providers/AuthProvider'
-import { communityApi } from '@/features/community/api/communityApi'
 import { useCommunity, useMembers, useUpdateCommunity } from '@/features/community/hooks/useCommunityQueries'
 import { useAuditLogs, useChangeMemberRole, useRemoveMember } from '@/features/community/hooks/useCommunitySettingsQueries'
-import { WebhookSettings } from '@/features/webhook/components/WebhookSettings'
+import { UnsavedChangesDialog } from '@/shared/components/UnsavedChangesDialog'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
+import { Label } from '@/shared/components/ui/label'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/shared/components/ui/select'
+import { Separator } from '@/shared/components/ui/separator'
 import { Textarea } from '@/shared/components/ui/textarea'
 import { uploadFile } from '@/shared/lib/uploadClient'
-import { useMutation } from '@tanstack/react-query'
+import { useUnsavedChangesWarning } from '@/shared/lib/useUnsavedChangesWarning'
 import {
     Camera,
     ChevronDown,
     ChevronRight,
-    Copy,
-    CreditCard,
     Crown,
     ExternalLink,
     History,
-    Link2,
     Shield,
     UserMinus,
     Users
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 
-type Section = 'profile' | 'payment' | 'invite' | 'members' | 'audit' | 'webhook'
+type Section = 'settings' | 'members' | 'audit' | 'webhook'
 
 export default function CommunitySettingsPage() {
     const { id: communityId } = useParams<{ id: string }>()
@@ -37,12 +43,7 @@ export default function CommunitySettingsPage() {
     const changeRole = useChangeMemberRole(communityId!)
     const removeMember = useRemoveMember(communityId!)
 
-    const generateInvite = useMutation({
-        mutationFn: () => communityApi.generateInviteToken(communityId!),
-    })
-
-    const [openSection, setOpenSection] = useState<Section | null>('profile')
-    const [inviteLink, setInviteLink] = useState<string | null>(null)
+    const [openSection, setOpenSection] = useState<Section | null>('settings')
 
     // ---- Profile form state ----
     const [name, setName] = useState('')
@@ -56,6 +57,12 @@ export default function CommunitySettingsPage() {
     const [payPayId, setPayPayId] = useState('')
     const [enabledMethods, setEnabledMethods] = useState<string[]>(['CASH'])
 
+    // ---- Join / visibility form state ----
+    const [joinMethod, setJoinMethod] = useState<'FREE_JOIN' | 'APPROVAL' | 'INVITATION'>('FREE_JOIN')
+    const [isPublic, setIsPublic] = useState(true)
+    const [mainActivityArea, setMainActivityArea] = useState('')
+    const [activityFrequency, setActivityFrequency] = useState('')
+
     useEffect(() => {
         if (community) {
             setName(community.name)
@@ -64,8 +71,37 @@ export default function CommunitySettingsPage() {
             setCoverUrl(community.coverUrl)
             setPayPayId(community.payPayId ?? '')
             setEnabledMethods(community.enabledPaymentMethods ?? ['CASH'])
+            setJoinMethod((community.joinMethod as 'FREE_JOIN' | 'APPROVAL' | 'INVITATION') ?? 'FREE_JOIN')
+            setIsPublic(community.isPublic ?? true)
+            setMainActivityArea(community.mainActivityArea ?? '')
+            setActivityFrequency(community.activityFrequency ?? '')
         }
     }, [community])
+
+    // #44: 統合dirty判定（Hooksのルール遵守のため早期returnより前で算出）
+    const profileDirty = community != null && (
+        name !== community.name ||
+        description !== (community.description ?? '') ||
+        logoUrl !== community.logoUrl ||
+        coverUrl !== community.coverUrl
+    )
+
+    const paymentDirty = community != null && (
+        payPayId !== (community.payPayId ?? '') ||
+        JSON.stringify(enabledMethods) !== JSON.stringify(community.enabledPaymentMethods ?? ['CASH'])
+    )
+
+    const joinDirty = community != null && (
+        joinMethod !== ((community.joinMethod as 'FREE_JOIN' | 'APPROVAL' | 'INVITATION') ?? 'FREE_JOIN') ||
+        isPublic !== (community.isPublic ?? true) ||
+        mainActivityArea !== (community.mainActivityArea ?? '') ||
+        activityFrequency !== (community.activityFrequency ?? '')
+    )
+
+    const isDirty = profileDirty || paymentDirty || joinDirty
+
+    // #47: 未保存時の離脱警告（早期returnより前に配置）
+    const { isBlocked, proceed, cancel } = useUnsavedChangesWarning(isDirty)
 
     if (isLoading || !community) {
         return <div className="flex items-center justify-center h-64 text-gray-400">読み込み中...</div>
@@ -97,19 +133,21 @@ export default function CommunitySettingsPage() {
         setCoverUrl(result.url)
     }
 
-    const handleSaveProfile = () => {
+    /** #44: プロフィール+支払い+参加設定を一括保存 */
+    const handleSaveAll = () => {
         updateCommunity.mutate({
             name: name !== community.name ? name : undefined,
             description: description !== (community.description ?? '') ? description : undefined,
             logoUrl: logoUrl !== community.logoUrl ? logoUrl : undefined,
             coverUrl: coverUrl !== community.coverUrl ? coverUrl : undefined,
-        })
-    }
-
-    const handleSavePayment = () => {
-        updateCommunity.mutate({
             payPayId: payPayId || null,
             enabledPaymentMethods: enabledMethods,
+            joinMethod,
+            isPublic,
+            mainActivityArea: mainActivityArea.trim() || null,
+            activityFrequency: activityFrequency.trim() || null,
+        }, {
+            onSuccess: () => toast.success('保存しました'),
         })
     }
 
@@ -117,6 +155,12 @@ export default function CommunitySettingsPage() {
         setEnabledMethods(prev =>
             prev.includes(method) ? prev.filter(m => m !== method) : [...prev, method]
         )
+    }
+
+    // isPublic=false → 強制 INVITATION（バックエンドのビジネスルールと同期）
+    const handlePublicChange = (pub: boolean) => {
+        setIsPublic(pub)
+        if (!pub) setJoinMethod('INVITATION')
     }
 
     const handleChangeRole = (userId: string, role: string) => {
@@ -131,21 +175,14 @@ export default function CommunitySettingsPage() {
         }
     }
 
-    const profileDirty =
-        name !== community.name ||
-        description !== (community.description ?? '') ||
-        logoUrl !== community.logoUrl ||
-        coverUrl !== community.coverUrl
-
-    const paymentDirty =
-        payPayId !== (community.payPayId ?? '') ||
-        JSON.stringify(enabledMethods) !== JSON.stringify(community.enabledPaymentMethods ?? ['CASH'])
-
     return (
         <div className="space-y-2 pb-24">
-            {/* ===== Profile Section ===== */}
-            <SectionHeader icon={<Users size={18} />} title="プロフィール編集" section="profile" open={openSection === 'profile'} toggle={toggle} />
-            {openSection === 'profile' && (
+            {/* #47: 未保存警告ダイアログ */}
+            <UnsavedChangesDialog open={isBlocked} onDiscard={proceed} onCancel={cancel} />
+
+            {/* ===== #44: コミュニティ設定セクション（プロフィール+支払い統合） ===== */}
+            <SectionHeader icon={<Users size={18} />} title="コミュニティ設定" section="settings" open={openSection === 'settings'} toggle={toggle} />
+            {openSection === 'settings' && (
                 <div className="space-y-4 px-4 pb-4">
                     {/* Cover */}
                     <div className="relative">
@@ -184,16 +221,10 @@ export default function CommunitySettingsPage() {
                         <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} placeholder="コミュニティの説明" />
                     </div>
 
-                    <Button onClick={handleSaveProfile} disabled={!profileDirty || updateCommunity.isPending} className="w-full">
-                        {updateCommunity.isPending ? '保存中...' : 'プロフィールを保存'}
-                    </Button>
-                </div>
-            )}
+                    <Separator className="my-4" />
 
-            {/* ===== Payment Section ===== */}
-            <SectionHeader icon={<CreditCard size={18} />} title="支払い設定" section="payment" open={openSection === 'payment'} toggle={toggle} />
-            {openSection === 'payment' && (
-                <div className="space-y-4 px-4 pb-4">
+                    {/* 支払い設定セクション */}
+                    <p className="text-xs font-semibold text-gray-500">支払い設定</p>
                     <div>
                         <label className="text-xs text-gray-500">PayPay ID</label>
                         <Input value={payPayId} onChange={e => setPayPayId(e.target.value)} placeholder="PayPay ID" />
@@ -214,43 +245,48 @@ export default function CommunitySettingsPage() {
                         ))}
                     </div>
 
-                    <Button onClick={handleSavePayment} disabled={!paymentDirty || updateCommunity.isPending} className="w-full">
-                        {updateCommunity.isPending ? '保存中...' : '支払い設定を保存'}
-                    </Button>
-                </div>
-            )}
+                    <Separator className="my-4" />
 
-            {/* ===== Invite Section ===== */}
-            <SectionHeader icon={<Link2 size={18} />} title="招待リンク" section="invite" open={openSection === 'invite'} toggle={toggle} />
-            {openSection === 'invite' && (
-                <div className="space-y-4 px-4 pb-4">
-                    <p className="text-xs text-gray-500">招待リンクを生成してメンバーを招待できます（有効期限7日）</p>
-                    <Button
-                        onClick={async () => {
-                            const result = await generateInvite.mutateAsync()
-                            const link = `${window.location.origin}/invites/${result.token}/accept`
-                            setInviteLink(link)
-                        }}
-                        disabled={generateInvite.isPending}
-                        className="w-full"
-                    >
-                        {generateInvite.isPending ? '生成中...' : '招待リンクを生成'}
-                    </Button>
-
-                    {inviteLink && (
-                        <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                            <p className="text-xs text-gray-600 flex-1 break-all">{inviteLink}</p>
-                            <button
-                                onClick={() => {
-                                    navigator.clipboard.writeText(inviteLink)
-                                    alert('リンクをコピーしました')
-                                }}
-                                className="flex-shrink-0 text-blue-500 hover:bg-blue-50 p-2 rounded"
-                            >
-                                <Copy size={16} />
-                            </button>
+                    {/* 参加・公開設定 */}
+                    <p className="text-xs font-semibold text-gray-500">参加・公開設定</p>
+                    <div className="space-y-1.5">
+                        <Label>公開設定</Label>
+                        <div className="flex gap-2">
+                            <Button type="button" variant={isPublic ? 'default' : 'outline'} size="sm" onClick={() => handlePublicChange(true)}>公開</Button>
+                            <Button type="button" variant={!isPublic ? 'default' : 'outline'} size="sm" onClick={() => handlePublicChange(false)}>非公開</Button>
                         </div>
-                    )}
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label>参加方式</Label>
+                        <Select value={joinMethod} onValueChange={(v) => setJoinMethod(v as typeof joinMethod)} disabled={!isPublic}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="FREE_JOIN">自由参加</SelectItem>
+                                <SelectItem value="APPROVAL">承認制</SelectItem>
+                                <SelectItem value="INVITATION">招待制</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {!isPublic && (
+                            <p className="text-xs text-gray-500">非公開コミュニティは招待制になります</p>
+                        )}
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="mainActivityArea">主な活動エリア</Label>
+                        <Input id="mainActivityArea" value={mainActivityArea} onChange={e => setMainActivityArea(e.target.value)} placeholder="例: 渋谷区" />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="activityFrequency">活動頻度</Label>
+                        <Input id="activityFrequency" value={activityFrequency} onChange={e => setActivityFrequency(e.target.value)} placeholder="例: 毎週土曜日" />
+                    </div>
+
+                    <Button onClick={handleSaveAll} disabled={!isDirty || updateCommunity.isPending} className="w-full">
+                        {updateCommunity.isPending ? '保存中...' : '設定を保存'}
+                    </Button>
                 </div>
             )}
 
@@ -325,34 +361,132 @@ export default function CommunitySettingsPage() {
                 </div>
             )}
 
-            {/* ===== Audit Log Section ===== */}
-            <SectionHeader icon={<History size={18} />} title="監査ログ" section="audit" open={openSection === 'audit'} toggle={toggle} />
+            {/* ===== Audit Log Section (#45: コミュニティ設定変更履歴) ===== */}
+            <SectionHeader icon={<History size={18} />} title="コミュニティ設定変更履歴" section="audit" open={openSection === 'audit'} toggle={toggle} />
             {openSection === 'audit' && (
                 <div className="space-y-1 px-4 pb-4 max-h-96 overflow-y-auto">
                     {auditData?.logs.length === 0 && (
-                        <p className="text-sm text-gray-400 text-center py-4">監査ログはまだありません</p>
+                        <p className="text-sm text-gray-400 text-center py-4">設定変更履歴はまだありません</p>
                     )}
                     {auditData?.logs.map(log => (
                         <div key={log.id} className="text-sm py-2 border-b border-gray-50 last:border-0">
-                            <p className="text-gray-700">{log.summary}</p>
+                            <p className="text-gray-700">{formatAuditSummary(log)}</p>
                             <p className="text-xs text-gray-400 mt-0.5">
+                                {log.actorDisplayName ?? log.actorUserId.slice(0, 8)}
+                                {' · '}
                                 {new Date(log.createdAt).toLocaleString('ja-JP')}
-                                {log.field && <span className="ml-2">({log.field})</span>}
                             </p>
                         </div>
                     ))}
                 </div>
             )}
 
-            {/* ===== Webhook Section (UBL-29) ===== */}
+            {/* ===== Webhook Section (#48: 準備中) ===== */}
             <SectionHeader icon={<ExternalLink size={18} />} title="外部連携" section="webhook" open={openSection === 'webhook'} toggle={toggle} />
             {openSection === 'webhook' && (
                 <div className="px-4 pb-4">
-                    <WebhookSettings communityId={communityId!} />
+                    <p className="text-sm text-gray-400 text-center py-6">準備中です</p>
                 </div>
             )}
         </div>
     )
+}
+
+// ---- Audit log helpers ----
+
+/** 監査ログの物理フィールド名 → 日本語ラベル */
+const AUDIT_FIELD_LABELS: Record<string, string> = {
+    name: 'コミュニティ名',
+    description: '説明',
+    visibility: '公開設定',
+    logoUrl: 'ロゴ画像',
+    coverUrl: 'カバー画像',
+    grade: 'グレード',
+    enabledPaymentMethods: '支払い方法設定',
+    payPayId: 'PayPay ID',
+    reminderEnabled: 'リマインダー設定',
+    role: 'ロール',
+    joinMethod: '参加方式',
+    isPublic: '公開設定',
+    mainActivityArea: '活動エリア',
+    activityFrequency: '活動頻度',
+}
+
+/** before / after の物理値 → 表示用ラベル */
+const AUDIT_VALUE_LABELS: Record<string, string> = {
+    // enabledPaymentMethods
+    CASH: '現金',
+    PAYPAY: 'PayPay',
+    STRIPE: 'カード',
+    // visibility / isPublic
+    PUBLIC: '公開',
+    PRIVATE: '非公開',
+    true: 'はい',
+    false: 'いいえ',
+    // joinMethod
+    OPEN: '自由参加',
+    APPROVAL: '承認制',
+    INVITE_ONLY: '招待のみ',
+    // role
+    OWNER: 'オーナー',
+    ADMIN: '管理者',
+    MEMBER: 'メンバー',
+    // reminderEnabled
+    ENABLED: '有効',
+    DISABLED: '無効',
+}
+
+/** カンマ区切りの値も含め、物理値を論理名に変換 */
+function humanizeValue(raw: string | null): string {
+    if (raw == null || raw === '') return 'なし'
+    // カンマ区切り（例: "CASH,PAYPAY"）
+    if (raw.includes(',')) {
+        return raw.split(',').map(v => AUDIT_VALUE_LABELS[v.trim()] ?? v.trim()).join(', ')
+    }
+    return AUDIT_VALUE_LABELS[raw] ?? raw
+}
+
+/** summary 内の物理フィールド名を論理名に置換し、before/after を付与 */
+function formatAuditSummary(log: {
+    summary: string
+    actorDisplayName: string | null
+    actorUserId: string
+    field: string | null
+    before: string | null
+    after: string | null
+}): string {
+    let text = log.summary
+    // 長いキーから先に置換（部分一致の誤置換を防止）
+    const sorted = Object.entries(AUDIT_FIELD_LABELS)
+        .sort(([a], [b]) => b.length - a.length)
+    for (const [physical, logical] of sorted) {
+        // 単語境界で囲まれた物理名を論理名に置換
+        const regex = new RegExp(`\\b${physical}\\b`, 'g')
+        text = text.replace(regex, logical)
+    }
+    // ユーザー関連アクション（ロール変更・退室・委譲）の (名前) → (ユーザ名：名前)
+    const userActionPatterns = [
+        /ロールを .+ に変更しました/,
+        /退室させました/,
+        /委譲しました/,
+    ]
+    if (userActionPatterns.some(p => p.test(text))) {
+        text = text.replace(/\(([^)]+)\)/, '(ユーザ名：$1)')
+    }
+    // before / after がある場合、変更前後を付与（ロール変更等・画像系は除外）
+    const skipBeforeAfterFields = new Set(['logoUrl', 'coverUrl'])
+    const skipDiff = userActionPatterns.some(p => p.test(text))
+        || (log.field != null && skipBeforeAfterFields.has(log.field))
+    if (!skipDiff) {
+        if (log.before != null && log.after != null) {
+            text += `（${humanizeValue(log.before)} → ${humanizeValue(log.after)}）`
+        } else if (log.before == null && log.after != null) {
+            text += `（なし → ${humanizeValue(log.after)}）`
+        } else if (log.before != null && log.after == null) {
+            text += `（${humanizeValue(log.before)} → なし）`
+        }
+    }
+    return text
 }
 
 // ---- Helper components ----

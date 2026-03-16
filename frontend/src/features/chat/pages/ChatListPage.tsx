@@ -2,8 +2,34 @@ import { ChannelListItem } from '@/features/chat/components/ChannelListItem'
 import { ChannelSection } from '@/features/chat/components/ChannelSection'
 import { ChatSearchBar } from '@/features/chat/components/ChatSearchBar'
 import { useMyChannels } from '@/features/chat/hooks/useChatQueries'
-import { Loader2, MessageCircle } from 'lucide-react'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible'
+import type { MyActivityChannel } from '@/shared/types/api'
+import { ChevronDown, Loader2, MessageCircle } from 'lucide-react'
 import { useMemo, useState } from 'react'
+
+/** アクティビティチャンネルの表示名を「アクティビティ名：開催日時」に整形 */
+function formatActivityChannelName(ch: MyActivityChannel): string {
+    if (ch.scheduleDate && ch.scheduleStartTime && ch.scheduleEndTime) {
+        return `${ch.name}：${ch.scheduleDate} ${ch.scheduleStartTime}〜${ch.scheduleEndTime}`
+    }
+    return ch.name
+}
+
+/** コミュニティ名で展開・非展開できるサブグループ */
+function CommunityGroup({ name, children }: { name: string; children: React.ReactNode }) {
+    const [open, setOpen] = useState(true)
+    return (
+        <Collapsible open={open} onOpenChange={setOpen}>
+            <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-2 hover:bg-gray-50 transition-colors">
+                <span className="text-xs font-semibold text-gray-500">{name}</span>
+                <ChevronDown
+                    className={`h-3.5 w-3.5 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+                />
+            </CollapsibleTrigger>
+            <CollapsibleContent>{children}</CollapsibleContent>
+        </Collapsible>
+    )
+}
 
 /**
  * ChatListPage — チャット一覧画面
@@ -92,18 +118,31 @@ export function ChatListPage() {
                         </ChannelSection>
                     )}
 
-                    {/* Activity セクション */}
+                    {/* Activity セクション（コミュニティ名でグルーピング＋展開・非展開） */}
                     {activity.length > 0 && (
                         <ChannelSection title="Activity" defaultOpen count={activity.length}>
-                            {activity.map((ch) => (
-                                <ChannelListItem
-                                    key={ch.channelId}
-                                    channelId={ch.channelId}
-                                    name={ch.name}
-                                    subtitle={ch.subtitle}
-                                    lastMessage={ch.lastMessage}
-                                />
-                            ))}
+                            {(() => {
+                                // コミュニティ名でグルーピング
+                                const grouped = new Map<string, typeof activity>()
+                                for (const ch of activity) {
+                                    const key = ch.communityName || ch.subtitle || '不明'
+                                    const arr = grouped.get(key) ?? []
+                                    arr.push(ch)
+                                    grouped.set(key, arr)
+                                }
+                                return Array.from(grouped.entries()).map(([communityName, channels]) => (
+                                    <CommunityGroup key={communityName} name={communityName}>
+                                        {channels.map((ch) => (
+                                            <ChannelListItem
+                                                key={ch.channelId}
+                                                channelId={ch.channelId}
+                                                name={formatActivityChannelName(ch)}
+                                                lastMessage={ch.lastMessage}
+                                            />
+                                        ))}
+                                    </CommunityGroup>
+                                ))
+                            })()}
                         </ChannelSection>
                     )}
 

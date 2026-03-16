@@ -8,4 +8,5 @@ export interface IParticipationRepository {
     add(participation: Participation): Promise<void>
     update(participation: Participation): Promise<void>
     delete(scheduleId: string, userId: string): Promise<void>
+    deleteById(id: string): Promise<void>
 }

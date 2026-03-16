@@ -15,6 +15,7 @@ interface WsMessage {
     isPinned: boolean
     attachments: unknown[]
     reactions: unknown[]
+    deletedBy?: string | null
     createdAt: string
 }
 
@@ -25,6 +26,11 @@ interface WsTyping {
 
 interface WsReactionUpdated {
     messageId: string
+}
+
+interface WsMessageDeleted {
+    messageId: string
+    channelId: string
 }
 
 // ─── Hook ────────────────────────────────────────────────
@@ -148,6 +154,33 @@ export function useSocketChat({ channelId }: UseSocketChatOptions): UseSocketCha
         socket.on('reaction:updated', handleReactionUpdated)
         return () => {
             socket.off('reaction:updated', handleReactionUpdated)
+        }
+    }, [socket, channelId, qc])
+
+    // ── message:deleted リスナー ──
+    useEffect(() => {
+        if (!socket || !channelId) return
+
+        const handleMessageDeleted = (data: WsMessageDeleted) => {
+            if (data.channelId !== channelId) return
+            // 削除されたメッセージのキャッシュを更新（deletedBy をセット）
+            qc.setQueryData<{ messages: WsMessage[] }>(
+                messageListKeys.byChannel(channelId),
+                (old) => {
+                    if (!old) return old
+                    return {
+                        ...old,
+                        messages: old.messages.map((m) =>
+                            m.id === data.messageId ? { ...m, deletedBy: 'deleted' } : m,
+                        ),
+                    }
+                },
+            )
+        }
+
+        socket.on('message:deleted', handleMessageDeleted)
+        return () => {
+            socket.off('message:deleted', handleMessageDeleted)
         }
     }, [socket, channelId, qc])
 

@@ -49,10 +49,11 @@ export class CancelScheduleUseCase {
             // 通知: 全参加者に SCHEDULE_CANCELLED 通知
             const participations = await repos.participation.findsByScheduleId(input.scheduleId)
             for (const p of participations) {
-                if (p.getUserId().getValue() === input.userId) continue // キャンセル実行者自身は除外
+                const pUserId = p.getUserId()?.getValue()
+                if (!pUserId || pUserId === input.userId) continue // ゲストビジターやキャンセル実行者は除外
 
                 await this.notificationService.prepareNotification(repos, {
-                    userId: p.getUserId().getValue(),
+                    userId: pUserId,
                     type: 'SCHEDULE_CANCELLED',
                     title: 'スケジュールが取り消されました',
                     body: `${activity.getTitle()} のスケジュールが取り消されました`,

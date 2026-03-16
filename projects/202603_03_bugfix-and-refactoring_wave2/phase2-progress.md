@@ -1,5 +1,52 @@
 # Phase 2 — UI/UX改善（フロント中心）
 
+> **最終更新**: 2026-03-15
+> **ステータス**: ✅ Phase 2 完了（28/28）
+
+## タスクステータス一覧
+
+| #   | タスク                           | グループ | 状態   | 備考                                                        |
+| --- | -------------------------------- | -------- | ------ | ----------------------------------------------------------- |
+| 2   | お知らせ: プロフィール画像拡大   | A        | ✅ 完了 | ImagePreviewModal共通化済み                                 |
+| 3   | お知らせ: 経過時間表示改善       | A        | ✅ 完了 | formatRelativeTime + Tooltip                                |
+| 6   | お知らせ: 詳細画面遷移改善       | A        | ✅ 完了 | FeedCard本文・コメントボタン→詳細遷移                       |
+| 7   | お知らせ: 詳細画面開封時既読     | A        | ✅ 完了 | FE: useEffect+markAsRead / BE: upsertで冪等                 |
+| 8   | お知らせ: 一覧文字数制限         | A        | ✅ 完了 | line-clamp-4 適用                                           |
+| 9   | お知らせ: 既読数表示             | A        | ✅ 完了 | BE: countByAnnouncementIds追加 / FE: readCount表示          |
+| 10  | コミュニティ詳細: 集金管理       | B        | ✅ 完了 | ラベル差替え                                                |
+| 11  | コミュニティ詳細: 返金一覧       | B        | ✅ 完了 | ラベル差替え                                                |
+| 14  | コミュニティ詳細: 画像拡大       | B        | ✅ 完了 | カバー/ロゴ→ImagePreviewGallery                             |
+| 15  | コミュニティ詳細: 招待ボタン     | B        | ✅ 完了 | CommunityProfileHeaderに追加                                |
+| 22  | チャット: 行数制限               | C        | ✅ 完了 | line-clamp-[60] + 「全て表示」リンク                        |
+| 23  | チャット: 送信者名表示           | C        | ✅ 完了 | BE: Message→User JOIN追加 / FE: senderName+アバター画像対応 |
+| 24  | チャット: 添付画像プレビュー     | C        | ✅ 完了 | ImagePreviewGalleryでサムネイル表示                         |
+| 26  | チャット: マイクアイコン削除     | C        | ✅ 完了 | MessageInputから削除済み                                    |
+| 27  | チャット: 絵文字アイコン削除     | C        | ✅ 完了 | MessageInputから削除済み                                    |
+| 28  | チャット: 送受信時間表示         | C        | ✅ 完了 | formatTime(hh:mm)表示                                       |
+| 30  | アルバム: 右上ボタン廃止         | F        | ✅ 完了 | FABのみに統一                                               |
+| 34  | アクティビティ: 過去ボタン非活性 | D        | ✅ 完了 | isExpired判定で「この予定は終了しました」表示               |
+| 35  | アクティビティ: 後で支払う       | D        | ✅ 完了 | モーダルに「後で支払う」追加                                |
+| 43  | 設定: 招待リンク動線廃止         | E        | ✅ 完了 | セクション削除済み                                          |
+| 44  | 設定: プロフィール+支払い統合    | E        | ✅ 完了 | handleSaveAllで一括保存                                     |
+| 45  | 設定: 監査ログ→変更履歴          | E        | ✅ 完了 | ラベル差替え                                                |
+| 47  | 設定: 未保存時注意喚起           | E        | ✅ 完了 | useUnsavedChangesWarning + UnsavedChangesDialog             |
+| 48  | 設定: 外部連携蓋閉じ             | E        | ✅ 完了 | 「準備中です」表示                                          |
+| 52  | コミュニティ一覧: FAB化          | F        | ✅ 完了 | split FAB（検索+作成）                                      |
+| 55  | 通知: ステータス日本語化         | F        | ✅ 完了 | 全17タイプのマッピング                                      |
+| 57  | マイページ: 未保存アラート       | F        | ✅ 完了 | useUnsavedChangesWarning                                    |
+| 58  | マイページ: 保存フィードバック   | F        | ✅ 完了 | toast.success('保存しました')                               |
+
+### 完了報告
+
+全28タスク完了。主要な追加対応:
+- **#23 BE**: PrismaスキーマにMessage→Userの`sender`リレーション追加。メッセージ一覧/検索/スレッド返信APIでUser JOINし`senderDisplayName`/`senderAvatarUrl`を返却
+- **#23 FE**: `MessageItem`型にフィールド追加。`ChatView`から`MessageBubble`に`senderName`/`senderAvatarUrl`を渡すよう修正。アバターに`AvatarImage`追加
+- **#9 BE**: `IAnnouncementReadRepository`に`countByAnnouncementIds`追加。Feed/List/Search/Find全UseCaseに`readCount`追加
+- **#47/#57 FEバグ修正**: `useUnsavedChangesWarning`を早期return前に移動（Hooksルール違反修正）
+- **#52 FEバグ修正**: FABのプロップ修正 + デザイン調整（白背景+区切り線+陰影強化）
+
+---
+
 ## フェーズ概要
 - **ゴール**: フロントのみ（または軽微なバックエンド変更）で完結するUI/UX改善を一括実施
 - **対象**: #2, #3, #6, #7, #8, #9, #10, #11, #14, #15, #22, #23, #24, #26, #27, #28, #30, #34, #35, #43, #44, #45, #47, #48, #52, #55, #57, #58

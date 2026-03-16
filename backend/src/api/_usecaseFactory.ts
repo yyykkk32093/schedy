@@ -54,6 +54,7 @@ import { RequestJoinCommunityTxRepositories, RequestJoinCommunityUseCase } from 
 import { SearchCommunitiesUseCase } from '@/application/community/usecase/SearchCommunitiesUseCase.js'
 import { SoftDeleteCommunityTxRepositories, SoftDeleteCommunityUseCase } from '@/application/community/usecase/SoftDeleteCommunityUseCase.js'
 import { UpdateCommunityTxRepositories, UpdateCommunityUseCase } from '@/application/community/usecase/UpdateCommunityUseCase.js'
+import { AddGuestVisitorTxRepositories, AddGuestVisitorUseCase } from '@/application/participation/usecase/AddGuestVisitorUseCase.js'
 import { AttendScheduleTxRepositories, AttendScheduleUseCase } from '@/application/participation/usecase/AttendScheduleUseCase.js'
 import { CancelParticipationTxRepositories, CancelParticipationUseCase } from '@/application/participation/usecase/CancelParticipationUseCase.js'
 import { CancelWaitlistTxRepositories, CancelWaitlistUseCase } from '@/application/participation/usecase/CancelWaitlistUseCase.js'
@@ -72,6 +73,7 @@ import { MarkRefundCompletedUseCase } from '@/application/participation/usecase/
 import { RemoveParticipantByAdminTxRepositories, RemoveParticipantByAdminUseCase } from '@/application/participation/usecase/RemoveParticipantByAdminUseCase.js'
 import { ReportPaymentUseCase } from '@/application/participation/usecase/ReportPaymentUseCase.js'
 import { RevertRefundStatusUseCase } from '@/application/participation/usecase/RevertRefundStatusUseCase.js'
+import { UpdateVisitorPaymentTxRepositories, UpdateVisitorPaymentUseCase } from '@/application/participation/usecase/UpdateVisitorPaymentUseCase.js'
 
 import { AddAlbumPhotoUseCase } from '@/application/album/usecase/AddAlbumPhotoUseCase.js'
 import { CreateAlbumUseCase } from '@/application/album/usecase/CreateAlbumUseCase.js'
@@ -142,6 +144,14 @@ import type { IOAuthProviderClient } from '@/integration/oauth/IOAuthProviderCli
 import { LineOAuthProviderClient } from '@/integration/oauth/LineOAuthProviderClient.js'
 import { OutboxRepository } from '@/integration/outbox/repository/OutboxRepository.js'
 import { StripeServiceImpl } from '@/integration/stripe/StripeServiceImpl.js'
+
+import { CreateExpenseTxRepositories, CreateExpenseUseCase } from '@/application/expense/usecase/CreateExpenseUseCase.js'
+import { DeleteExpenseTxRepositories, DeleteExpenseUseCase } from '@/application/expense/usecase/DeleteExpenseUseCase.js'
+import { GetFinanceSummaryUseCase } from '@/application/expense/usecase/GetFinanceSummaryUseCase.js'
+import { ListExpenseCategoriesUseCase } from '@/application/expense/usecase/ListExpenseCategoriesUseCase.js'
+import { ListExpensesUseCase } from '@/application/expense/usecase/ListExpensesUseCase.js'
+import { ExpenseCategoryRepositoryImpl } from '@/domains/expense/infrastructure/repository/ExpenseCategoryRepositoryImpl.js'
+import { ExpenseRepositoryImpl } from '@/domains/expense/infrastructure/repository/ExpenseRepositoryImpl.js'
 
 
 /**
@@ -354,6 +364,7 @@ export const usecaseFactory = {
             community: new CommunityRepositoryImpl(tx),
             membership: new CommunityMembershipRepositoryImpl(tx),
             schedule: new ScheduleRepositoryImpl(tx),
+            announcement: new AnnouncementRepositoryImpl(tx),
         }))
         return new CreateActivityUseCase(new UuidGenerator(), unitOfWork)
     },
@@ -531,7 +542,13 @@ export const usecaseFactory = {
     },
 
     createFindAnnouncementUseCase() {
-        return new FindAnnouncementUseCase(new AnnouncementRepositoryImpl(prisma))
+        return new FindAnnouncementUseCase(
+            new AnnouncementRepositoryImpl(prisma),
+            new AnnouncementReadRepositoryImpl(prisma),
+            new AnnouncementLikeRepositoryImpl(prisma),
+            new AnnouncementCommentRepositoryImpl(prisma),
+            new AnnouncementBookmarkRepositoryImpl(prisma),
+        )
     },
 
     createListAnnouncementsUseCase() {
@@ -720,6 +737,7 @@ export const usecaseFactory = {
     createListCommunityAuditLogsUseCase() {
         return new ListCommunityAuditLogsUseCase(
             new CommunityAuditLogRepositoryImpl(prisma),
+            prisma,
         )
     },
 
@@ -880,6 +898,60 @@ export const usecaseFactory = {
             new PaymentRepositoryImpl(prisma),
             new UserRepositoryImpl(prisma),
             prisma,
+        )
+    },
+
+    // ---- Guest Visitor ----
+    createAddGuestVisitorUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<AddGuestVisitorTxRepositories>((tx) => ({
+            schedule: new ScheduleRepositoryImpl(tx),
+            participation: new ParticipationRepositoryImpl(tx),
+            payment: new PaymentRepositoryImpl(tx),
+        }))
+        return new AddGuestVisitorUseCase(new UuidGenerator(), unitOfWork)
+    },
+
+    createUpdateVisitorPaymentUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<UpdateVisitorPaymentTxRepositories>((tx) => ({
+            payment: new PaymentRepositoryImpl(tx),
+        }))
+        return new UpdateVisitorPaymentUseCase(unitOfWork)
+    },
+
+    // ---- Expense ----
+    createCreateExpenseUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<CreateExpenseTxRepositories>((tx) => ({
+            expense: new ExpenseRepositoryImpl(tx),
+            membership: new CommunityMembershipRepositoryImpl(tx),
+        }))
+        return new CreateExpenseUseCase(new UuidGenerator(), unitOfWork)
+    },
+
+    createDeleteExpenseUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<DeleteExpenseTxRepositories>((tx) => ({
+            expense: new ExpenseRepositoryImpl(tx),
+            membership: new CommunityMembershipRepositoryImpl(tx),
+        }))
+        return new DeleteExpenseUseCase(unitOfWork)
+    },
+
+    createListExpensesUseCase() {
+        return new ListExpensesUseCase(
+            new ExpenseRepositoryImpl(prisma),
+            new ExpenseCategoryRepositoryImpl(prisma),
+        )
+    },
+
+    createListExpenseCategoriesUseCase() {
+        return new ListExpenseCategoriesUseCase(
+            new ExpenseCategoryRepositoryImpl(prisma),
+        )
+    },
+
+    createGetFinanceSummaryUseCase() {
+        return new GetFinanceSummaryUseCase(
+            new ExpenseRepositoryImpl(prisma),
+            new ExpenseCategoryRepositoryImpl(prisma),
         )
     },
 }

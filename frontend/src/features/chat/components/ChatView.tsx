@@ -2,6 +2,7 @@ import { useAuth } from '@/app/providers/AuthProvider'
 import { ChannelSearchPanel } from '@/features/chat/components/ChannelSearchPanel'
 import { ChatHeader } from '@/features/chat/components/ChatHeader'
 import { DateSeparator } from '@/features/chat/components/DateSeparator'
+import { EmojiPickerModal } from '@/features/chat/components/EmojiPickerModal'
 import { MessageBubble } from '@/features/chat/components/MessageBubble'
 import { MessageInput } from '@/features/chat/components/MessageInput'
 import { useDeleteMessage, useMessages, useSendMessage, useUploadAttachment } from '@/features/chat/hooks/useChatQueries'
@@ -37,6 +38,7 @@ export function ChatView({ channelId, showHeader = true, headerName = 'チャッ
     const addReaction = useAddReaction(channelId)
     const removeReaction = useRemoveReaction(channelId)
     const [pickerMessageId, setPickerMessageId] = useState<string | null>(null)
+    const [emojiPickerMessageId, setEmojiPickerMessageId] = useState<string | null>(null)
     const [showSearch, setShowSearch] = useState(false)
     const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -121,6 +123,8 @@ export function ChatView({ channelId, showHeader = true, headerName = 'チャッ
                                 <MessageBubble
                                     messageId={msg.id}
                                     senderId={msg.senderId}
+                                    senderName={msg.senderDisplayName ?? undefined}
+                                    senderAvatarUrl={msg.senderAvatarUrl ?? undefined}
                                     content={msg.content}
                                     attachments={msg.attachments}
                                     reactions={msg.reactions}
@@ -128,9 +132,11 @@ export function ChatView({ channelId, showHeader = true, headerName = 'チャッ
                                     createdAt={msg.createdAt}
                                     isMine={msg.senderId === currentUserId}
                                     isContinuation={isContinuation}
-                                    onAddReaction={(mid, sid) => addReaction.mutate({ messageId: mid, stampId: sid })}
-                                    onRemoveReaction={(mid, sid) => removeReaction.mutate({ messageId: mid, stampId: sid })}
+                                    deletedBy={msg.deletedBy ?? null}
+                                    onAddReaction={(mid, params) => addReaction.mutate({ messageId: mid, ...params })}
+                                    onRemoveReaction={(mid, identifier) => removeReaction.mutate({ messageId: mid, identifier })}
                                     onOpenStampPicker={(mid) => setPickerMessageId(mid)}
+                                    onOpenEmojiPicker={(mid) => setEmojiPickerMessageId(mid)}
                                     onDelete={(mid) => deleteMessage.mutate(mid)}
                                 />
                             </div>
@@ -147,6 +153,14 @@ export function ChatView({ channelId, showHeader = true, headerName = 'チャッ
                 <StampPickerModal
                     onSelect={(stampId) => addReaction.mutate({ messageId: pickerMessageId, stampId })}
                     onClose={() => setPickerMessageId(null)}
+                />
+            )}
+
+            {/* 絵文字ピッカー */}
+            {emojiPickerMessageId && (
+                <EmojiPickerModal
+                    onSelect={(emoji) => addReaction.mutate({ messageId: emojiPickerMessageId, emoji })}
+                    onClose={() => setEmojiPickerMessageId(null)}
                 />
             )}
         </div>

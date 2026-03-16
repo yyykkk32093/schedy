@@ -119,6 +119,7 @@ export interface CommunityListItem {
     mainActivityArea: string | null
     latestAnnouncementTitle: string | null
     latestAnnouncementAt: string | null
+    bookmarked: boolean
 }
 
 /** GET /v1/communities/:id — レスポンス */
@@ -156,6 +157,10 @@ export interface UpdateCommunityRequest {
     coverUrl?: string | null
     payPayId?: string | null
     enabledPaymentMethods?: string[]
+    joinMethod?: 'FREE_JOIN' | 'APPROVAL' | 'INVITATION'
+    isPublic?: boolean
+    mainActivityArea?: string | null
+    activityFrequency?: string | null
 }
 
 /** POST /v1/communities/:parentId/children — リクエスト */
@@ -188,6 +193,7 @@ export interface ListMembersResponse {
 export interface AuditLogEntry {
     id: string
     actorUserId: string
+    actorDisplayName: string | null
     action: string
     field: string | null
     before: string | null
@@ -321,10 +327,12 @@ export interface CreateActivityRequest {
     recurrenceRule?: string | null
     organizerUserId?: string | null
     date?: string | null
-    participationFee?: number | null
+    participationFee?: number
+    visitorFee?: number | null
     isOnline?: boolean
     meetingUrl?: string | null
     capacity?: number | null
+    shouldPostAnnouncement?: boolean  // Phase3 #4
 }
 
 export interface CreateActivityResponse {
@@ -339,6 +347,7 @@ export interface ListActivitiesResponse {
 export interface ActivityListItem {
     id: string
     communityId: string
+    communityName: string | null
     title: string
     description: string | null
     defaultLocation: string | null
@@ -392,7 +401,8 @@ export interface CreateScheduleRequest {
     location?: string | null
     note?: string | null
     capacity?: number | null
-    participationFee?: number | null
+    participationFee?: number
+    visitorFee?: number | null
     isOnline?: boolean
     meetingUrl?: string | null
 }
@@ -416,7 +426,8 @@ export interface ScheduleListItem {
     note: string | null
     status: string
     capacity: number | null
-    participationFee: number | null
+    participationFee: number
+    visitorFee: number | null
     isOnline: boolean
     meetingUrl: string | null
     participantCount?: number
@@ -435,7 +446,8 @@ export interface UpdateScheduleRequest {
     location?: string | null
     note?: string | null
     capacity?: number | null
-    participationFee?: number | null
+    participationFee?: number
+    visitorFee?: number | null
     isOnline?: boolean
     meetingUrl?: string | null
 }
@@ -451,7 +463,8 @@ export interface UserScheduleItem {
     endTime: string
     location: string | null
     status: string
-    participationFee: number | null
+    participationFee: number
+    visitorFee: number | null
     isOnline: boolean
     meetingUrl: string | null
     activityId: string
@@ -486,10 +499,13 @@ export interface JoinWaitlistResponse {
 
 export interface ParticipantItem {
     id: string
-    userId: string
+    userId: string | null
     displayName: string | null
+    visitorName: string | null
+    addedBy: string | null
     status: string
     isVisitor: boolean
+    isGuestVisitor: boolean
     respondedAt: string
     paymentMethod: string | null
     paymentStatus: string | null
@@ -589,6 +605,7 @@ export interface ListAnnouncementsResponse {
 export interface AnnouncementListItem {
     id: string
     communityId: string
+    activityId: string | null
     authorId: string
     authorName: string | null
     authorAvatarUrl: string | null
@@ -602,26 +619,33 @@ export interface AnnouncementListItem {
     likeCount: number
     commentCount: number
     isLiked: boolean
+    readCount: number
     attachments: Array<{ id: string; fileUrl: string; mimeType: string }>
+    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string } | null
 }
 
 export interface AnnouncementDetail {
     id: string
     communityId: string
+    activityId: string | null
     authorId: string
     title: string
     content: string
     createdAt: string
+    isRead: boolean
+    isLiked: boolean
+    isBookmarked: boolean
+    likeCount: number
+    commentCount: number
+    readCount: number
     attachments: Array<{ id: string; fileUrl: string; mimeType: string }>
+    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string } | null
 }
-
-// ============================================================
-// Announcement Feed (Home)
-// ============================================================
 
 export interface AnnouncementFeedItem {
     id: string
     communityId: string
+    activityId: string | null
     authorId: string
     authorName: string | null
     authorAvatarUrl: string | null
@@ -635,7 +659,9 @@ export interface AnnouncementFeedItem {
     likeCount: number
     commentCount: number
     isLiked: boolean
+    readCount: number
     attachments: Array<{ id: string; fileUrl: string; mimeType: string }>
+    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string } | null
 }
 
 export interface AnnouncementFeedResponse {
@@ -677,7 +703,9 @@ export interface MessageAttachment {
 }
 
 export interface MessageReactionSummary {
-    stampId: string
+    stampId: string | null
+    emoji: string | null
+    stampImageUrl: string | null
     count: number
     reacted: boolean
 }
@@ -686,9 +714,12 @@ export interface MessageItem {
     id: string
     channelId: string
     senderId: string
+    senderDisplayName: string | null
+    senderAvatarUrl: string | null
     content: string
     mentions: unknown
     parentMessageId: string | null
+    deletedBy: string | null
     attachments: MessageAttachment[]
     reactions: MessageReactionSummary[]
     replyCount: number
@@ -741,7 +772,11 @@ export interface MyActivityChannel {
     type: 'ACTIVITY'
     name: string
     subtitle: string
+    communityName: string
     activityId: string | null
+    scheduleDate: string | null
+    scheduleStartTime: string | null
+    scheduleEndTime: string | null
     lastMessage: MyChannelLastMessage | null
 }
 
@@ -1015,5 +1050,70 @@ export interface AbsenceReportResponse {
     communityId: string
     summary: AbsenceSummaryData
     items: AbsenceItem[]
+}
+
+// ============================================================
+// Guest Visitor
+// ============================================================
+
+export interface AddGuestVisitorRequest {
+    visitorName: string
+    paymentMethod?: string | null
+}
+
+export interface AddGuestVisitorResponse {
+    participationId: string
+}
+
+export interface UpdateVisitorPaymentRequest {
+    paymentMethod: string
+    paymentStatus?: string
+}
+
+// ============================================================
+// Expense / Finance
+// ============================================================
+
+export interface ExpenseCategory {
+    id: string
+    name: string
+    isSystem: boolean
+    sortOrder: number
+    isActive: boolean
+}
+
+export interface ListExpenseCategoriesResponse {
+    categories: ExpenseCategory[]
+}
+
+export interface ExpenseItem {
+    id: string
+    categoryId: string
+    categoryName: string
+    amount: number
+    description: string | null
+    date: string
+    createdBy: string
+    createdAt: string
+}
+
+export interface ListExpensesResponse {
+    expenses: ExpenseItem[]
+}
+
+export interface CreateExpenseRequest {
+    categoryId: string
+    amount: number
+    description?: string | null
+    date: string
+}
+
+export interface FinanceSummaryResponse {
+    totalExpense: number
+    expensesByCategory: Array<{
+        categoryId: string
+        categoryName: string
+        total: number
+    }>
 }
 

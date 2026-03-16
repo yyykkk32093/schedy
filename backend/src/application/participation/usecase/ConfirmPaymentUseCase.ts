@@ -17,9 +17,14 @@ export class ConfirmPaymentUseCase {
             throw new ParticipationError('参加情報が見つかりません', 'PARTICIPATION_NOT_FOUND')
         }
 
+        const userId = participation.getUserId()
+        if (!userId) {
+            throw new ParticipationError('ユーザーIDが設定されていません', 'USER_ID_MISSING')
+        }
+
         const payment = await this.paymentRepository.findLatestByScheduleAndUser(
             participation.getScheduleId().getValue(),
-            participation.getUserId().getValue(),
+            userId.getValue(),
         )
         if (!payment) {
             throw new ParticipationError('支払い情報が見つかりません', 'PAYMENT_NOT_FOUND')

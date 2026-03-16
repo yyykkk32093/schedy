@@ -1,4 +1,4 @@
-import { Image, Mic, Smile } from 'lucide-react'
+import { Image } from 'lucide-react'
 import { useRef, useState } from 'react'
 
 interface MessageInputProps {
@@ -65,22 +65,8 @@ export function MessageInput({ onSend, isSending }: MessageInputProps) {
                     className="flex-1 text-sm bg-transparent outline-none placeholder:text-gray-400"
                 />
 
-                {/* アクションアイコン */}
+                {/* アクションアイコン (#26: マイク削除, #27: 絵文字削除) */}
                 <div className="flex items-center gap-3 text-gray-400">
-                    <button
-                        type="button"
-                        className="hover:text-gray-600 transition-colors"
-                        title="音声"
-                    >
-                        <Mic className="h-5 w-5" />
-                    </button>
-                    <button
-                        type="button"
-                        className="hover:text-gray-600 transition-colors"
-                        title="絵文字"
-                    >
-                        <Smile className="h-5 w-5" />
-                    </button>
                     <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}

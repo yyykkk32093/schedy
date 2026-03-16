@@ -38,6 +38,10 @@ export const userKeys = {
 
 export const communityKeys = makeResourceKeys('communities')
 
+export const communityBookmarkKeys = {
+    all: ['community-bookmarks'] as const,
+}
+
 export const communitySearchKeys = {
     all: ['communities', 'search'] as const,
     list: (params: Record<string, unknown>) => ['communities', 'search', params] as const,
@@ -81,6 +85,7 @@ export const scheduleListKeys = {
 export const announcementKeys = makeResourceKeys('announcements')
 
 export const announcementListKeys = {
+    all: ['announcements', 'list'] as const,
     byCommunity: (communityId: string) => ['announcements', 'list', communityId] as const,
 }
 
@@ -191,4 +196,18 @@ export const pollListKeys = {
 
 export const webhookKeys = {
     byCommunity: (communityId: string) => ['webhooks', 'list', communityId] as const,
+}
+
+// ─── Expense / Finance ドメイン用 Key ───────────────────
+
+export const expenseCategoryKeys = {
+    byCommunity: (communityId: string) => ['expense-categories', 'list', communityId] as const,
+}
+
+export const expenseKeys = {
+    byCommunity: (communityId: string) => ['expenses', 'list', communityId] as const,
+}
+
+export const financeSummaryKeys = {
+    byCommunity: (communityId: string) => ['finance', 'summary', communityId] as const,
 }

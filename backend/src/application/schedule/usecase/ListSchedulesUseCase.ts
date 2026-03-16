@@ -19,6 +19,7 @@ export class ListSchedulesUseCase {
             status: string
             capacity: number | null
             participationFee: number | null
+            visitorFee: number | null
             isOnline: boolean
             meetingUrl: string | null
             participantCount: number
@@ -43,6 +44,7 @@ export class ListSchedulesUseCase {
                 status: s.getStatus().getValue(),
                 capacity: s.getCapacity().getValue(),
                 participationFee: s.getParticipationFee(),
+                visitorFee: s.getVisitorFee(),
                 isOnline: s.getIsOnline(),
                 meetingUrl: s.getMeetingUrl(),
                 participantCount: counts[i],

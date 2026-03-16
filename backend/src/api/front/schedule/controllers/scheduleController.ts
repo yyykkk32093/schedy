@@ -5,7 +5,7 @@ export const scheduleController = {
     async create(req: Request, res: Response, next: NextFunction) {
         try {
             const { activityId } = req.params
-            const { date, startTime, endTime, location, note, capacity, participationFee, isOnline, meetingUrl } = req.body
+            const { date, startTime, endTime, location, note, capacity, participationFee, visitorFee, isOnline, meetingUrl } = req.body
             const userId = req.user!.userId
 
             const useCase = usecaseFactory.createCreateScheduleUseCase()
@@ -17,7 +17,8 @@ export const scheduleController = {
                 location,
                 note,
                 capacity,
-                participationFee,
+                participationFee: participationFee ?? 0,
+                visitorFee: visitorFee ?? null,
                 isOnline,
                 meetingUrl,
                 userId,
@@ -59,7 +60,7 @@ export const scheduleController = {
     async update(req: Request, res: Response, next: NextFunction) {
         try {
             const { id } = req.params
-            const { date, startTime, endTime, location, note, capacity, participationFee, isOnline, meetingUrl } = req.body
+            const { date, startTime, endTime, location, note, capacity, participationFee, visitorFee, isOnline, meetingUrl } = req.body
             const userId = req.user!.userId
 
             const useCase = usecaseFactory.createUpdateScheduleUseCase()
@@ -72,7 +73,8 @@ export const scheduleController = {
                 location,
                 note,
                 capacity,
-                participationFee,
+                participationFee: participationFee !== undefined ? (participationFee ?? 0) : undefined,
+                visitorFee: visitorFee !== undefined ? (visitorFee ?? null) : undefined,
                 isOnline,
                 meetingUrl,
             })

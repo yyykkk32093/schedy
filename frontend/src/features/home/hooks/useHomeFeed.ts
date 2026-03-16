@@ -5,13 +5,14 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 
 const FEED_PAGE_SIZE = 20
 
-export function useHomeFeed() {
+export function useHomeFeed(activityFilter?: boolean) {
     return useInfiniteQuery<AnnouncementFeedResponse>({
-        queryKey: announcementFeedKeys.all,
+        queryKey: [...announcementFeedKeys.all, { activityFilter }],
         queryFn: ({ pageParam }) =>
             homeApi.feed({
                 cursor: pageParam as string | undefined,
                 limit: FEED_PAGE_SIZE,
+                activityFilter,
             }),
         initialPageParam: undefined,
         getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,

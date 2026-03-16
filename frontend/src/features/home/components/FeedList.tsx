@@ -1,6 +1,6 @@
 import { useHomeFeed } from '@/features/home/hooks/useHomeFeed'
 import { Separator } from '@/shared/components/ui/separator'
-import { Bookmark, Loader2, Megaphone } from 'lucide-react'
+import { Bookmark, CalendarCheck, Loader2, Megaphone } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FeedCard } from './FeedCard'
 
@@ -8,6 +8,7 @@ const SCROLL_KEY = 'home-feed-scroll-y'
 
 export function FeedList() {
     const [bookmarkOnly, setBookmarkOnly] = useState(false)
+    const [activityOnly, setActivityOnly] = useState(false)
 
     const {
         data,
@@ -16,7 +17,7 @@ export function FeedList() {
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage,
-    } = useHomeFeed()
+    } = useHomeFeed(activityOnly || undefined)
 
     const observerRef = useRef<HTMLDivElement | null>(null)
     const containerRef = useRef<HTMLDivElement | null>(null)
@@ -100,18 +101,29 @@ export function FeedList() {
 
     return (
         <div>
-            {/* ブックマークフィルタ */}
+            {/* フィルター */}
             <div className="flex items-center gap-2 px-4 py-2">
                 <button
                     type="button"
                     onClick={() => setBookmarkOnly(!bookmarkOnly)}
                     className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${bookmarkOnly
-                            ? 'bg-yellow-100 text-yellow-700 border border-yellow-300'
-                            : 'bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200'
+                        ? 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                        : 'bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200'
                         }`}
                 >
                     <Bookmark className={`h-3.5 w-3.5 ${bookmarkOnly ? 'fill-yellow-500' : ''}`} />
                     お気に入り
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setActivityOnly(!activityOnly)}
+                    className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${activityOnly
+                        ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                        : 'bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200'
+                        }`}
+                >
+                    <CalendarCheck className="h-3.5 w-3.5" />
+                    アクティビティ
                 </button>
             </div>
 

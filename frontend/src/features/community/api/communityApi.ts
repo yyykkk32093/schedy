@@ -94,4 +94,14 @@ export const communityApi = {
 
     acceptInvite: (token: string) =>
         http<AcceptInviteResponse>(`/v1/invites/${token}/accept`, { method: 'POST' }),
+
+    // ---- Phase 3 #53: Bookmark ----
+    addBookmark: (communityId: string) =>
+        http<{ bookmarked: boolean }>(`/v1/communities/${communityId}/bookmark`, { method: 'POST' }),
+
+    removeBookmark: (communityId: string) =>
+        http<{ bookmarked: boolean }>(`/v1/communities/${communityId}/bookmark`, { method: 'DELETE' }),
+
+    listBookmarked: () =>
+        http<{ communities: Array<{ id: string; name: string; description: string | null; logoUrl: string | null; coverUrl: string | null; joinMethod: string; isPublic: boolean; mainActivityArea: string | null }> }>('/v1/bookmarks/communities'),
 }

@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { endOfMonth, format, startOfMonth } from 'date-fns'
 import { Search } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 
 /**
  * ActivityTopPage — BottomNav「アクティビティ」タブのランディング
@@ -47,9 +48,11 @@ function CalendarTab() {
         if (!confirm('この参加を取り消しますか？')) return
         try {
             await participationApi.cancelAttendance(scheduleId)
-            queryClient.invalidateQueries({ queryKey: ['user-schedules'] })
-        } catch {
-            alert('参加取り消しに失敗しました')
+            queryClient.invalidateQueries({ queryKey: ['schedules', 'list', 'user'] })
+            toast.success('参加を取り消しました')
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : '参加取り消しに失敗しました'
+            toast.error(msg)
         }
     }, [queryClient])
 
@@ -163,9 +166,11 @@ function TimeLineTab() {
         if (!confirm('この参加を取り消しますか？')) return
         try {
             await participationApi.cancelAttendance(scheduleId)
-            queryClient.invalidateQueries({ queryKey: ['user-schedules'] })
-        } catch {
-            alert('参加取り消しに失敗しました')
+            queryClient.invalidateQueries({ queryKey: ['schedules', 'list', 'user'] })
+            toast.success('参加を取り消しました')
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : '参加取り消しに失敗しました'
+            toast.error(msg)
         }
     }, [queryClient])
 

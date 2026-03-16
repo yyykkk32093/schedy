@@ -100,6 +100,7 @@ function useCommunitySchedules(communityId: string, from: string, to: string) {
                             location: s.location,
                             status: s.status,
                             participationFee: s.participationFee,
+                            visitorFee: s.visitorFee ?? null,
                             isOnline: s.isOnline,
                             meetingUrl: s.meetingUrl,
                             activityId: activity.id,

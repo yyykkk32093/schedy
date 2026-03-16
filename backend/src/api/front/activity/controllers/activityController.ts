@@ -5,7 +5,7 @@ export const activityController = {
     async create(req: Request, res: Response, next: NextFunction) {
         try {
             const { communityId } = req.params
-            const { title, description, defaultLocation, defaultAddress, defaultStartTime, defaultEndTime, recurrenceRule, date, participationFee, organizerUserId, isOnline, meetingUrl, capacity } = req.body
+            const { title, description, defaultLocation, defaultAddress, defaultStartTime, defaultEndTime, recurrenceRule, date, participationFee, visitorFee, organizerUserId, isOnline, meetingUrl, capacity, shouldPostAnnouncement } = req.body
             const userId = req.user!.userId
 
             const useCase = usecaseFactory.createCreateActivityUseCase()
@@ -20,11 +20,13 @@ export const activityController = {
                 recurrenceRule,
                 date,
                 participationFee: participationFee != null ? Number(participationFee) : null,
+                visitorFee: visitorFee != null ? Number(visitorFee) : null,
                 organizerUserId: organizerUserId || null,
                 isOnline: isOnline ?? false,
                 meetingUrl: meetingUrl || null,
                 capacity: capacity != null ? Number(capacity) : null,
                 userId,
+                shouldPostAnnouncement: shouldPostAnnouncement ?? false,
             })
 
             res.status(201).json(result)

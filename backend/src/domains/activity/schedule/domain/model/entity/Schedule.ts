@@ -25,7 +25,8 @@ export class Schedule extends AggregateRoot {
         private note: string | null,
         private status: ScheduleStatus,
         private capacity: ScheduleCapacity,
-        private participationFee: number | null,
+        private participationFee: number,
+        private visitorFee: number | null,
         private isOnline: boolean,
         private meetingUrl: string | null,
     ) {
@@ -42,6 +43,7 @@ export class Schedule extends AggregateRoot {
         note?: string | null
         capacity?: number | null
         participationFee?: number | null
+        visitorFee?: number | null
         isOnline?: boolean
         meetingUrl?: string | null
     }): Schedule {
@@ -62,7 +64,8 @@ export class Schedule extends AggregateRoot {
             params.note ?? null,
             ScheduleStatus.scheduled(),
             ScheduleCapacity.createNullable(params.capacity),
-            params.participationFee ?? null,
+            params.participationFee ?? 0,
+            params.visitorFee ?? null,
             params.isOnline ?? false,
             params.meetingUrl ?? null,
         )
@@ -78,7 +81,8 @@ export class Schedule extends AggregateRoot {
         note: string | null
         status: ScheduleStatus
         capacity: ScheduleCapacity
-        participationFee: number | null
+        participationFee: number
+        visitorFee: number | null
         isOnline: boolean
         meetingUrl: string | null
     }): Schedule {
@@ -93,6 +97,7 @@ export class Schedule extends AggregateRoot {
             params.status,
             params.capacity,
             params.participationFee,
+            params.visitorFee,
             params.isOnline,
             params.meetingUrl,
         )
@@ -107,7 +112,8 @@ export class Schedule extends AggregateRoot {
         location?: string | null
         note?: string | null
         capacity?: number | null
-        participationFee?: number | null
+        participationFee?: number
+        visitorFee?: number | null
         isOnline?: boolean
         meetingUrl?: string | null
     }): void {
@@ -121,6 +127,7 @@ export class Schedule extends AggregateRoot {
         if (params.note !== undefined) this.note = params.note
         if (params.capacity !== undefined) this.capacity = ScheduleCapacity.create(params.capacity)
         if (params.participationFee !== undefined) this.participationFee = params.participationFee
+        if (params.visitorFee !== undefined) this.visitorFee = params.visitorFee
         if (params.isOnline !== undefined) this.isOnline = params.isOnline
         if (params.meetingUrl !== undefined) this.meetingUrl = params.meetingUrl
 
@@ -165,7 +172,8 @@ export class Schedule extends AggregateRoot {
     getNote(): string | null { return this.note }
     getStatus(): ScheduleStatus { return this.status }
     getCapacity(): ScheduleCapacity { return this.capacity }
-    getParticipationFee(): number | null { return this.participationFee }
+    getParticipationFee(): number { return this.participationFee }
+    getVisitorFee(): number | null { return this.visitorFee }
     getIsOnline(): boolean { return this.isOnline }
     getMeetingUrl(): string | null { return this.meetingUrl }
 }

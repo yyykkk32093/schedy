@@ -100,6 +100,39 @@ export const participationController = {
         }
     },
 
+    /** #40: 現金支払い一括確認（管理者） */
+    async bulkConfirmPayment(req: Request, res: Response, next: NextFunction) {
+        try {
+            const userId = req.user!.userId
+            const { participationIds } = req.body as { participationIds: string[] }
+
+            if (!Array.isArray(participationIds) || participationIds.length === 0) {
+                res.status(400).json({ code: 'INVALID_REQUEST', message: 'participationIds は1件以上必要です' })
+                return
+            }
+
+            const useCase = usecaseFactory.createConfirmPaymentUseCase()
+            const results: { participationId: string; success: boolean; error?: string }[] = []
+
+            for (const pid of participationIds) {
+                try {
+                    await useCase.execute({ participationId: pid, confirmedBy: userId })
+                    results.push({ participationId: pid, success: true })
+                } catch (err) {
+                    results.push({
+                        participationId: pid,
+                        success: false,
+                        error: err instanceof Error ? err.message : 'Unknown error',
+                    })
+                }
+            }
+
+            res.json({ results })
+        } catch (err) {
+            next(err)
+        }
+    },
+
     async listWaitlist(req: Request, res: Response, next: NextFunction) {
         try {
             const { id: scheduleId } = req.params
@@ -222,6 +255,35 @@ export const participationController = {
             const { paymentId } = req.params
             const useCase = usecaseFactory.createRevertRefundStatusUseCase()
             await useCase.execute({ paymentId })
+            res.status(204).send()
+        } catch (err) {
+            next(err)
+        }
+    },
+
+    /** ゲストビジター追加 */
+    async addGuestVisitor(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { id: scheduleId } = req.params
+            const { visitorName } = req.body
+            const userId = req.user!.userId
+
+            const useCase = usecaseFactory.createAddGuestVisitorUseCase()
+            const result = await useCase.execute({ scheduleId, visitorName, addedBy: userId })
+            res.status(201).json(result)
+        } catch (err) {
+            next(err)
+        }
+    },
+
+    /** ビジター支払い情報更新（管理者） */
+    async updateVisitorPayment(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { participationId } = req.params
+            const { paymentMethod, paymentStatus } = req.body
+
+            const useCase = usecaseFactory.createUpdateVisitorPaymentUseCase()
+            await useCase.execute({ participationId, paymentMethod, paymentStatus })
             res.status(204).send()
         } catch (err) {
             next(err)

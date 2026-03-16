@@ -127,10 +127,12 @@ const activityFormSchema = z.object({
     repeat: z.string(),
     visibility: z.string(),
     participationFee: z.string(),
+    visitorFee: z.string(),
     isOnline: z.boolean(),
     meetingUrl: z.string(),
     hasCapacity: z.boolean(),
     capacity: z.string(),
+    shouldPostAnnouncement: z.boolean(),
 }).refine(
     (data) => {
         if (data.defaultStartTime && data.defaultEndTime) {
@@ -160,10 +162,12 @@ export interface ActivityFormValues {
     description: string
     defaultStartTime: string
     defaultEndTime: string
-    participationFee: number | null
+    participationFee: number
+    visitorFee: number | null
     isOnline: boolean
     meetingUrl: string | null
     capacity: number | null
+    shouldPostAnnouncement: boolean  // Phase3 #4
 }
 
 interface ActivityFormProps {
@@ -218,10 +222,12 @@ export function ActivityForm({
             repeat: initialValues?.repeat ?? rruleToRepeat(initialValues?.recurrenceRule),
             visibility: initialValues?.visibility ?? 'private',
             participationFee: initialValues?.participationFee != null ? String(initialValues.participationFee) : '',
+            visitorFee: initialValues?.visitorFee != null ? String(initialValues.visitorFee) : '',
             isOnline: initialValues?.isOnline ?? false,
             meetingUrl: initialValues?.meetingUrl ?? '',
             hasCapacity: initialValues?.capacity != null,
             capacity: initialValues?.capacity != null ? String(initialValues.capacity) : '',
+            shouldPostAnnouncement: false,
         },
     })
 
@@ -238,12 +244,12 @@ export function ActivityForm({
     const members = membersData?.members ?? []
 
     const filteredMembers = useMemo(() => {
-        if (!organizerSearch.trim()) return members.slice(0, 5)
+        if (!organizerSearch.trim()) return members.slice(0, 10)
         const q = organizerSearch.toLowerCase()
         return members.filter((m: Member) =>
             m.userId.toLowerCase().includes(q) ||
             (m.displayName && m.displayName.toLowerCase().includes(q))
-        ).slice(0, 5)
+        ).slice(0, 10)
     }, [members, organizerSearch])
 
     const organizerUserId = watch('organizerUserId')
@@ -288,10 +294,12 @@ export function ActivityForm({
             visibility: data.visibility,
             defaultStartTime: data.defaultStartTime,
             defaultEndTime: data.defaultEndTime,
-            participationFee: data.participationFee ? Number(data.participationFee) : null,
+            participationFee: data.participationFee ? Number(data.participationFee) : 0,
+            visitorFee: data.visitorFee ? Number(data.visitorFee) : null,
             isOnline: data.isOnline,
             meetingUrl: data.isOnline && data.meetingUrl.trim() ? data.meetingUrl.trim() : null,
             capacity: data.hasCapacity && data.capacity ? Number(data.capacity) : null,
+            shouldPostAnnouncement: data.shouldPostAnnouncement,
         })
     }
 
@@ -472,7 +480,7 @@ export function ActivityForm({
                         />
                     </div>
                     {showOrganizerDropdown && (
-                        <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg max-h-48 overflow-auto">
+                        <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
                             {/* 未定オプション */}
                             <button
                                 type="button"
@@ -560,9 +568,25 @@ export function ActivityForm({
                     type="number"
                     min={0}
                     step={1}
-                    placeholder="0（無料の場合は空欄）"
+                    placeholder="0（無料の場合は0または空欄）"
                     {...register('participationFee')}
                 />
+            </div>
+
+            {/* ビジター参加費 */}
+            <div className="space-y-1.5">
+                <Label htmlFor="visitorFee">ビジター参加費（円・任意）</Label>
+                <Input
+                    id="visitorFee"
+                    type="number"
+                    min={0}
+                    step={1}
+                    placeholder="未設定の場合はメンバーと同額"
+                    {...register('visitorFee')}
+                />
+                <p className="text-xs text-muted-foreground">
+                    ビジター（非会員）向けの参加費。空欄の場合はメンバーと同額になります。
+                </p>
             </div>
 
             {/* 定員 */}
@@ -658,6 +682,25 @@ export function ActivityForm({
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     {...register('description')}
+                />
+            </div>
+
+            {/* Phase3 #4: お知らせ同時投稿 */}
+            <div className="space-y-1.5">
+                <Controller
+                    name="shouldPostAnnouncement"
+                    control={control}
+                    render={({ field }) => (
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={field.value}
+                                onChange={(e) => field.onChange(e.target.checked)}
+                                className="accent-blue-600"
+                            />
+                            お知らせも同時に投稿する
+                        </label>
+                    )}
                 />
             </div>
 

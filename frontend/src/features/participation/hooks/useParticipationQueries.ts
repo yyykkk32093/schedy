@@ -1,6 +1,6 @@
 import { participationApi } from '@/features/participation/api/participationApi'
 import { participationHistoryKeys, participationListKeys, paymentHistoryKeys, refundPendingKeys, scheduleKeys, waitlistKeys } from '@/shared/lib/queryKeys'
-import type { AttendScheduleRequest } from '@/shared/types/api'
+import type { AddGuestVisitorRequest, AttendScheduleRequest, UpdateVisitorPaymentRequest } from '@/shared/types/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 export function useParticipants(scheduleId: string) {
@@ -39,6 +39,7 @@ export function useCancelAttendance(scheduleId: string) {
             qc.invalidateQueries({ queryKey: participationListKeys.bySchedule(scheduleId) })
             qc.invalidateQueries({ queryKey: waitlistKeys.bySchedule(scheduleId) })
             qc.invalidateQueries({ queryKey: refundPendingKeys.bySchedule(scheduleId) })
+            qc.invalidateQueries({ queryKey: ['schedules', 'list', 'user'] })
         },
     })
 }
@@ -84,6 +85,18 @@ export function useConfirmPayment(scheduleId: string) {
         mutationFn: (participationId: string) => participationApi.confirmPayment(participationId),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: participationListKeys.bySchedule(scheduleId) })
+        },
+    })
+}
+
+/** #40: 現金支払い一括確認（管理者） */
+export function useBulkConfirmPayment(scheduleId: string) {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: (participationIds: string[]) => participationApi.bulkConfirmPayment(scheduleId, participationIds),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: participationListKeys.bySchedule(scheduleId) })
+            qc.invalidateQueries({ queryKey: scheduleKeys.detail(scheduleId) })
         },
     })
 }
@@ -182,6 +195,32 @@ export function useRevertRefundStatus() {
             qc.invalidateQueries({ queryKey: ['refund-pending'] })
             qc.invalidateQueries({ queryKey: ['payment-history'] })
             qc.invalidateQueries({ queryKey: ['participations'] })
+        },
+    })
+}
+
+// ---- ビジター管理 ----
+
+/** ゲストビジター追加 */
+export function useAddGuestVisitor(scheduleId: string) {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: (data: AddGuestVisitorRequest) => participationApi.addGuestVisitor(scheduleId, data),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: participationListKeys.bySchedule(scheduleId) })
+            qc.invalidateQueries({ queryKey: scheduleKeys.detail(scheduleId) })
+        },
+    })
+}
+
+/** ビジター支払い更新（管理者） */
+export function useUpdateVisitorPayment(scheduleId: string) {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: ({ participationId, data }: { participationId: string; data: UpdateVisitorPaymentRequest }) =>
+            participationApi.updateVisitorPayment(participationId, data),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: participationListKeys.bySchedule(scheduleId) })
         },
     })
 }

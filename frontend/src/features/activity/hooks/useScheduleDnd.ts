@@ -23,7 +23,7 @@ export function useScheduleDnd({ communityId }: UseScheduleDndParams) {
     const invalidate = () => {
         qc.invalidateQueries({ queryKey: ['community-schedules', communityId] })
         qc.invalidateQueries({ queryKey: ['schedules', 'list'] })
-        qc.invalidateQueries({ queryKey: ['user-schedules'] })
+        qc.invalidateQueries({ queryKey: ['schedules', 'list', 'user'] })
         qc.invalidateQueries({ queryKey: ['activities', 'list', communityId] })
     }
 
@@ -56,6 +56,7 @@ export function useScheduleDnd({ communityId }: UseScheduleDndParams) {
                         organizerUserId: activity.organizerUserId,
                         date: toDate,
                         participationFee: detail.participationFee,
+                        visitorFee: detail.visitorFee,
                         isOnline: detail.isOnline,
                         meetingUrl: detail.meetingUrl,
                         capacity: detail.capacity,

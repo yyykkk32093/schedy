@@ -6,6 +6,53 @@ import { Router } from 'express';
 const router = Router();
 
 // ============================================================
+// Helpers
+// ============================================================
+
+interface RawReaction {
+    id: string;
+    userId: string;
+    stampId: string | null;
+    emoji: string | null;
+    stamp: { id: string; name: string; imageUrl: string } | null;
+    createdAt: Date;
+}
+
+interface ReactionSummary {
+    stampId: string | null;
+    emoji: string | null;
+    stampImageUrl: string | null;
+    count: number;
+    reacted: boolean;
+}
+
+/** 個別リアクションを stampId / emoji ごとに集計 */
+function aggregateReactions(reactions: RawReaction[], currentUserId: string): ReactionSummary[] {
+    const map = new Map<string, { stampId: string | null; emoji: string | null; stampImageUrl: string | null; count: number; reacted: boolean }>();
+
+    for (const r of reactions) {
+        const key = r.stampId ? `stamp:${r.stampId}` : r.emoji ? `emoji:${r.emoji}` : null;
+        if (!key) continue;
+
+        const existing = map.get(key);
+        if (existing) {
+            existing.count++;
+            if (r.userId === currentUserId) existing.reacted = true;
+        } else {
+            map.set(key, {
+                stampId: r.stampId,
+                emoji: r.emoji,
+                stampImageUrl: r.stamp?.imageUrl ?? null,
+                count: 1,
+                reacted: r.userId === currentUserId,
+            });
+        }
+    }
+
+    return Array.from(map.values());
+}
+
+// ============================================================
 // Channel CRUD
 // ============================================================
 
@@ -88,6 +135,7 @@ router.get('/v1/activities/:activityId/channel', authMiddleware, async (req: Req
 router.get('/v1/channels/:channelId/messages', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { channelId } = req.params;
+        const userId = req.user!.userId;
         const cursor = req.query.cursor as string | undefined;
         const limit = Math.min(Number(req.query.limit) || 50, 100);
 
@@ -100,6 +148,7 @@ router.get('/v1/channels/:channelId/messages', authMiddleware, async (req: Reque
             take: limit + 1,
             ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
             include: {
+                sender: { select: { displayName: true, avatarUrl: true } },
                 attachments: true,
                 reactions: { include: { stamp: true } },
                 _count: { select: { replies: true } },
@@ -115,18 +164,15 @@ router.get('/v1/channels/:channelId/messages', authMiddleware, async (req: Reque
                 id: m.id,
                 channelId: m.channelId,
                 senderId: m.senderId,
+                senderDisplayName: m.sender?.displayName ?? null,
+                senderAvatarUrl: m.sender?.avatarUrl ?? null,
                 parentMessageId: m.parentMessageId,
                 content: m.content,
                 mentions: m.mentions,
                 isPinned: m.isPinned,
+                deletedBy: m.deletedBy,
                 attachments: m.attachments,
-                reactions: m.reactions.map((r) => ({
-                    id: r.id,
-                    userId: r.userId,
-                    stampId: r.stampId,
-                    stamp: r.stamp,
-                    createdAt: r.createdAt.toISOString(),
-                })),
+                reactions: aggregateReactions(m.reactions as unknown as RawReaction[], userId),
                 replyCount: m._count.replies,
                 createdAt: m.createdAt.toISOString(),
                 updatedAt: m.updatedAt.toISOString(),
@@ -150,6 +196,7 @@ router.get('/v1/channels/:channelId/messages', authMiddleware, async (req: Reque
 router.get('/v1/channels/:channelId/messages/search', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { channelId } = req.params;
+        const userId = req.user!.userId;
         const q = (req.query.q as string | undefined)?.trim();
         const cursor = req.query.cursor as string | undefined;
         const limit = Math.min(Number(req.query.limit) || 30, 100);
@@ -175,6 +222,7 @@ router.get('/v1/channels/:channelId/messages/search', authMiddleware, async (req
             take: limit + 1,
             ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
             include: {
+                sender: { select: { displayName: true, avatarUrl: true } },
                 attachments: true,
                 reactions: { include: { stamp: true } },
                 _count: { select: { replies: true } },
@@ -190,18 +238,15 @@ router.get('/v1/channels/:channelId/messages/search', authMiddleware, async (req
                 id: m.id,
                 channelId: m.channelId,
                 senderId: m.senderId,
+                senderDisplayName: m.sender?.displayName ?? null,
+                senderAvatarUrl: m.sender?.avatarUrl ?? null,
                 parentMessageId: m.parentMessageId,
                 content: m.content,
                 mentions: m.mentions,
                 isPinned: m.isPinned,
+                deletedBy: m.deletedBy,
                 attachments: m.attachments,
-                reactions: m.reactions.map((r) => ({
-                    id: r.id,
-                    userId: r.userId,
-                    stampId: r.stampId,
-                    stamp: r.stamp,
-                    createdAt: r.createdAt.toISOString(),
-                })),
+                reactions: aggregateReactions(m.reactions as unknown as RawReaction[], userId),
                 replyCount: m._count.replies,
                 createdAt: m.createdAt.toISOString(),
                 updatedAt: m.updatedAt.toISOString(),
@@ -221,6 +266,7 @@ router.get('/v1/channels/:channelId/messages/search', authMiddleware, async (req
 router.get('/v1/messages/:messageId/replies', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { messageId } = req.params;
+        const userId = req.user!.userId;
         const cursor = req.query.cursor as string | undefined;
         const limit = Math.min(Number(req.query.limit) || 50, 100);
 
@@ -230,6 +276,7 @@ router.get('/v1/messages/:messageId/replies', authMiddleware, async (req: Reques
             take: limit + 1,
             ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
             include: {
+                sender: { select: { displayName: true, avatarUrl: true } },
                 attachments: true,
                 reactions: { include: { stamp: true } },
             },
@@ -244,18 +291,15 @@ router.get('/v1/messages/:messageId/replies', authMiddleware, async (req: Reques
                 id: m.id,
                 channelId: m.channelId,
                 senderId: m.senderId,
+                senderDisplayName: m.sender?.displayName ?? null,
+                senderAvatarUrl: m.sender?.avatarUrl ?? null,
                 parentMessageId: m.parentMessageId,
                 content: m.content,
                 mentions: m.mentions,
                 isPinned: m.isPinned,
+                deletedBy: m.deletedBy,
                 attachments: m.attachments,
-                reactions: m.reactions.map((r) => ({
-                    id: r.id,
-                    userId: r.userId,
-                    stampId: r.stampId,
-                    stamp: r.stamp,
-                    createdAt: r.createdAt.toISOString(),
-                })),
+                reactions: aggregateReactions(m.reactions as unknown as RawReaction[], userId),
                 createdAt: m.createdAt.toISOString(),
                 updatedAt: m.updatedAt.toISOString(),
             })),
@@ -326,7 +370,8 @@ router.post('/v1/channels/:channelId/messages', authMiddleware, async (req: Requ
 
 /**
  * DELETE /v1/messages/:messageId
- * メッセージ削除（送信者本人のみ）
+ * メッセージ論理削除（送信者本人のみ）
+ * deletedBy に userId をセットし、物理削除はしない
  */
 router.delete('/v1/messages/:messageId', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -342,8 +387,15 @@ router.delete('/v1/messages/:messageId', authMiddleware, async (req: Request, re
             res.status(403).json({ code: 'FORBIDDEN', message: '送信者本人のみ削除できます' });
             return;
         }
+        if (message.deletedBy) {
+            res.status(204).send();
+            return;
+        }
 
-        await prisma.message.delete({ where: { id: messageId } });
+        await prisma.message.update({
+            where: { id: messageId },
+            data: { deletedBy: userId },
+        });
 
         const io = req.app.get('io');
         if (io) {

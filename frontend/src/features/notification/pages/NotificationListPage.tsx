@@ -45,8 +45,8 @@ export function NotificationListPage() {
                         type="button"
                         onClick={() => setActiveCategory(tab.value)}
                         className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${activeCategory === tab.value
-                                ? 'text-blue-600 border-blue-600'
-                                : 'text-gray-500 border-transparent hover:text-gray-700'
+                            ? 'text-blue-600 border-blue-600'
+                            : 'text-gray-500 border-transparent hover:text-gray-700'
                             }`}
                     >
                         {tab.label}
@@ -101,18 +101,27 @@ export function NotificationListPage() {
     )
 }
 
-/** 通知タイプの小さなチップ表示 */
+/** 通知タイプの小さなチップ表示 (#55: 全通知タイプの日本語マッピング) */
 function NotificationTypeChip({ type }: { type: string }) {
     const config: Record<string, { label: string; color: string }> = {
+        // チャット系
         MENTION: { label: 'メンション', color: 'bg-purple-100 text-purple-700' },
         DM: { label: 'DM', color: 'bg-green-100 text-green-700' },
         REPLY: { label: '返信', color: 'bg-teal-100 text-teal-700' },
+        // コミュニティ系
         ANNOUNCEMENT: { label: 'お知らせ', color: 'bg-blue-100 text-blue-700' },
-        WAITLIST_PROMOTED: { label: '繰上げ', color: 'bg-yellow-100 text-yellow-700' },
-        SCHEDULE_CANCELLED: { label: 'キャンセル', color: 'bg-red-100 text-red-700' },
-        PAYMENT_REMINDER: { label: '支払い', color: 'bg-orange-100 text-orange-700' },
         INVITE_ACCEPTED: { label: '招待承認', color: 'bg-indigo-100 text-indigo-700' },
+        JOIN_REQUEST: { label: '参加申請', color: 'bg-cyan-100 text-cyan-700' },
         JOIN_APPROVED: { label: '参加承認', color: 'bg-emerald-100 text-emerald-700' },
+        MEMBER_REMOVED: { label: 'メンバー除外', color: 'bg-red-100 text-red-700' },
+        // アクティビティ系
+        WAITLIST_PROMOTED: { label: '繰上げ', color: 'bg-yellow-100 text-yellow-700' },
+        SCHEDULE_CANCELLED: { label: '開催取消', color: 'bg-red-100 text-red-700' },
+        PARTICIPATION_CONFIRMED: { label: '参加確定', color: 'bg-green-100 text-green-700' },
+        SCHEDULE_REMINDER: { label: 'リマインド', color: 'bg-sky-100 text-sky-700' },
+        PAYMENT_REMINDER: { label: '支払い', color: 'bg-orange-100 text-orange-700' },
+        PAID_CANCELLATION: { label: '返金', color: 'bg-pink-100 text-pink-700' },
+        SAME_DAY_CANCELLATION: { label: '当日キャンセル', color: 'bg-rose-100 text-rose-700' },
     }
     const c = config[type] ?? { label: type, color: 'bg-gray-100 text-gray-600' }
 

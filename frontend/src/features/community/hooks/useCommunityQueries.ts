@@ -1,6 +1,6 @@
 import { useAuth } from '@/app/providers/AuthProvider'
 import { communityApi } from '@/features/community/api/communityApi'
-import { activityKeys, communityKeys, communitySearchKeys, masterKeys, memberKeys } from '@/shared/lib/queryKeys'
+import { activityKeys, communityBookmarkKeys, communityKeys, communitySearchKeys, masterKeys, memberKeys } from '@/shared/lib/queryKeys'
 import type { SearchCommunitiesParams } from '@/shared/types/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
@@ -139,6 +139,27 @@ export function useJoinRequest() {
             communityApi.requestJoin(communityId, message ? { message } : undefined),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: communitySearchKeys.all })
+        },
+    })
+}
+
+// ---- Phase 3 #53: Bookmarks ----
+
+export function useBookmarkedCommunities() {
+    return useQuery({
+        queryKey: communityBookmarkKeys.all,
+        queryFn: communityApi.listBookmarked,
+    })
+}
+
+export function useToggleBookmark() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: ({ communityId, bookmarked }: { communityId: string; bookmarked: boolean }) =>
+            bookmarked ? communityApi.removeBookmark(communityId) : communityApi.addBookmark(communityId),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: communityBookmarkKeys.all })
+            qc.invalidateQueries({ queryKey: communityKeys.all })
         },
     })
 }

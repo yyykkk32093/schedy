@@ -30,7 +30,8 @@ export class CreateScheduleUseCase {
         location?: string | null
         note?: string | null
         capacity?: number | null
-        participationFee?: number | null
+        participationFee?: number
+        visitorFee?: number | null
         isOnline?: boolean
         meetingUrl?: string | null
         userId: string
@@ -61,6 +62,7 @@ export class CreateScheduleUseCase {
                 note: input.note,
                 capacity: input.capacity,
                 participationFee: input.participationFee,
+                visitorFee: input.visitorFee ?? null,
                 isOnline: input.isOnline,
                 meetingUrl: input.meetingUrl,
             })

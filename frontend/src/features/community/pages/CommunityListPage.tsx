@@ -1,48 +1,43 @@
 import { CommunityCard } from '@/features/community/components/CommunityCard'
 import { useCommunities } from '@/features/community/hooks/useCommunityQueries'
-import { useSetHeaderActions } from '@/shared/components/HeaderActionsContext'
-import { Plus, Search } from 'lucide-react'
-import { useMemo } from 'react'
+import { FloatingActionButton } from '@/shared/components/FloatingActionButton'
+import { Bookmark, Plus, Search } from 'lucide-react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 /**
  * CommunityListPage — チャットリスト風コミュニティ一覧
  *
- * AppLayout ヘッダーに 🔍 + ➕ を注入（HeaderActionsContext 経由）
- * リスト: Avatar + コミュニティ名 + 最新お知らせ + 相対時刻
+ * #52: ヘッダー右の 🔍+➕ を廃止し、FAB（split: 検索+作成）に変更
+ * #53: ブックマークフィルター追加
  */
 export function CommunityListPage() {
     const navigate = useNavigate()
     const { data, isLoading } = useCommunities()
+    const [bookmarkOnly, setBookmarkOnly] = useState(false)
 
-    const communities = data?.communities ?? []
-
-    // ヘッダー右側に 🔍 + ➕ を注入
-    const actions = useMemo(
-        () => (
-            <>
-                <button
-                    onClick={() => navigate('/communities/search')}
-                    className="text-gray-500 hover:text-blue-600 transition-colors"
-                    aria-label="コミュニティ検索"
-                >
-                    <Search className="w-5 h-5" />
-                </button>
-                <button
-                    onClick={() => navigate('/communities/create')}
-                    className="text-gray-500 hover:text-blue-600 transition-colors"
-                    aria-label="コミュニティ作成"
-                >
-                    <Plus className="w-5 h-5" />
-                </button>
-            </>
-        ),
-        [navigate],
-    )
-    useSetHeaderActions(actions)
+    const allCommunities = data?.communities ?? []
+    const communities = bookmarkOnly ? allCommunities.filter(c => c.bookmarked) : allCommunities
 
     return (
         <div className="flex flex-col h-full">
+            {/* Bookmark filter */}
+            {allCommunities.length > 0 && (
+                <div className="px-4 py-2 border-b border-gray-100 flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setBookmarkOnly(!bookmarkOnly)}
+                        className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-colors ${bookmarkOnly
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                            }`}
+                    >
+                        <Bookmark size={12} className={bookmarkOnly ? 'fill-yellow-400 text-yellow-400' : ''} />
+                        ブックマーク
+                    </button>
+                </div>
+            )}
+
             {/* List */}
             {isLoading ? (
                 <div className="flex-1 flex items-center justify-center">
@@ -69,6 +64,15 @@ export function CommunityListPage() {
                     ))}
                 </div>
             )}
+
+            {/* #52: FAB — 検索 + 作成 */}
+            <FloatingActionButton
+                variant="split"
+                actions={[
+                    { icon: <Search size={20} />, label: '検索', onClick: () => navigate('/communities/search') },
+                    { icon: <Plus size={20} />, label: '作成', onClick: () => navigate('/communities/create') },
+                ]}
+            />
         </div>
     )
 }

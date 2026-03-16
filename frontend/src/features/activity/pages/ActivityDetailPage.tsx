@@ -1,9 +1,11 @@
 import { useActivity, useChangeOrganizer, useDeleteActivity } from '@/features/activity/hooks/useActivityQueries'
+import { chatApi } from '@/features/chat/api/chatApi'
 import { useMyRole } from '@/features/community/hooks/useCommunityQueries'
 import { useMembers } from '@/features/community/hooks/useMemberQueries'
+import { BulkConfirmDialog } from '@/features/participation/components/BulkConfirmDialog'
 import { ParticipationActionButton } from '@/features/participation/components/ParticipationActionButton'
 import { RefundPendingSection } from '@/features/participation/components/RefundPendingSection'
-import { useConfirmPayment, useParticipants, useWaitlistEntries } from '@/features/participation/hooks/useParticipationQueries'
+import { useAddGuestVisitor, useConfirmPayment, useParticipants, useUpdateVisitorPayment, useWaitlistEntries } from '@/features/participation/hooks/useParticipationQueries'
 import { useSchedule, useSchedules } from '@/features/schedule/hooks/useScheduleQueries'
 import { useSetHeaderActions } from '@/shared/components/HeaderActionsContext'
 import {
@@ -16,7 +18,7 @@ import { Input } from '@/shared/components/ui/input'
 import { Separator } from '@/shared/components/ui/separator'
 import type { Member, ParticipantItem, ScheduleListItem } from '@/shared/types/api'
 import { formatDateLabel } from '@/shared/utils/dateGroup'
-import { ArrowLeftRight, Banknote, Calendar, Edit, ExternalLink, MapPin, Repeat, Trash2, User } from 'lucide-react'
+import { ArrowLeftRight, Banknote, Calendar, ClipboardCheck, Edit, ExternalLink, MapPin, Repeat, Trash2, User, UserPlus } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
@@ -119,6 +121,12 @@ export function ActivityDetailPage() {
 
             {/* ── 情報セクション ── */}
             <div className="space-y-2 text-sm text-gray-700">
+                {activity.communityName && (
+                    <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-gray-400 shrink-0" />
+                        <span>コミュニティ：{activity.communityName}</span>
+                    </div>
+                )}
                 {activity.defaultLocation && activity.defaultLocation !== 'オンライン' && (
                     <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
@@ -153,31 +161,56 @@ export function ActivityDetailPage() {
                         </span>
                     </div>
                 ) : null}
-                <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-gray-400 shrink-0" />
-                    <span>幹事：{activity.organizerDisplayName ?? activity.organizerUserId ? (activity.organizerDisplayName ?? '—') : '未定'}</span>
-                    {isAdminOrAbove && (
-                        <button
-                            type="button"
-                            onClick={() => setShowOrganizerDialog(true)}
-                            className="p-1 hover:bg-gray-100 rounded"
-                            aria-label="幹事を変更"
-                        >
-                            <ArrowLeftRight className="w-3.5 h-3.5 text-gray-400" />
-                        </button>
-                    )}
-                </div>
-                {/* 参加費（表示中のスケジュールから取得） */}
-                {activeSchedule && (
-                    <div className="flex items-center gap-2">
-                        <Banknote className="w-4 h-4 text-gray-400 shrink-0" />
-                        <span>
-                            参加費：{activeSchedule.participationFee != null && activeSchedule.participationFee > 0
-                                ? `¥${activeSchedule.participationFee.toLocaleString()}`
-                                : '無料'}
-                        </span>
+                {/* 幹事 + 参加費 + チャットボタン (#33) */}
+                <div className="flex items-stretch gap-3">
+                    <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-gray-400 shrink-0" />
+                            <span>幹事：{activity.organizerDisplayName ?? activity.organizerUserId ? (activity.organizerDisplayName ?? '—') : '未定'}</span>
+                            {isAdminOrAbove && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowOrganizerDialog(true)}
+                                    className="p-1 hover:bg-gray-100 rounded"
+                                    aria-label="幹事を変更"
+                                >
+                                    <ArrowLeftRight className="w-3.5 h-3.5 text-gray-400" />
+                                </button>
+                            )}
+                        </div>
+                        {/* 参加費（表示中のスケジュールから取得） */}
+                        {activeSchedule && (
+                            <div className="flex items-center gap-2">
+                                <Banknote className="w-4 h-4 text-gray-400 shrink-0" />
+                                <span>
+                                    参加費：{activeSchedule.participationFee != null && activeSchedule.participationFee > 0
+                                        ? `¥${activeSchedule.participationFee.toLocaleString()}`
+                                        : '無料'}
+                                    {activeSchedule.visitorFee != null && activeSchedule.visitorFee !== activeSchedule.participationFee && (
+                                        <span className="text-gray-500 ml-1">
+                                            （ビジター：¥{activeSchedule.visitorFee.toLocaleString()}）
+                                        </span>
+                                    )}
+                                </span>
+                            </div>
+                        )}
                     </div>
-                )}
+                    {/* チャットボタン: 幹事・参加費の右横に2行分の高さ */}
+                    <button
+                        type="button"
+                        onClick={async () => {
+                            try {
+                                const { channelId } = await chatApi.getActivityChannel(id!)
+                                navigate(`/chats/${channelId}`)
+                            } catch {
+                                // エラー時は何もしない
+                            }
+                        }}
+                        className="flex items-center justify-center px-4 border border-gray-300 bg-white text-gray-700 rounded-xl hover:bg-gray-50 transition-colors shrink-0 text-xs font-medium whitespace-nowrap"
+                    >
+                        チャットを始める
+                    </button>
+                </div>
                 {/* 繰り返し予定ナビ（recurrenceRule あり かつ 複数スケジュール時のみ） */}
                 {activity.recurrenceRule && schedules.length > 1 && activeSchedule && (
                     <div className="flex items-center gap-2">
@@ -258,15 +291,28 @@ function ScheduleSection({ schedule, enabledPaymentMethods, paypayId, isAdminOrA
     const { data: participantsData } = useParticipants(schedule.id)
     const { data: waitlistData } = useWaitlistEntries(schedule.id)
     const confirmPaymentMutation = useConfirmPayment(schedule.id)
+    const addGuestVisitorMutation = useAddGuestVisitor(schedule.id)
+    const updateVisitorPaymentMutation = useUpdateVisitorPayment(schedule.id)
     // 個別スケジュールAPIで myStatus / attendingCount / waitlistCount を取得
     const { data: scheduleDetail, isLoading: isDetailLoading } = useSchedule(schedule.id)
     const participants = participantsData?.participants ?? []
     const waitlistEntries = waitlistData?.entries ?? []
     const isCancelled = schedule.status === 'CANCELLED'
     const remaining = schedule.capacity != null ? schedule.capacity - participants.length : null
+    // #40: 一括確認ダイアログ
+    const [showBulkConfirm, setShowBulkConfirm] = useState(false)
+    const [showAddVisitor, setShowAddVisitor] = useState(false)
+    const hasReportedPayments = participants.some((p) => p.paymentStatus === 'REPORTED')
+
+    // #34: 過去アクティビティ判定（endTime を過ぎたらボタン非活性）
+    const isExpired = (() => {
+        if (!schedule.date || !schedule.endTime) return false
+        const endDateTime = new Date(`${schedule.date}T${schedule.endTime}`)
+        return endDateTime.getTime() < Date.now()
+    })()
 
     const myStatus = scheduleDetail?.myStatus ?? 'none'
-    const hasFee = schedule.participationFee != null && schedule.participationFee > 0
+    const hasFee = (schedule.participationFee != null && schedule.participationFee > 0) || (schedule.visitorFee != null && schedule.visitorFee > 0)
     const isFull = schedule.capacity != null
         && (scheduleDetail?.attendingCount ?? participants.length) >= schedule.capacity
 
@@ -280,9 +326,21 @@ function ScheduleSection({ schedule, enabledPaymentMethods, paypayId, isAdminOrA
 
             {/* 参加者一覧 */}
             <div>
-                <h3 className="text-xs font-semibold text-gray-600 mb-1">
-                    参加者一覧（{remaining != null ? `残り: ${remaining}/${schedule.capacity}` : `${participants.length}名`}）
-                </h3>
+                <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-xs font-semibold text-gray-600">
+                        参加者一覧（{remaining != null ? `残り: ${remaining}/${schedule.capacity}` : `${participants.length}名`}）
+                    </h3>
+                    {!isCancelled && !isExpired && (
+                        <button
+                            type="button"
+                            onClick={() => setShowAddVisitor(true)}
+                            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+                        >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            ゲスト追加
+                        </button>
+                    )}
+                </div>
                 <div className="border rounded overflow-hidden">
                     <div className="max-h-64 overflow-auto">
                         <table className="w-full text-xs">
@@ -291,8 +349,23 @@ function ScheduleSection({ schedule, enabledPaymentMethods, paypayId, isAdminOrA
                                     <th className="px-2 py-1 text-left font-medium text-gray-600 w-8">No.</th>
                                     <th className="px-2 py-1 text-left font-medium text-gray-600">参加者</th>
                                     <th className="px-2 py-1 text-center font-medium text-gray-600 w-16">ビジター</th>
-                                    {isAdminOrAbove && <th className="px-2 py-1 text-center font-medium text-gray-600 w-20">支払い方法</th>}
-                                    {isAdminOrAbove && <th className="px-2 py-1 text-center font-medium text-gray-600 w-16">支払い</th>}
+                                    {isAdminOrAbove && hasFee && <th className="px-2 py-1 text-center font-medium text-gray-600 w-20">支払い方法</th>}
+                                    {isAdminOrAbove && hasFee && (
+                                        <th className="px-2 py-1 text-center font-medium text-gray-600 w-20">
+                                            <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                                支払い
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowBulkConfirm(true)}
+                                                    className="p-0.5 hover:bg-gray-200 rounded transition-colors"
+                                                    aria-label="支払いを一括確認"
+                                                    title="支払いを一括確認"
+                                                >
+                                                    <ClipboardCheck className="w-3.5 h-3.5 text-blue-600" />
+                                                </button>
+                                            </span>
+                                        </th>
+                                    )}
                                 </tr>
                             </thead>
                             <tbody>
@@ -304,12 +377,16 @@ function ScheduleSection({ schedule, enabledPaymentMethods, paypayId, isAdminOrA
                                             <tr key={p?.id ?? `empty-${i}`} className="border-b last:border-0">
                                                 <td className="px-2 py-1 text-gray-600">{i + 1}</td>
                                                 <td className="px-2 py-1 text-gray-900">
-                                                    {p ? (p.displayName ?? p.userId.slice(0, 8)) : <span className="text-gray-300">—</span>}
+                                                    {p ? (
+                                                        p.isGuestVisitor
+                                                            ? <span>{p.visitorName ?? '—'} <span className="text-gray-400 text-[10px]">（ゲスト）</span></span>
+                                                            : (p.displayName ?? (p.userId ? p.userId.slice(0, 8) : '—'))
+                                                    ) : <span className="text-gray-300">—</span>}
                                                 </td>
                                                 <td className="px-2 py-1 text-center">
                                                     {p ? (p.isVisitor ? '✓' : '—') : <span className="text-gray-300">—</span>}
                                                 </td>
-                                                {isAdminOrAbove && (
+                                                {isAdminOrAbove && hasFee && (
                                                     <td className="px-2 py-1 text-center">
                                                         {p?.paymentMethod ? (
                                                             <span className="text-gray-700">
@@ -318,7 +395,7 @@ function ScheduleSection({ schedule, enabledPaymentMethods, paypayId, isAdminOrA
                                                         ) : <span className="text-gray-300">—</span>}
                                                     </td>
                                                 )}
-                                                {isAdminOrAbove && (
+                                                {isAdminOrAbove && hasFee && (
                                                     <td className="px-2 py-1 text-center">
                                                         {p ? (
                                                             p.paymentStatus === 'CONFIRMED' ? (
@@ -354,40 +431,46 @@ function ScheduleSection({ schedule, enabledPaymentMethods, paypayId, isAdminOrA
                 </div>
             </div>
 
-            {/* キャンセル待ち一覧（常時表示） */}
-            <div>
-                <h3 className="text-xs font-semibold text-gray-600 mb-1">
-                    キャンセル待ち（{waitlistEntries.length}名）
-                </h3>
-                {waitlistEntries.length > 0 ? (
-                    <div className="border rounded overflow-hidden">
-                        <div className="max-h-40 overflow-auto">
-                            <table className="w-full text-xs">
-                                <thead className="sticky top-0 z-10">
-                                    <tr className="bg-orange-50 border-b">
-                                        <th className="px-2 py-1 text-left font-medium text-gray-600 w-8">No.</th>
-                                        <th className="px-2 py-1 text-left font-medium text-gray-600">名前</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {waitlistEntries.map((w, i) => (
-                                        <tr key={w.id} className="border-b last:border-0">
-                                            <td className="px-2 py-1 text-gray-600">{i + 1}</td>
-                                            <td className="px-2 py-1 text-gray-900">{w.displayName ?? '—'}</td>
+            {/* キャンセル待ち一覧（参加上限がある場合のみ表示） */}
+            {schedule.capacity != null && (
+                <div>
+                    <h3 className="text-xs font-semibold text-gray-600 mb-1">
+                        キャンセル待ち（{waitlistEntries.length}名）
+                    </h3>
+                    {waitlistEntries.length > 0 ? (
+                        <div className="border rounded overflow-hidden">
+                            <div className="max-h-40 overflow-auto">
+                                <table className="w-full text-xs">
+                                    <thead className="sticky top-0 z-10">
+                                        <tr className="bg-orange-50 border-b">
+                                            <th className="px-2 py-1 text-left font-medium text-gray-600 w-8">No.</th>
+                                            <th className="px-2 py-1 text-left font-medium text-gray-600">名前</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {waitlistEntries.map((w, i) => (
+                                            <tr key={w.id} className="border-b last:border-0">
+                                                <td className="px-2 py-1 text-gray-600">{i + 1}</td>
+                                                <td className="px-2 py-1 text-gray-900">{w.displayName ?? '—'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
-                ) : (
-                    <p className="text-xs text-gray-400">キャンセル待ちはいません。</p>
-                )}
-            </div>
+                    ) : (
+                        <p className="text-xs text-gray-400">キャンセル待ちはいません。</p>
+                    )}
+                </div>
+            )}
 
             {/* 参加アクションボタン（scheduleDetail読込完了まで表示しない） */}
             {!isCancelled && (
-                isDetailLoading ? (
+                isExpired ? (
+                    <div className="text-center py-2">
+                        <p className="text-sm text-gray-400">この予定は終了しました</p>
+                    </div>
+                ) : isDetailLoading ? (
                     <div className="flex justify-center py-2">
                         <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
                     </div>
@@ -410,7 +493,93 @@ function ScheduleSection({ schedule, enabledPaymentMethods, paypayId, isAdminOrA
 
             {/* 管理者向け: 返金待ち一覧 */}
             {isAdminOrAbove && <RefundPendingSection scheduleId={schedule.id} />}
+
+            {/* #40: 一括確認ダイアログ */}
+            <BulkConfirmDialog
+                scheduleId={schedule.id}
+                participants={participants}
+                open={showBulkConfirm}
+                onClose={() => setShowBulkConfirm(false)}
+            />
+
+            {/* ゲストビジター追加ダイアログ */}
+            <AddGuestVisitorDialog
+                open={showAddVisitor}
+                onOpenChange={setShowAddVisitor}
+                onSubmit={async (visitorName) => {
+                    await addGuestVisitorMutation.mutateAsync({ visitorName })
+                    setShowAddVisitor(false)
+                }}
+                isPending={addGuestVisitorMutation.isPending}
+            />
         </div>
+    )
+}
+
+// ─── ゲストビジター追加ダイアログ ──────────────────────
+
+function AddGuestVisitorDialog({
+    open,
+    onOpenChange,
+    onSubmit,
+    isPending,
+}: {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onSubmit: (visitorName: string) => Promise<void>
+    isPending: boolean
+}) {
+    const [name, setName] = useState('')
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!name.trim()) return
+        await onSubmit(name.trim())
+        setName('')
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>ゲストビジター追加</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-3">
+                    <div className="space-y-1.5">
+                        <label htmlFor="visitorName" className="text-sm font-medium text-gray-700">
+                            ビジター名
+                        </label>
+                        <Input
+                            id="visitorName"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="名前を入力（最大50文字）"
+                            maxLength={50}
+                            autoFocus
+                        />
+                    </div>
+                    <p className="text-xs text-gray-500">
+                        アプリ未登録のゲスト参加者を追加します。支払い管理はあなたが行います。
+                    </p>
+                    <div className="flex justify-end gap-2 pt-1">
+                        <button
+                            type="button"
+                            onClick={() => onOpenChange(false)}
+                            className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-md"
+                        >
+                            キャンセル
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={!name.trim() || isPending}
+                            className="px-3 py-1.5 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50"
+                        >
+                            {isPending ? '追加中...' : '追加'}
+                        </button>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
     )
 }
 

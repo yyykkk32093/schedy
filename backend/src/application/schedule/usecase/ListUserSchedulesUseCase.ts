@@ -45,7 +45,7 @@ export class ListUserSchedulesUseCase {
             return { schedules: [] }
         }
 
-        // 2. JOIN クエリでスケジュールを横断取得
+        // 2. ユーザーが参加しているスケジュールのみを横断取得
         const rows = await this.prisma.schedule.findMany({
             where: {
                 activity: {
@@ -55,6 +55,9 @@ export class ListUserSchedulesUseCase {
                 date: {
                     gte: new Date(input.from),
                     lte: new Date(input.to),
+                },
+                participations: {
+                    some: { userId: input.userId },
                 },
             },
             include: {

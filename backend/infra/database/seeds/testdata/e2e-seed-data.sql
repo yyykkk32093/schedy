@@ -179,10 +179,10 @@ INSERT INTO "Schedule" ("id", "activityId", "date", "startTime", "endTime", "loc
 VALUES
   ('test-sched-futsal-sat-01', 'test-activity-futsal-sat', '2026-03-15', '10:00', '12:00', '代々木公園フットサルコート', 'SCHEDULED', 20, 500,  false, NULL, NOW(), NOW()),
   ('test-sched-futsal-sat-02', 'test-activity-futsal-sat', '2026-03-22', '10:00', '12:00', '代々木公園フットサルコート', 'SCHEDULED', 20, 500,  false, NULL, NOW(), NOW()),
-  ('test-sched-futsal-sun-01', 'test-activity-futsal-sun', '2026-03-16', '14:00', '16:00', '駒沢公園', 'SCHEDULED', 16, NULL, false, NULL, NOW(), NOW()),
-  ('test-sched-yoga-01',       'test-activity-yoga-morning', '2026-03-10', '07:00', '08:00', '新宿御苑', 'SCHEDULED', NULL, NULL, false, NULL, NOW(), NOW()),
-  ('test-sched-yoga-02',       'test-activity-yoga-morning', '2026-03-17', '07:00', '08:00', '新宿御苑', 'SCHEDULED', NULL, NULL, false, NULL, NOW(), NOW()),
-  ('test-sched-book-01',       'test-activity-book-monthly', '2026-03-20', '19:00', '21:00', 'オンライン (Zoom)', 'SCHEDULED', 15, NULL, true, 'https://zoom.us/j/1234567890', NOW(), NOW())
+  ('test-sched-futsal-sun-01', 'test-activity-futsal-sun', '2026-03-16', '14:00', '16:00', '駒沢公園', 'SCHEDULED', 16, 0, false, NULL, NOW(), NOW()),
+  ('test-sched-yoga-01',       'test-activity-yoga-morning', '2026-03-10', '07:00', '08:00', '新宿御苑', 'SCHEDULED', NULL, 0, false, NULL, NOW(), NOW()),
+  ('test-sched-yoga-02',       'test-activity-yoga-morning', '2026-03-17', '07:00', '08:00', '新宿御苑', 'SCHEDULED', NULL, 0, false, NULL, NOW(), NOW()),
+  ('test-sched-book-01',       'test-activity-book-monthly', '2026-03-20', '19:00', '21:00', 'オンライン (Zoom)', 'SCHEDULED', 15, 0, true, 'https://zoom.us/j/1234567890', NOW(), NOW())
 ON CONFLICT ("id") DO NOTHING;
 
 -- ============================================================
@@ -285,31 +285,38 @@ ON CONFLICT ("announcementId", "userId") DO NOTHING;
 -- ============================================================
 
 -- フットサル土曜 3/15: Helena=参加, Daniel=参加, Sakura=参加
-INSERT INTO "Participation" ("id", "scheduleId", "userId", "status", "isVisitor", "respondedAt", "paymentMethod", "paymentStatus")
+INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
 VALUES
-  ('test-part-futsal-sat01-h', 'test-sched-futsal-sat-01', 'test-user-helena-001', 'ATTENDING', false, NOW(), 'PAYPAY', 'CONFIRMED'),
-  ('test-part-futsal-sat01-d', 'test-sched-futsal-sat-01', 'test-user-daniel-001', 'ATTENDING', false, NOW(), 'CASH',   'UNPAID'),
-  ('test-part-futsal-sat01-s', 'test-sched-futsal-sat-01', 'test-user-sakura-001', 'ATTENDING', false, NOW(), NULL,     NULL)
+  ('test-part-futsal-sat01-h', 'test-sched-futsal-sat-01', 'test-user-helena-001', false, NOW()),
+  ('test-part-futsal-sat01-d', 'test-sched-futsal-sat-01', 'test-user-daniel-001', false, NOW()),
+  ('test-part-futsal-sat01-s', 'test-sched-futsal-sat-01', 'test-user-sakura-001', false, NOW())
+ON CONFLICT DO NOTHING;
+
+-- フットサル土曜 3/15: Payment データ
+INSERT INTO "Payment" ("id", "participationId", "userId", "scheduleId", "amount", "paymentMethod", "status", "createdAt", "updatedAt")
+VALUES
+  ('test-pay-futsal-sat01-h', 'test-part-futsal-sat01-h', 'test-user-helena-001', 'test-sched-futsal-sat-01', 500, 'PAYPAY', 'CONFIRMED', NOW(), NOW()),
+  ('test-pay-futsal-sat01-d', 'test-part-futsal-sat01-d', 'test-user-daniel-001', 'test-sched-futsal-sat-01', 500, 'CASH',   'UNPAID',    NOW(), NOW())
 ON CONFLICT DO NOTHING;
 
 -- フットサル土曜 3/22: Helena=参加
-INSERT INTO "Participation" ("id", "scheduleId", "userId", "status", "isVisitor", "respondedAt")
+INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
 VALUES
-  ('test-part-futsal-sat02-h', 'test-sched-futsal-sat-02', 'test-user-helena-001', 'ATTENDING', false, NOW())
+  ('test-part-futsal-sat02-h', 'test-sched-futsal-sat-02', 'test-user-helena-001', false, NOW())
 ON CONFLICT DO NOTHING;
 
 -- ヨガ 3/10: Daniel=参加, Sakura=参加
-INSERT INTO "Participation" ("id", "scheduleId", "userId", "status", "isVisitor", "respondedAt")
+INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
 VALUES
-  ('test-part-yoga01-d', 'test-sched-yoga-01', 'test-user-daniel-001', 'ATTENDING', false, NOW()),
-  ('test-part-yoga01-s', 'test-sched-yoga-01', 'test-user-sakura-001', 'ATTENDING', false, NOW())
+  ('test-part-yoga01-d', 'test-sched-yoga-01', 'test-user-daniel-001', false, NOW()),
+  ('test-part-yoga01-s', 'test-sched-yoga-01', 'test-user-sakura-001', false, NOW())
 ON CONFLICT DO NOTHING;
 
 -- 読書会 3/20: Sakura=参加, Helena=参加（オンライン）
-INSERT INTO "Participation" ("id", "scheduleId", "userId", "status", "isVisitor", "respondedAt")
+INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
 VALUES
-  ('test-part-book01-s', 'test-sched-book-01', 'test-user-sakura-001', 'ATTENDING', false, NOW()),
-  ('test-part-book01-h', 'test-sched-book-01', 'test-user-helena-001', 'ATTENDING', false, NOW())
+  ('test-part-book01-s', 'test-sched-book-01', 'test-user-sakura-001', false, NOW()),
+  ('test-part-book01-h', 'test-sched-book-01', 'test-user-helena-001', false, NOW())
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
@@ -317,9 +324,9 @@ ON CONFLICT DO NOTHING;
 -- ============================================================
 
 -- フットサル日曜 3/16 (capacity=16): Sakura がキャンセル待ち
-INSERT INTO "WaitlistEntry" ("id", "scheduleId", "userId", "position", "status", "registeredAt")
+INSERT INTO "WaitlistEntry" ("id", "scheduleId", "userId", "registeredAt")
 VALUES
-  ('test-wl-futsal-sun01-s', 'test-sched-futsal-sun-01', 'test-user-sakura-001', 1, 'WAITING', NOW())
+  ('test-wl-futsal-sun01-s', 'test-sched-futsal-sun-01', 'test-user-sakura-001', NOW())
 ON CONFLICT ("scheduleId", "userId") DO NOTHING;
 
 COMMIT;
@@ -331,29 +338,95 @@ COMMIT;
 BEGIN;
 
 -- Schedule: フットサル 3月分（統計テスト用）
-INSERT INTO "Schedule" ("id", "activityId", "date", "startTime", "endTime", "location", "status", "capacity", "participationFee", "isOnline")
+INSERT INTO "Schedule" ("id", "activityId", "date", "startTime", "endTime", "location", "status", "capacity", "participationFee", "isOnline", "createdAt", "updatedAt")
 VALUES
-  ('test-sched-futsal-0301', 'test-activity-futsal-sat', '2026-03-01', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500, false),
-  ('test-sched-futsal-0308', 'test-activity-futsal-sat', '2026-03-08', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500, false),
-  ('test-sched-futsal-0315', 'test-activity-futsal-sat', '2026-03-15', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500, false)
+  ('test-sched-futsal-0301', 'test-activity-futsal-sat', '2026-03-01', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500, false, NOW(), NOW()),
+  ('test-sched-futsal-0308', 'test-activity-futsal-sat', '2026-03-08', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500, false, NOW(), NOW()),
+  ('test-sched-futsal-0315', 'test-activity-futsal-sat', '2026-03-15', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500, false, NOW(), NOW())
 ON CONFLICT DO NOTHING;
 
--- Participation: Helena, Daniel, Sakura の参加
-INSERT INTO "Participation" ("id", "scheduleId", "userId", "status", "isVisitor", "respondedAt", "paymentMethod", "paymentStatus")
+-- Participation: Helena, Daniel の参加（CANCELLED は Participation には入れない＝レコードが存在しない）
+INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
 VALUES
-  ('test-part-h-0301', 'test-sched-futsal-0301', 'test-user-helena-001', 'ATTENDING', false, '2026-02-28T10:00:00Z', 'PAYPAY', 'CONFIRMED'),
-  ('test-part-d-0301', 'test-sched-futsal-0301', 'test-user-daniel-001', 'ATTENDING', false, '2026-02-28T12:00:00Z', 'CASH', 'UNPAID'),
-  ('test-part-s-0301', 'test-sched-futsal-0301', 'test-user-sakura-001', 'CANCELLED', false, '2026-02-28T14:00:00Z', NULL, NULL),
-  ('test-part-h-0308', 'test-sched-futsal-0308', 'test-user-helena-001', 'ATTENDING', false, '2026-03-05T10:00:00Z', 'PAYPAY', 'CONFIRMED'),
-  ('test-part-d-0308', 'test-sched-futsal-0308', 'test-user-daniel-001', 'ATTENDING', false, '2026-03-05T12:00:00Z', 'CASH', 'CONFIRMED'),
-  ('test-part-h-0315', 'test-sched-futsal-0315', 'test-user-helena-001', 'ATTENDING', false, '2026-03-12T10:00:00Z', 'PAYPAY', 'UNPAID'),
-  ('test-part-d-0315', 'test-sched-futsal-0315', 'test-user-daniel-001', 'CANCELLED', false, '2026-03-15T08:00:00Z', NULL, NULL)
+  ('test-part-h-0301', 'test-sched-futsal-0301', 'test-user-helena-001', false, '2026-02-28T10:00:00Z'),
+  ('test-part-d-0301', 'test-sched-futsal-0301', 'test-user-daniel-001', false, '2026-02-28T12:00:00Z'),
+  ('test-part-h-0308', 'test-sched-futsal-0308', 'test-user-helena-001', false, '2026-03-05T10:00:00Z'),
+  ('test-part-d-0308', 'test-sched-futsal-0308', 'test-user-daniel-001', false, '2026-03-05T12:00:00Z'),
+  ('test-part-h-0315', 'test-sched-futsal-0315', 'test-user-helena-001', false, '2026-03-12T10:00:00Z')
 ON CONFLICT DO NOTHING;
 
--- Sakura の 0301 キャンセル日時を当日に設定（当日キャンセル検知テスト用）
-UPDATE "Participation" SET "cancelledAt" = '2026-03-01T09:00:00Z' WHERE "id" = 'test-part-s-0301';
--- Daniel の 0315 キャンセル日時を当日に設定
-UPDATE "Participation" SET "cancelledAt" = '2026-03-15T08:00:00Z' WHERE "id" = 'test-part-d-0315';
+-- Payment: 統計テスト用
+INSERT INTO "Payment" ("id", "participationId", "userId", "scheduleId", "amount", "paymentMethod", "status", "createdAt", "updatedAt")
+VALUES
+  ('test-pay-h-0301', 'test-part-h-0301', 'test-user-helena-001', 'test-sched-futsal-0301', 500, 'PAYPAY', 'CONFIRMED', '2026-02-28T10:00:00Z', '2026-02-28T10:00:00Z'),
+  ('test-pay-d-0301', 'test-part-d-0301', 'test-user-daniel-001', 'test-sched-futsal-0301', 500, 'CASH',   'UNPAID',    '2026-02-28T12:00:00Z', '2026-02-28T12:00:00Z'),
+  ('test-pay-h-0308', 'test-part-h-0308', 'test-user-helena-001', 'test-sched-futsal-0308', 500, 'PAYPAY', 'CONFIRMED', '2026-03-05T10:00:00Z', '2026-03-05T10:00:00Z'),
+  ('test-pay-d-0308', 'test-part-d-0308', 'test-user-daniel-001', 'test-sched-futsal-0308', 500, 'CASH',   'CONFIRMED', '2026-03-05T12:00:00Z', '2026-03-05T12:00:00Z'),
+  ('test-pay-h-0315', 'test-part-h-0315', 'test-user-helena-001', 'test-sched-futsal-0315', 500, 'PAYPAY', 'UNPAID',    '2026-03-12T10:00:00Z', '2026-03-12T10:00:00Z')
+ON CONFLICT DO NOTHING;
+
+COMMIT;
+
+-- ========== 10. ビジター＆経費テストデータ（Phase 4 新機能） ==========
+
+BEGIN;
+
+-- Schedule に visitorFee を設定（フットサル土曜のスケジュール）
+UPDATE "Schedule" SET "visitorFee" = 800 WHERE "id" = 'test-sched-futsal-sat-01';
+UPDATE "Schedule" SET "visitorFee" = 800 WHERE "id" = 'test-sched-futsal-sat-02';
+
+-- ゲストビジター参加データ（userId=NULL）
+INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "visitorName", "addedBy", "respondedAt")
+VALUES
+  ('test-part-guest-taro', 'test-sched-futsal-sat-01', NULL, true, '山田太郎', 'test-user-helena-001', NOW()),
+  ('test-part-guest-hanako', 'test-sched-futsal-sat-01', NULL, true, '佐藤花子', 'test-user-daniel-001', NOW())
+ON CONFLICT DO NOTHING;
+
+-- 登録済みビジター参加データ（userId=set, isVisitor=true）
+INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
+VALUES
+  ('test-part-visitor-sakura', 'test-sched-futsal-sat-02', 'test-user-sakura-001', true, NOW())
+ON CONFLICT DO NOTHING;
+
+-- ゲストビジターの Payment データ
+INSERT INTO "Payment" ("id", "participationId", "userId", "scheduleId", "amount", "paymentMethod", "status", "createdAt", "updatedAt")
+VALUES
+  ('test-pay-guest-taro', 'test-part-guest-taro', NULL, 'test-sched-futsal-sat-01', 800, NULL, 'UNPAID', NOW(), NOW()),
+  ('test-pay-guest-hanako', 'test-part-guest-hanako', NULL, 'test-sched-futsal-sat-01', 800, 'CASH', 'CONFIRMED', NOW(), NOW()),
+  ('test-pay-visitor-sakura', 'test-part-visitor-sakura', 'test-user-sakura-001', 'test-sched-futsal-sat-02', 800, 'PAYPAY', 'UNPAID', NOW(), NOW())
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- 10b. 経費カテゴリ（システムプリセット）
+-- ============================================================
+
+INSERT INTO "ExpenseCategory" ("id", "communityId", "name", "isSystem", "sortOrder", "isActive", "createdAt")
+VALUES
+  ('test-expcat-nomikai',  NULL, '飲み会',       true, 1, true, NOW()),
+  ('test-expcat-facility', NULL, '設備利用料',   true, 2, true, NOW()),
+  ('test-expcat-supply',   NULL, '消耗品',       true, 3, true, NOW()),
+  ('test-expcat-uniform',  NULL, 'ユニフォーム', true, 4, true, NOW()),
+  ('test-expcat-misc',     NULL, '未分類',       true, 5, true, NOW())
+ON CONFLICT DO NOTHING;
+
+-- フットサルコミュニティ用のカスタムカテゴリ
+INSERT INTO "ExpenseCategory" ("id", "communityId", "name", "isSystem", "sortOrder", "isActive", "createdAt")
+VALUES
+  ('test-expcat-futsal-ball', 'test-community-futsal-001', 'ボール購入', false, 10, true, NOW())
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- 10c. 経費データ（フットサルコミュニティ）
+-- ============================================================
+
+INSERT INTO "Expense" ("id", "communityId", "categoryId", "amount", "description", "date", "createdBy", "createdAt", "updatedAt")
+VALUES
+  ('test-expense-001', 'test-community-futsal-001', 'test-expcat-facility', 3000,  'コート利用料 3/15',   '2026-03-15', 'test-user-helena-001', NOW(), NOW()),
+  ('test-expense-002', 'test-community-futsal-001', 'test-expcat-facility', 3000,  'コート利用料 3/22',   '2026-03-22', 'test-user-helena-001', NOW(), NOW()),
+  ('test-expense-003', 'test-community-futsal-001', 'test-expcat-supply',   1500,  'ビブス 10枚セット',   '2026-03-10', 'test-user-helena-001', NOW(), NOW()),
+  ('test-expense-004', 'test-community-futsal-001', 'test-expcat-futsal-ball', 4500, 'フットサルボール 5号', '2026-03-05', 'test-user-helena-001', NOW(), NOW()),
+  ('test-expense-005', 'test-community-futsal-001', 'test-expcat-nomikai',  8000,  '打ち上げ（居酒屋）',  '2026-03-15', 'test-user-helena-001', NOW(), NOW())
+ON CONFLICT DO NOTHING;
 
 COMMIT;
 
@@ -361,6 +434,9 @@ COMMIT;
 -- テストデータ削除用（必要時にコメント解除して実行）
 -- ============================================================
 -- BEGIN;
+-- DELETE FROM "Expense" WHERE "id" LIKE 'test-expense-%';
+-- DELETE FROM "ExpenseCategory" WHERE "id" LIKE 'test-expcat-%';
+-- DELETE FROM "Payment" WHERE "id" LIKE 'test-pay-%';
 -- DELETE FROM "WaitlistEntry" WHERE "id" LIKE 'test-wl-%';
 -- DELETE FROM "Participation" WHERE "id" LIKE 'test-part-%';
 -- DELETE FROM "Schedule" WHERE "id" LIKE 'test-sched-%';

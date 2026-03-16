@@ -10,6 +10,11 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    // react-photo-view は CJS の default import で React を参照するため、
+    // 確実に Vite の pre-bundle 対象に含めて React インスタンスの一元化を保証する
+    include: ['react', 'react-dom', 'react-photo-view'],
+  },
   server: {
     proxy: {
       '/v1': {

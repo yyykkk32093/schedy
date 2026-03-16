@@ -5,9 +5,9 @@ import type { PrismaClient } from '@prisma/client'
 interface ResolvedPaymentItem {
     paymentId: string
     scheduleId: string
-    userId: string
+    userId: string | null
     displayName: string | null
-    paymentMethod: string
+    paymentMethod: string | null
     amount: number
     feeAmount: number
     status: string // 'REFUNDED' | 'NO_REFUND'
@@ -39,7 +39,7 @@ export class ListPaymentHistoryUseCase {
         const payments = await this.paymentRepository.findResolvedByCommunityId(input.communityId)
 
         // ユーザー表示名を取得
-        const userIds = [...new Set(payments.map((p) => p.getUserId().getValue()))]
+        const userIds = [...new Set(payments.map((p) => p.getUserId()?.getValue()).filter((id): id is string => id != null))]
         const users = userIds.length > 0
             ? await this.userRepository.findByIds(userIds) : []
         const userMap = new Map(
@@ -64,11 +64,12 @@ export class ListPaymentHistoryUseCase {
         if (payments.length > 0) {
             const seen = new Set<string>()
             for (const p of payments) {
-                const key = `${p.getScheduleId().getValue()}:${p.getUserId().getValue()}`
-                if (!seen.has(key)) {
+                const uid = p.getUserId()?.getValue() ?? ''
+                const key = `${p.getScheduleId().getValue()}:${uid}`
+                if (!seen.has(key) && uid) {
                     seen.add(key)
                     const ordered = await this.prisma.payment.findMany({
-                        where: { scheduleId: p.getScheduleId().getValue(), userId: p.getUserId().getValue() },
+                        where: { scheduleId: p.getScheduleId().getValue(), userId: uid },
                         orderBy: { createdAt: 'asc' },
                         select: { id: true },
                     })
@@ -80,16 +81,16 @@ export class ListPaymentHistoryUseCase {
         return {
             payments: payments.map((p) => {
                 const sid = p.getScheduleId().getValue()
-                const uid = p.getUserId().getValue()
+                const uid = p.getUserId()?.getValue() ?? null
                 const info = scheduleInfoMap.get(sid)
-                const orderedIds = pairOrderMap.get(`${sid}:${uid}`) ?? []
+                const orderedIds = uid ? (pairOrderMap.get(`${sid}:${uid}`) ?? []) : []
                 const paymentNumber = orderedIds.indexOf(p.getId()) + 1 || 1
                 return {
                     paymentId: p.getId(),
                     scheduleId: sid,
                     userId: uid,
-                    displayName: userMap.get(uid) ?? null,
-                    paymentMethod: p.getPaymentMethod().getValue(),
+                    displayName: uid ? (userMap.get(uid) ?? null) : null,
+                    paymentMethod: p.getPaymentMethod()?.getValue() ?? null,
                     amount: p.getAmount(),
                     feeAmount: p.getFeeAmount(),
                     status: p.getPaymentStatus().getValue(),

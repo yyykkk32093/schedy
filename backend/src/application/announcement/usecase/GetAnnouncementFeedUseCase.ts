@@ -8,6 +8,7 @@ import type { ICommunityMembershipRepository } from '@/domains/community/members
 export interface AnnouncementFeedItemDto {
     id: string
     communityId: string
+    activityId: string | null
     authorId: string
     authorName: string | null
     authorAvatarUrl: string | null
@@ -21,7 +22,9 @@ export interface AnnouncementFeedItemDto {
     likeCount: number
     commentCount: number
     isLiked: boolean
+    readCount: number
     attachments: Array<{ id: string; fileUrl: string; mimeType: string }>
+    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string } | null
 }
 
 export interface GetAnnouncementFeedOutput {
@@ -45,6 +48,7 @@ export class GetAnnouncementFeedUseCase {
         userId: string
         cursor?: string
         limit?: number
+        activityFilter?: boolean
     }): Promise<GetAnnouncementFeedOutput> {
         const limit = input.limit ?? DEFAULT_LIMIT
 
@@ -59,7 +63,7 @@ export class GetAnnouncementFeedUseCase {
         // 2. 横断的にアナウンスメントを取得（limit+1で次ページ有無を判定）
         const rows = await this.announcementRepository.findFeedByCommunityIds(
             communityIds,
-            { cursor: input.cursor, limit: limit + 1 },
+            { cursor: input.cursor, limit: limit + 1, activityFilter: input.activityFilter },
         )
 
         const hasMore = rows.length > limit
@@ -67,12 +71,13 @@ export class GetAnnouncementFeedUseCase {
 
         // 3. 既読状態・いいね数・コメント数・いいね済みを一括取得
         const announcementIds = feedRows.map((r) => r.id)
-        const [readIds, likeCounts, commentCounts, likedIds, bookmarkedIds] = await Promise.all([
+        const [readIds, likeCounts, commentCounts, likedIds, bookmarkedIds, readCounts] = await Promise.all([
             this.announcementReadRepository.findReadAnnouncementIds(input.userId, announcementIds),
             this.likeRepository.countByAnnouncementIds(announcementIds),
             this.commentRepository.countByAnnouncementIds(announcementIds),
             this.likeRepository.findLikedIds(input.userId, announcementIds),
             this.bookmarkRepository.findBookmarkedIds(input.userId, announcementIds),
+            this.announcementReadRepository.countByAnnouncementIds(announcementIds),
         ])
 
         const readSet = new Set(readIds)
@@ -83,6 +88,7 @@ export class GetAnnouncementFeedUseCase {
         const items: AnnouncementFeedItemDto[] = feedRows.map((r) => ({
             id: r.id,
             communityId: r.communityId,
+            activityId: r.activityId,
             authorId: r.authorId,
             authorName: r.authorName,
             authorAvatarUrl: r.authorAvatarUrl,
@@ -96,7 +102,9 @@ export class GetAnnouncementFeedUseCase {
             likeCount: likeCounts.get(r.id) ?? 0,
             commentCount: commentCounts.get(r.id) ?? 0,
             isLiked: likedSet.has(r.id),
+            readCount: readCounts.get(r.id) ?? 0,
             attachments: r.attachments,
+            scheduleInfo: r.scheduleInfo,
         }))
 
         const nextCursor = hasMore ? feedRows[feedRows.length - 1].id : null

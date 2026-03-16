@@ -13,6 +13,7 @@ export class FindActivityUseCase {
     async execute(input: { activityId: string }): Promise<{
         id: string
         communityId: string
+        communityName: string | null
         title: string
         description: string | null
         defaultLocation: string | null
@@ -56,6 +57,7 @@ export class FindActivityUseCase {
         return {
             id: activity.getId().getValue(),
             communityId: activity.getCommunityId().getValue(),
+            communityName: community?.getName().getValue() ?? null,
             title: activity.getTitle().getValue(),
             description: activity.getDescription()?.getValue() ?? null,
             defaultLocation: activity.getDefaultLocation()?.getValue() ?? null,

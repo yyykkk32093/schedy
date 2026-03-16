@@ -1,5 +1,8 @@
 # Phase 3 — 中規模新機能（バックエンド変更あり）
 
+> **最終更新**: 2026-03-17
+> **ステータス**: ✅ Phase 3 完了
+
 ## フェーズ概要
 - **ゴール**: バックエンド変更を伴う中規模の新機能・機能改善を実装する（DB構造変更は最小限）
 - **対象**: #1, #4, #18, #19, #20, #21, #33, #40, #49, #53
@@ -7,6 +10,31 @@
 - **推定規模**: L（10件。新機能中心で各件M規模）
 
 > ⚠️ #4はAnnouncementテーブルへのactivityIdカラム追加（DBマイグレーション）が必要。設計判断はwave2-overview.mdを参照。
+
+## タスク進捗一覧
+
+| #   | タスク                                   | ステータス | 備考                                                                                                                                                |
+| --- | ---------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #1  | お知らせ: アクティビティフィルター       | ✅ 完了     | FeedList・AnnouncementTabにactivityOnlyフィルターボタン追加。API: activityFilter query param                                                        |
+| #4  | お知らせ: アクティビティ作成時投稿       | ✅ 完了     | Announcement.activityId追加（DBマイグレーション済）。ActivityForm にチェックボックス追加                                                            |
+| #18 | チャット: リアクションUI改善             | ✅ 完了     | クイック絵文字バー（👍❤️😂😮🙏）+ カスタムEmojiPickerModal。MessageReaction: stampId nullable + emoji列追加                                              |
+| #19 | チャット: 削除済み表示                   | ✅ 完了     | Message.deletedBy追加（論理削除）。削除メッセージはグレー斜体プレースホルダー表示                                                                   |
+| #20 | チャット: 削除確認ダイアログ             | ✅ 完了     | MessageBubble内にAlertDialog実装。赤い「削除」ボタン                                                                                                |
+| #21 | チャット: アイコン配置                   | ✅ 完了     | メッセージ横にflex-col（Smile + Trash2）アイコン。ホバー/タップで表示                                                                               |
+| #33 | アクティビティ詳細: チャット開始ボタン   | ✅ 完了     | ActivityDetailPageに「チャットを開く」ボタン。getActivityChannel API経由                                                                            |
+| #40 | アクティビティ詳細: 現金一括確認         | ✅ 完了     | PATCH /v1/schedules/:id/payments/bulk-confirm。BulkConfirmDialog（チェックボックス一覧）                                                            |
+| #49 | コミュニティ設定: 参加設定編集           | ✅ 完了     | CommunitySettingsPageに「参加・公開設定」セクション追加（joinMethod/isPublic/mainActivityArea/activityFrequency）。UseCase・コントローラ拡張        |
+| #53 | コミュニティ一覧: ブックマーク＋絞り込み | ✅ 完了     | CommunityBookmarkテーブル（DBマイグレーション済）。bookmarkRoutes（toggle API）。CommunityCardにブックマークアイコン、CommunityListPageにフィルター |
+
+## 作業ログ
+- 2026-03-16: Step 1 DBマイグレーション（Announcement.activityId, Message.deletedBy, MessageReaction emoji, CommunityBookmark）
+- 2026-03-16: Step 2 #4+#1（アクティビティ→お知らせ連携 + フィルター）
+- 2026-03-16: Step 3 #19/#20/#21（チャット論理削除 + 確認ダイアログ + アイコン配置）
+- 2026-03-16: Step 4 #18（絵文字リアクション: クイックバー + カスタムピッカー + WebSocket対応）
+- 2026-03-16: Step 5 #33（チャット開始ボタン）
+- 2026-03-16: Step 6 #40（現金一括確認API + BulkConfirmDialog）
+- 2026-03-17: Step 7 #49（コミュニティ設定拡張: 参加方式・公開設定・活動エリア・活動頻度）
+- 2026-03-17: Step 8 #53（ブックマーク: toggle API + コミュニティ一覧bookmarkedフラグ + フィルターUI）
 
 ---
 

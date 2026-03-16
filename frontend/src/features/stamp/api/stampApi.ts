@@ -1,9 +1,9 @@
-import { http } from '@/shared/lib/apiClient'
+import { http } from '@/shared/lib/apiClient';
 import type {
     CreateStampRequest,
     ListStampsResponse,
     StampItem,
-} from '@/shared/types/api'
+} from '@/shared/types/api';
 
 export const stampApi = {
     /** 自分のスタンプ一覧 */
@@ -18,11 +18,11 @@ export const stampApi = {
     remove: (stampId: string) =>
         http<void>(`/v1/stamps/${stampId}`, { method: 'DELETE' }),
 
-    /** リアクション追加 */
-    addReaction: (messageId: string, stampId: string) =>
-        http<{ id: string }>(`/v1/messages/${messageId}/reactions`, { method: 'POST', json: { stampId } }),
+    /** リアクション追加（stampId or emoji） */
+    addReaction: (messageId: string, params: { stampId?: string; emoji?: string }) =>
+        http<{ id: string }>(`/v1/messages/${messageId}/reactions`, { method: 'POST', json: params }),
 
-    /** リアクション削除 */
-    removeReaction: (messageId: string, stampId: string) =>
-        http<void>(`/v1/messages/${messageId}/reactions/${stampId}`, { method: 'DELETE' }),
+    /** リアクション削除（stampId or emoji） */
+    removeReaction: (messageId: string, identifier: string) =>
+        http<void>(`/v1/messages/${messageId}/reactions/${encodeURIComponent(identifier)}`, { method: 'DELETE' }),
 }
