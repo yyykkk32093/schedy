@@ -20,6 +20,10 @@ export class FindActivityUseCase {
         defaultAddress: string | null
         defaultStartTime: string | null
         defaultEndTime: string | null
+        defaultParticipationFee: number | null
+        defaultVisitorFee: number | null
+        defaultCapacity: number | null
+        allowVisitorWaitlist: boolean
         recurrenceRule: string | null
         organizerUserId: string | null
         organizerDisplayName: string | null
@@ -64,6 +68,10 @@ export class FindActivityUseCase {
             defaultAddress: activity.getDefaultAddress(),
             defaultStartTime: activity.getDefaultStartTime()?.getValue() ?? null,
             defaultEndTime: activity.getDefaultEndTime()?.getValue() ?? null,
+            defaultParticipationFee: activity.getDefaultParticipationFee(),
+            defaultVisitorFee: activity.getDefaultVisitorFee(),
+            defaultCapacity: activity.getDefaultCapacity(),
+            allowVisitorWaitlist: activity.getAllowVisitorWaitlist(),
             recurrenceRule: activity.getRecurrenceRule(),
             organizerUserId,
             organizerDisplayName,

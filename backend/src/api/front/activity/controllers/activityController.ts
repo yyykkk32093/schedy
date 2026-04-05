@@ -5,7 +5,7 @@ export const activityController = {
     async create(req: Request, res: Response, next: NextFunction) {
         try {
             const { communityId } = req.params
-            const { title, description, defaultLocation, defaultAddress, defaultStartTime, defaultEndTime, recurrenceRule, date, participationFee, visitorFee, organizerUserId, isOnline, meetingUrl, capacity, shouldPostAnnouncement } = req.body
+            const { title, description, defaultLocation, defaultAddress, defaultStartTime, defaultEndTime, recurrenceRule, date, participationFee, visitorFee, organizerUserId, isOnline, meetingUrl, capacity, shouldPostAnnouncement, allowVisitorWaitlist, recurrenceGenerationMonths } = req.body
             const userId = req.user!.userId
 
             const useCase = usecaseFactory.createCreateActivityUseCase()
@@ -26,7 +26,9 @@ export const activityController = {
                 meetingUrl: meetingUrl || null,
                 capacity: capacity != null ? Number(capacity) : null,
                 userId,
+                allowVisitorWaitlist: allowVisitorWaitlist ?? false,
                 shouldPostAnnouncement: shouldPostAnnouncement ?? false,
+                recurrenceGenerationMonths: recurrenceGenerationMonths != null ? Number(recurrenceGenerationMonths) : undefined,
             })
 
             res.status(201).json(result)
@@ -64,7 +66,7 @@ export const activityController = {
     async update(req: Request, res: Response, next: NextFunction) {
         try {
             const { id } = req.params
-            const { title, description, defaultLocation, defaultAddress, defaultStartTime, defaultEndTime, recurrenceRule, organizerUserId } = req.body
+            const { title, description, defaultLocation, defaultAddress, defaultStartTime, defaultEndTime, recurrenceRule, organizerUserId, defaultParticipationFee, defaultVisitorFee, defaultCapacity, allowVisitorWaitlist, recurrenceGenerationMonths } = req.body
             const userId = req.user!.userId
 
             const useCase = usecaseFactory.createUpdateActivityUseCase()
@@ -77,8 +79,19 @@ export const activityController = {
                 defaultAddress,
                 defaultStartTime,
                 defaultEndTime,
+                defaultParticipationFee: defaultParticipationFee !== undefined
+                    ? (defaultParticipationFee != null ? Number(defaultParticipationFee) : null)
+                    : undefined,
+                defaultVisitorFee: defaultVisitorFee !== undefined
+                    ? (defaultVisitorFee != null ? Number(defaultVisitorFee) : null)
+                    : undefined,
+                defaultCapacity: defaultCapacity !== undefined
+                    ? (defaultCapacity != null ? Number(defaultCapacity) : null)
+                    : undefined,
+                allowVisitorWaitlist: allowVisitorWaitlist !== undefined ? allowVisitorWaitlist : undefined,
                 recurrenceRule,
                 organizerUserId: organizerUserId !== undefined ? (organizerUserId || null) : undefined,
+                recurrenceGenerationMonths: recurrenceGenerationMonths != null ? Number(recurrenceGenerationMonths) : undefined,
             })
 
             res.status(204).send()
@@ -91,9 +104,10 @@ export const activityController = {
         try {
             const { id } = req.params
             const userId = req.user!.userId
+            const notifyOption = req.body?.notifyOption ?? 'none'
 
             const useCase = usecaseFactory.createSoftDeleteActivityUseCase()
-            await useCase.execute({ activityId: id, userId })
+            await useCase.execute({ activityId: id, userId, notifyOption })
 
             res.status(204).send()
         } catch (err) {

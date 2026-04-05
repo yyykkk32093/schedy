@@ -1,9 +1,9 @@
-import { useCancelSchedule, useCreateSchedule, useSchedules } from '@/features/schedule/hooks/useScheduleQueries'
-import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useCancelSchedule, useCreateSchedule, useSchedules } from '@/features/schedule/hooks/useScheduleQueries';
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 export function ScheduleListPage() {
-    const { activityId } = useParams<{ activityId: string }>()
+    const { communityId, activityId } = useParams<{ communityId: string; activityId: string }>()
     const navigate = useNavigate()
     const { data, isLoading } = useSchedules(activityId!)
     const createMutation = useCreateSchedule(activityId!)

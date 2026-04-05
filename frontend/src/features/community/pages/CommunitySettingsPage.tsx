@@ -1,8 +1,21 @@
 import { useAuth } from '@/app/providers/AuthProvider'
-import { useCommunity, useMembers, useUpdateCommunity } from '@/features/community/hooks/useCommunityQueries'
+import { communityApi } from '@/features/community/api/communityApi'
+import { LocationSettings, type LocationEntry } from '@/features/community/components/LocationSettings'
+import { useCommunity, useLeaveCommunity, useMembers, useUpdateCommunity } from '@/features/community/hooks/useCommunityQueries'
 import { useAuditLogs, useChangeMemberRole, useRemoveMember } from '@/features/community/hooks/useCommunitySettingsQueries'
+import { useConnectStatus, useOpenDashboard, useStartOnboarding } from '@/features/community/hooks/useConnectQueries'
 import { UnsavedChangesDialog } from '@/shared/components/UnsavedChangesDialog'
+import { CharacterCounter } from '@/shared/components/ui/CharacterCounter'
 import { Button } from '@/shared/components/ui/button'
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/shared/components/ui/dialog'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import {
@@ -23,12 +36,13 @@ import {
     Crown,
     ExternalLink,
     History,
+    LogOut,
     Shield,
     UserMinus,
     Users
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
 type Section = 'settings' | 'members' | 'audit' | 'webhook'
@@ -42,8 +56,11 @@ export default function CommunitySettingsPage() {
     const updateCommunity = useUpdateCommunity(communityId!)
     const changeRole = useChangeMemberRole(communityId!)
     const removeMember = useRemoveMember(communityId!)
+    const leaveCommunity = useLeaveCommunity()
+    const navigate = useNavigate()
 
     const [openSection, setOpenSection] = useState<Section | null>('settings')
+    const [showLeaveDialog, setShowLeaveDialog] = useState(false)
 
     // ---- Profile form state ----
     const [name, setName] = useState('')
@@ -60,8 +77,15 @@ export default function CommunitySettingsPage() {
     // ---- Join / visibility form state ----
     const [joinMethod, setJoinMethod] = useState<'FREE_JOIN' | 'APPROVAL' | 'INVITATION'>('FREE_JOIN')
     const [isPublic, setIsPublic] = useState(true)
-    const [mainActivityArea, setMainActivityArea] = useState('')
-    const [activityFrequency, setActivityFrequency] = useState('')
+    // 活動頻度——2段プルダウン用 state
+    const [freqUnit, setFreqUnit] = useState<'週' | '月' | '年' | ''>('')
+    const [freqCount, setFreqCount] = useState<string>('')
+    const [freqCustom, setFreqCustom] = useState<string>('')
+    // locations state（一括保存用）
+    const [editedLocations, setEditedLocations] = useState<LocationEntry[] | null>(null)
+    // tags state
+    const [editedTags, setEditedTags] = useState<string[]>([])
+    const [tagInput, setTagInput] = useState('')
 
     useEffect(() => {
         if (community) {
@@ -73,8 +97,24 @@ export default function CommunitySettingsPage() {
             setEnabledMethods(community.enabledPaymentMethods ?? ['CASH'])
             setJoinMethod((community.joinMethod as 'FREE_JOIN' | 'APPROVAL' | 'INVITATION') ?? 'FREE_JOIN')
             setIsPublic(community.isPublic ?? true)
-            setMainActivityArea(community.mainActivityArea ?? '')
-            setActivityFrequency(community.activityFrequency ?? '')
+            setEditedTags(community.tags ?? [])
+            // 活動頻度をパース（例: "週1回" → unit='週', count='1'）
+            const freq = community.activityFrequency ?? ''
+            const freqMatch = freq.match(/^(週|月|年)(\d+)回$/)
+            if (freqMatch) {
+                setFreqUnit(freqMatch[1] as '週' | '月' | '年')
+                setFreqCount(freqMatch[2])
+                setFreqCustom('')
+            } else if (freq) {
+                // レガシー値（例: "毎週土曜日"）→ リセット
+                setFreqUnit('')
+                setFreqCount('')
+                setFreqCustom('')
+            } else {
+                setFreqUnit('')
+                setFreqCount('')
+                setFreqCustom('')
+            }
         }
     }, [community])
 
@@ -94,11 +134,39 @@ export default function CommunitySettingsPage() {
     const joinDirty = community != null && (
         joinMethod !== ((community.joinMethod as 'FREE_JOIN' | 'APPROVAL' | 'INVITATION') ?? 'FREE_JOIN') ||
         isPublic !== (community.isPublic ?? true) ||
-        mainActivityArea !== (community.mainActivityArea ?? '') ||
-        activityFrequency !== (community.activityFrequency ?? '')
+        buildFrequencyString(freqUnit, freqCount, freqCustom) !== (community.activityFrequency ?? '')
     )
 
-    const isDirty = profileDirty || paymentDirty || joinDirty
+    // location dirty判定
+    const locationDirty = editedLocations !== null && (
+        JSON.stringify(
+            editedLocations.map((l) => ({ type: l.type, area: l.area.trim(), station: l.station.trim() })),
+        ) !== JSON.stringify(
+            (community?.locations ?? []).map((l) => ({ type: l.type, area: l.area, station: l.station ?? '' })),
+        )
+    )
+
+    // tags dirty判定
+    const tagsDirty = JSON.stringify([...editedTags].sort()) !== JSON.stringify([...(community?.tags ?? [])].sort())
+
+    const isDirty = profileDirty || paymentDirty || joinDirty || locationDirty || tagsDirty
+
+    // タグ上限（FEガード）
+    const TAG_LIMIT_FREE = 5
+    const isFreeGrade = community?.grade === 'FREE'
+    const tagLimitReached = isFreeGrade && editedTags.length >= TAG_LIMIT_FREE
+
+    /** タグ追加の共通処理（上限チェック付き） */
+    const tryAddTag = () => {
+        const trimmed = tagInput.trim().replace(/^#/, '')
+        if (!trimmed || editedTags.includes(trimmed)) return
+        if (isFreeGrade && editedTags.length >= TAG_LIMIT_FREE) {
+            toast.error(`タグを${TAG_LIMIT_FREE + 1}件以上追加するには、プレミアムグレードへアップグレードしてください`)
+            return
+        }
+        setEditedTags((prev) => [...prev, trimmed])
+        setTagInput('')
+    }
 
     // #47: 未保存時の離脱警告（早期returnより前に配置）
     const { isBlocked, proceed, cancel } = useUnsavedChangesWarning(isDirty)
@@ -133,8 +201,11 @@ export default function CommunitySettingsPage() {
         setCoverUrl(result.url)
     }
 
-    /** #44: プロフィール+支払い+参加設定を一括保存 */
-    const handleSaveAll = () => {
+    /** #44: プロフィール+支払い+参加設定+活動拠点を一括保存 */
+    const handleSaveAll = async () => {
+        const frequencyStr = buildFrequencyString(freqUnit, freqCount, freqCustom)
+
+        // コミュニティ本体の更新
         updateCommunity.mutate({
             name: name !== community.name ? name : undefined,
             description: description !== (community.description ?? '') ? description : undefined,
@@ -144,11 +215,35 @@ export default function CommunitySettingsPage() {
             enabledPaymentMethods: enabledMethods,
             joinMethod,
             isPublic,
-            mainActivityArea: mainActivityArea.trim() || null,
-            activityFrequency: activityFrequency.trim() || null,
+            activityFrequency: frequencyStr || null,
         }, {
             onSuccess: () => toast.success('保存しました'),
         })
+
+        // タグの保存（変更がある場合のみ）
+        if (tagsDirty) {
+            try {
+                await communityApi.saveTags(communityId!, editedTags)
+            } catch {
+                toast.error('タグの保存に失敗しました')
+            }
+        }
+
+        // 活動拠点の保存（変更がある場合のみ）
+        if (locationDirty && editedLocations) {
+            try {
+                const payload = editedLocations
+                    .filter((l) => l.area.trim())
+                    .map((l) => ({
+                        type: l.type,
+                        area: l.area.trim(),
+                        station: l.station.trim() || undefined,
+                    }))
+                await communityApi.saveLocations(communityId!, payload)
+            } catch {
+                toast.error('活動拠点の保存に失敗しました')
+            }
+        }
     }
 
     const togglePaymentMethod = (method: string) => {
@@ -212,13 +307,14 @@ export default function CommunitySettingsPage() {
                         <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleUploadLogo} />
                         <div className="flex-1">
                             <label className="text-xs text-gray-500">コミュニティ名</label>
-                            <Input value={name} onChange={e => setName(e.target.value)} placeholder="コミュニティ名" />
+                            <Input value={name} onChange={e => setName(e.target.value)} placeholder="コミュニティ名" maxLength={50} />
                         </div>
                     </div>
 
                     <div>
                         <label className="text-xs text-gray-500">説明</label>
-                        <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} placeholder="コミュニティの説明" />
+                        <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} placeholder="コミュニティの説明" maxLength={500} />
+                        <CharacterCounter current={description.length} max={500} />
                     </div>
 
                     <Separator className="my-4" />
@@ -227,23 +323,40 @@ export default function CommunitySettingsPage() {
                     <p className="text-xs font-semibold text-gray-500">支払い設定</p>
                     <div>
                         <label className="text-xs text-gray-500">PayPay ID</label>
-                        <Input value={payPayId} onChange={e => setPayPayId(e.target.value)} placeholder="PayPay ID" />
+                        <Input value={payPayId} onChange={e => {
+                            const val = e.target.value
+                            setPayPayId(val)
+                            // PayPay IDが空になったらPAYPAYを自動で無効化
+                            if (!val.trim()) {
+                                setEnabledMethods(prev => prev.filter(m => m !== 'PAYPAY'))
+                            }
+                        }} placeholder="PayPay ID" />
                     </div>
 
                     <div>
                         <label className="text-xs text-gray-500 block mb-2">有効な支払い方法</label>
-                        {([['CASH', '現金'], ['PAYPAY', 'PayPay'], ['STRIPE', 'クレジットカード']] as const).map(([method, label]) => (
-                            <label key={method} className="flex items-center gap-2 py-1.5 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={enabledMethods.includes(method)}
-                                    onChange={() => togglePaymentMethod(method)}
-                                    className="rounded"
-                                />
-                                <span className="text-sm">{label}</span>
-                            </label>
-                        ))}
+                        {([['CASH', '現金'], ['PAYPAY', 'PayPay'], ['STRIPE', 'クレジットカード']] as const).map(([method, label]) => {
+                            const isPayPayDisabled = method === 'PAYPAY' && !payPayId.trim()
+                            return (
+                                <label key={method} className={`flex items-center gap-2 py-1.5 ${isPayPayDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                                    <input
+                                        type="checkbox"
+                                        checked={enabledMethods.includes(method)}
+                                        onChange={() => togglePaymentMethod(method)}
+                                        disabled={isPayPayDisabled}
+                                        className="rounded"
+                                    />
+                                    <span className="text-sm">{label}</span>
+                                    {isPayPayDisabled && <span className="text-xs text-gray-400">（PayPay IDを入力してください）</span>}
+                                </label>
+                            )
+                        })}
                     </div>
+
+                    {/* Stripe Connect オンボーディング（OWNER のみ表示） */}
+                    {isOwner && (
+                        <StripeConnectSection communityId={communityId!} />
+                    )}
 
                     <Separator className="my-4" />
 
@@ -275,14 +388,90 @@ export default function CommunitySettingsPage() {
                     </div>
 
                     <div className="space-y-1.5">
-                        <Label htmlFor="mainActivityArea">主な活動エリア</Label>
-                        <Input id="mainActivityArea" value={mainActivityArea} onChange={e => setMainActivityArea(e.target.value)} placeholder="例: 渋谷区" />
+                        <Label>活動頻度</Label>
+                        <div className="flex items-center gap-2">
+                            <Select value={freqUnit} onValueChange={(v) => { setFreqUnit(v as '週' | '月' | '年'); setFreqCount(''); setFreqCustom('') }}>
+                                <SelectTrigger className="w-24">
+                                    <SelectValue placeholder="単位" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="週">週</SelectItem>
+                                    <SelectItem value="月">月</SelectItem>
+                                    <SelectItem value="年">年</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {freqUnit && (
+                                <FrequencyCountSelect
+                                    unit={freqUnit as '週' | '月' | '年'}
+                                    value={freqCount}
+                                    customValue={freqCustom}
+                                    onChange={setFreqCount}
+                                    onCustomChange={setFreqCustom}
+                                />
+                            )}
+                            {freqUnit && freqCount && (
+                                <span className="text-sm text-gray-600">回</span>
+                            )}
+                        </div>
                     </div>
 
+                    <Separator />
+
+                    {/* タグ入力 */}
                     <div className="space-y-1.5">
-                        <Label htmlFor="activityFrequency">活動頻度</Label>
-                        <Input id="activityFrequency" value={activityFrequency} onChange={e => setActivityFrequency(e.target.value)} placeholder="例: 毎週土曜日" />
+                        <Label>タグ</Label>
+                        <div className="flex flex-wrap gap-1.5 min-h-[32px]">
+                            {editedTags.map((tag) => (
+                                <span
+                                    key={tag}
+                                    className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-full"
+                                >
+                                    #{tag}
+                                    <button
+                                        type="button"
+                                        onClick={() => setEditedTags((prev) => prev.filter((t) => t !== tag))}
+                                        className="text-blue-400 hover:text-blue-700 ml-0.5"
+                                    >
+                                        ×
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                        <div className="flex gap-2">
+                            <Input
+                                value={tagInput}
+                                onChange={(e) => setTagInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault()
+                                        tryAddTag()
+                                    }
+                                }}
+                                placeholder="タグを入力してEnter（例: 初心者歓迎）"
+                                className="flex-1"
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={!tagInput.trim() || editedTags.includes(tagInput.trim().replace(/^#/, ''))}
+                                onClick={tryAddTag}
+                            >
+                                追加
+                            </Button>
+                        </div>
+                        {tagLimitReached && (
+                            <p className="text-xs text-orange-500">{TAG_LIMIT_FREE + 1}件以上追加するには、プレミアムグレードへアップグレードしてください</p>
+                        )}
                     </div>
+
+                    <Separator />
+
+                    <LocationSettings
+                        communityId={communityId!}
+                        initialLocations={community.locations}
+                        onLocationsChange={setEditedLocations}
+                    />
 
                     <Button onClick={handleSaveAll} disabled={!isDirty || updateCommunity.isPending} className="w-full">
                         {updateCommunity.isPending ? '保存中...' : '設定を保存'}
@@ -388,6 +577,53 @@ export default function CommunitySettingsPage() {
                     <p className="text-sm text-gray-400 text-center py-6">準備中です</p>
                 </div>
             )}
+
+            {/* ===== コミュニティ退出（OWNER以外） ===== */}
+            {!isOwner && (
+                <div className="px-4 pt-6 pb-4">
+                    <Separator className="mb-6" />
+                    <Button
+                        variant="outline"
+                        className="w-full text-destructive border-destructive hover:bg-destructive/10"
+                        onClick={() => setShowLeaveDialog(true)}
+                    >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        コミュニティを退出
+                    </Button>
+                </div>
+            )}
+
+            {/* コミュニティ退出確認ダイアログ */}
+            <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>コミュニティを退出</DialogTitle>
+                        <DialogDescription>
+                            {community.name} から退出しますか？将来のスケジュール参加も自動的にキャンセルされます。
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button variant="outline">キャンセル</Button>
+                        </DialogClose>
+                        <Button
+                            variant="destructive"
+                            disabled={leaveCommunity.isPending}
+                            onClick={() => {
+                                leaveCommunity.mutate({ communityId: communityId! }, {
+                                    onSuccess: () => {
+                                        setShowLeaveDialog(false)
+                                        toast.success('コミュニティを退出しました')
+                                        navigate('/communities', { replace: true })
+                                    },
+                                })
+                            }}
+                        >
+                            {leaveCommunity.isPending ? '退出中...' : '退出する'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
@@ -408,7 +644,6 @@ const AUDIT_FIELD_LABELS: Record<string, string> = {
     role: 'ロール',
     joinMethod: '参加方式',
     isPublic: '公開設定',
-    mainActivityArea: '活動エリア',
     activityFrequency: '活動頻度',
 }
 
@@ -527,4 +762,161 @@ function RoleBadge({ role }: { role: string }) {
 
 function roleOrder(role: string): number {
     return role === 'OWNER' ? 0 : role === 'ADMIN' ? 1 : 2
+}
+
+// ---- 活動頻度 ----
+
+/** 単位に応じた数値選択肢を返す */
+function getCountOptions(unit: '週' | '月' | '年'): number[] {
+    switch (unit) {
+        case '月': return [1, 2, 3]
+        case '週': return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        case '年': return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    }
+}
+
+/** freqUnit + freqCount → "週3回" 形式の文字列を生成 */
+function buildFrequencyString(unit: string, count: string, custom: string): string {
+    if (!unit) return ''
+    const c = custom || count
+    if (!c) return ''
+    return `${unit}${c}回`
+}
+
+/** 数値プルダウン（週のみ手入力可能） */
+function FrequencyCountSelect({
+    unit,
+    value,
+    customValue,
+    onChange,
+    onCustomChange,
+}: {
+    unit: '週' | '月' | '年'
+    value: string
+    customValue: string
+    onChange: (v: string) => void
+    onCustomChange: (v: string) => void
+}) {
+    const options = getCountOptions(unit)
+    const showCustomInput = unit === '週' && value === 'custom'
+
+    return (
+        <div className="flex items-center gap-1.5">
+            <Select
+                value={value}
+                onValueChange={(v) => {
+                    onChange(v)
+                    if (v !== 'custom') onCustomChange('')
+                }}
+            >
+                <SelectTrigger className="w-24">
+                    <SelectValue placeholder="回数" />
+                </SelectTrigger>
+                <SelectContent>
+                    {options.map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                            {n}
+                        </SelectItem>
+                    ))}
+                    {unit === '週' && (
+                        <SelectItem value="custom">その他</SelectItem>
+                    )}
+                </SelectContent>
+            </Select>
+            {showCustomInput && (
+                <Input
+                    type="number"
+                    min={1}
+                    value={customValue}
+                    onChange={(e) => onCustomChange(e.target.value)}
+                    placeholder="回数"
+                    className="w-20 h-9"
+                />
+            )}
+        </div>
+    )
+}
+
+// ============================================================
+// Stripe Connect Onboarding セクション（OWNER 専用）
+// ============================================================
+function StripeConnectSection({ communityId }: { communityId: string }) {
+    const { data: status, isLoading } = useConnectStatus(communityId)
+    const startOnboarding = useStartOnboarding(communityId)
+    const openDashboard = useOpenDashboard(communityId)
+
+    if (isLoading) {
+        return (
+            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-400">Stripe Connect 読み込み中…</p>
+            </div>
+        )
+    }
+
+    // アカウント未作成
+    if (!status?.hasAccount) {
+        return (
+            <div className="mt-3 p-3 bg-gray-50 rounded-lg space-y-2">
+                <p className="text-xs font-semibold text-gray-600">💳 Stripe Connect（クレジットカード決済）</p>
+                <p className="text-xs text-gray-500">
+                    参加費のクレジットカード決済を有効にするには、Stripe アカウントの設定が必要です。
+                </p>
+                <Button
+                    size="sm"
+                    onClick={() => startOnboarding.mutate()}
+                    disabled={startOnboarding.isPending}
+                >
+                    {startOnboarding.isPending ? '準備中...' : 'Stripe アカウントを設定'}
+                </Button>
+                {startOnboarding.isError && (
+                    <p className="text-xs text-red-500">
+                        {(startOnboarding.error as Error)?.message ?? 'エラーが発生しました'}
+                    </p>
+                )}
+            </div>
+        )
+    }
+
+    // アカウント作成済みだがオンボーディング未完了
+    if (!status.chargesEnabled) {
+        return (
+            <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg space-y-2">
+                <p className="text-xs font-semibold text-yellow-800">💳 Stripe Connect 設定中</p>
+                <p className="text-xs text-yellow-700">
+                    {status.detailsSubmitted
+                        ? 'Stripe による審査中です。完了次第、カード決済が有効になります。'
+                        : 'アカウント設定が未完了です。続きを完了してください。'}
+                </p>
+                {!status.detailsSubmitted && (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => startOnboarding.mutate()}
+                        disabled={startOnboarding.isPending}
+                    >
+                        {startOnboarding.isPending ? '準備中...' : '設定を続ける'}
+                    </Button>
+                )}
+            </div>
+        )
+    }
+
+    // オンボーディング完了＆決済有効
+    return (
+        <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg space-y-2">
+            <p className="text-xs font-semibold text-green-800">✅ Stripe Connect 有効</p>
+            <p className="text-xs text-green-700">
+                クレジットカード決済が利用可能です。
+            </p>
+            <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openDashboard.mutate()}
+                disabled={openDashboard.isPending}
+            >
+                <ExternalLink className="w-3 h-3 mr-1" />
+                {openDashboard.isPending ? '読み込み中...' : 'Stripe ダッシュボードを開く'}
+            </Button>
+        </div>
+    )
 }

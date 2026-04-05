@@ -35,8 +35,11 @@ export function useAddReaction(channelId: string) {
     return useMutation({
         mutationFn: ({ messageId, stampId, emoji }: { messageId: string; stampId?: string; emoji?: string }) =>
             stampApi.addReaction(messageId, { stampId, emoji }),
-        onSuccess: () =>
-            qc.invalidateQueries({ queryKey: messageListKeys.byChannel(channelId) }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: messageListKeys.byChannel(channelId) })
+            // スレッド返信のリアクションも即時反映
+            qc.invalidateQueries({ queryKey: ['messages', 'replies'] })
+        },
     })
 }
 
@@ -46,7 +49,10 @@ export function useRemoveReaction(channelId: string) {
     return useMutation({
         mutationFn: ({ messageId, identifier }: { messageId: string; identifier: string }) =>
             stampApi.removeReaction(messageId, identifier),
-        onSuccess: () =>
-            qc.invalidateQueries({ queryKey: messageListKeys.byChannel(channelId) }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: messageListKeys.byChannel(channelId) })
+            // スレッド返信のリアクションも即時反映
+            qc.invalidateQueries({ queryKey: ['messages', 'replies'] })
+        },
     })
 }

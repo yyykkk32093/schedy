@@ -56,6 +56,7 @@ export class UserRepositoryImpl implements IUserRepository {
                 biography: data.biography,
                 avatarUrl: data.avatarUrl,
                 notificationSetting: data.notificationSetting,
+                deletedAt: data.deletedAt,
                 updatedAt: new Date(),
             },
             create: {
@@ -67,6 +68,7 @@ export class UserRepositoryImpl implements IUserRepository {
                 biography: data.biography,
                 avatarUrl: data.avatarUrl,
                 notificationSetting: data.notificationSetting,
+                deletedAt: data.deletedAt,
                 createdAt: data.createdAt,
                 updatedAt: data.updatedAt,
             },
@@ -98,6 +100,7 @@ export class UserRepositoryImpl implements IUserRepository {
 
             createdAt: user.getCreatedAt(),
             updatedAt: user.getUpdatedAt(),
+            deletedAt: user.getDeletedAt(),
         }
     }
 
@@ -119,6 +122,7 @@ export class UserRepositoryImpl implements IUserRepository {
 
             createdAt: record.createdAt,
             updatedAt: record.updatedAt,
+            deletedAt: record.deletedAt ?? null,
         })
     }
 }

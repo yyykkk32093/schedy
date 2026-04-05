@@ -56,4 +56,21 @@ export const userController = {
             next(err)
         }
     },
+
+    // ---- 退会 ----
+
+    async deleteAccount(req: Request, res: Response, next: NextFunction) {
+        try {
+            const userId = req.user!.userId
+            const { reason, freeText } = req.body ?? {}
+            const useCase = usecaseFactory.createDeleteUserUseCase()
+            await useCase.execute({ userId, reason, freeText })
+
+            // Cookie クリア（Web 向け）
+            res.clearCookie('token', { httpOnly: true, sameSite: 'lax', path: '/' })
+            res.status(204).send()
+        } catch (err) {
+            next(err)
+        }
+    },
 }

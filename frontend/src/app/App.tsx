@@ -25,8 +25,10 @@ import { CommunityListPage } from '@/features/community/pages/CommunityListPage'
 import { CommunitySearchDetailPage } from '@/features/community/pages/CommunitySearchDetailPage'
 import { CommunitySearchPage } from '@/features/community/pages/CommunitySearchPage'
 import CommunitySettingsPage from '@/features/community/pages/CommunitySettingsPage'
+import { CreateSubCommunityPage } from '@/features/community/pages/CreateSubCommunityPage'
 import InviteAcceptPage from '@/features/community/pages/InviteAcceptPage'
 import { MemberListPage } from '@/features/community/pages/MemberListPage'
+import { SubCommunityTreePage } from '@/features/community/pages/SubCommunityTreePage'
 import { FinancePage } from '@/features/expense/pages/FinancePage'
 import { HomePage } from '@/features/home/pages/HomePage'
 import { NotificationListPage } from '@/features/notification/pages/NotificationListPage'
@@ -138,32 +140,27 @@ const router = createBrowserRouter([
                         element: <ActivityCreatePage />,
                         handle: { title: 'アクティビティ作成', showBack: true } satisfies RouteHandle,
                     },
+                    {
+                        path: '/communities/:communityId/activities/:id',
+                        element: <ActivityDetailPage />,
+                        handle: { title: 'アクティビティ詳細', showBack: true } satisfies RouteHandle,
+                    },
+                    {
+                        path: '/communities/:communityId/activities/:id/edit',
+                        element: <ActivityEditPage />,
+                        handle: { title: 'アクティビティ更新', showBack: true } satisfies RouteHandle,
+                    },
 
-                    // Activity（トップレベル）
+                    // Activity（トップレベル — クロスコミュニティビュー）
                     {
                         path: '/activities',
                         element: <ActivityTopPage />,
                         handle: { title: 'アクティビティ', showBack: false } satisfies RouteHandle,
                     },
-                    {
-                        path: '/activities/create',
-                        element: <ActivityCreatePage />,
-                        handle: { title: 'アクティビティ作成', showBack: true } satisfies RouteHandle,
-                    },
-                    {
-                        path: '/activities/:id',
-                        element: <ActivityDetailPage />,
-                        handle: { title: 'アクティビティ詳細', showBack: true } satisfies RouteHandle,
-                    },
-                    {
-                        path: '/activities/:id/edit',
-                        element: <ActivityEditPage />,
-                        handle: { title: 'アクティビティ更新', showBack: true } satisfies RouteHandle,
-                    },
 
                     // Schedule
                     {
-                        path: '/activities/:activityId/schedules',
+                        path: '/communities/:communityId/activities/:activityId/schedules',
                         element: <ScheduleListPage />,
                         handle: { title: 'スケジュール一覧', showBack: true } satisfies RouteHandle,
                     },
@@ -204,6 +201,18 @@ const router = createBrowserRouter([
                         handle: { title: 'コミュニティ設定', showBack: true } satisfies RouteHandle,
                     },
 
+                    // サブコミュニティ
+                    {
+                        path: '/communities/:id/sub/new',
+                        element: <CreateSubCommunityPage />,
+                        handle: { title: 'サブコミュニティ作成', showBack: true } satisfies RouteHandle,
+                    },
+                    {
+                        path: '/communities/:id/sub/tree',
+                        element: <SubCommunityTreePage />,
+                        handle: { title: 'コミュニティツリー', showBack: true } satisfies RouteHandle,
+                    },
+
                     // 返金管理（管理者向け）
                     {
                         path: '/communities/:id/refunds',
@@ -216,11 +225,11 @@ const router = createBrowserRouter([
                         handle: { title: '返金履歴', showBack: true } satisfies RouteHandle,
                     },
 
-                    // 経費・収支管理（管理者向け）
+                    // 収支確認（管理者向け）
                     {
                         path: '/communities/:id/finance',
                         element: <FinancePage />,
-                        handle: { title: '経費管理', showBack: true } satisfies RouteHandle,
+                        handle: { title: '収支確認', showBack: true } satisfies RouteHandle,
                     },
 
                     // MyPage (UBL-32)

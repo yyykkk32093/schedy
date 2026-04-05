@@ -13,6 +13,7 @@ import type { IParticipationAuditLogRepository } from '@/domains/activity/schedu
 import type { IParticipationRepository } from '@/domains/activity/schedule/participation/domain/repository/IParticipationRepository.js'
 import type { IPaymentRepository } from '@/domains/activity/schedule/participation/domain/repository/IPaymentRepository.js'
 import { calculatePaymentAmount } from '@/domains/activity/schedule/participation/domain/service/calculatePaymentAmount.js'
+import { WaitlistPromotedEvent } from '@/domains/activity/schedule/waitlist/domain/event/WaitlistPromotedEvent.js'
 import { WaitlistAuditLog } from '@/domains/activity/schedule/waitlist/domain/model/entity/WaitlistAuditLog.js'
 import type { IWaitlistAuditLogRepository } from '@/domains/activity/schedule/waitlist/domain/repository/IWaitlistAuditLogRepository.js'
 import type { IWaitlistEntryRepository } from '@/domains/activity/schedule/waitlist/domain/repository/IWaitlistEntryRepository.js'
@@ -51,7 +52,7 @@ export class CancelParticipationUseCase {
         let hasPaidPayment = false
         let stripeRefundInfo: { paymentIntentId: string; baseFee: number } | null = null
 
-        await this.unitOfWork.run(async (repos) => {
+        await this.unitOfWork.run(async (repos, txEventPublisher) => {
             const participation = await repos.participation.findByScheduleAndUser(
                 input.scheduleId, input.userId
             )
@@ -114,26 +115,50 @@ export class CancelParticipationUseCase {
             if (!schedule.isFull(attendingCount)) {
                 const nextEntry = await repos.waitlist.findNext(input.scheduleId)
                 if (nextEntry) {
-                    const promotedUserId = nextEntry.getUserId().getValue()
+                    const promotedUserId = nextEntry.getUserId()?.getValue() ?? `guest:${nextEntry.getId()}`
 
-                    await repos.waitlist.delete(input.scheduleId, promotedUserId)
+                    await repos.waitlist.deleteById(nextEntry.getId())
                     await repos.waitlistAuditLog.save(new WaitlistAuditLog({
                         scheduleId: input.scheduleId,
                         userId: promotedUserId,
                         action: 'PROMOTED',
                     }))
 
-                    const promotedParticipation = Participation.create({
-                        id: this.idGenerator.generate(),
-                        scheduleId: ScheduleId.create(input.scheduleId),
-                        userId: nextEntry.getUserId(),
-                    })
+                    // ビジター判定: 未登録ビジターなら createUnregisteredVisitor を使用
+                    let promotedParticipation: Participation
+                    if (nextEntry.getIsVisitor() && !nextEntry.getUserId()) {
+                        promotedParticipation = Participation.createUnregisteredVisitor({
+                            id: this.idGenerator.generate(),
+                            scheduleId: ScheduleId.create(input.scheduleId),
+                            visitorName: nextEntry.getVisitorName()!,
+                            addedBy: nextEntry.getAddedBy()!,
+                        })
+                    } else {
+                        promotedParticipation = Participation.create({
+                            id: this.idGenerator.generate(),
+                            scheduleId: ScheduleId.create(input.scheduleId),
+                            userId: nextEntry.getUserId()!,
+                            isVisitor: nextEntry.getIsVisitor(),
+                        })
+                    }
                     await repos.participation.add(promotedParticipation)
                     await repos.participationAuditLog.save(new ParticipationAuditLog({
                         scheduleId: input.scheduleId,
                         userId: promotedUserId,
                         action: 'JOINED',
                     }))
+
+                    // D-P2-7: 繰り上げ時に Payment を自動作成（TX内ドメインイベント）
+                    const promotedDisplayName = nextEntry.getVisitorName() ?? null
+                    await txEventPublisher?.publishAll([
+                        new WaitlistPromotedEvent(
+                            input.scheduleId,
+                            promotedUserId,
+                            promotedParticipation.getId(),
+                            nextEntry.getIsVisitor(),
+                            promotedDisplayName,
+                        ),
+                    ])
 
                     await this.notificationService.prepareNotification(repos, {
                         userId: promotedUserId,
@@ -142,6 +167,10 @@ export class CancelParticipationUseCase {
                         body: `スケジュールに参加確定しました`,
                         referenceId: input.scheduleId,
                         referenceType: 'SCHEDULE',
+                        metadata: {
+                            activityId: activityId!,
+                            scheduleDate: scheduleDate?.toISOString() ?? undefined,
+                        },
                     })
                 }
             }
@@ -236,6 +265,12 @@ export class CancelParticipationUseCase {
                             body: `${cancellerName}さんが${activity.title}の本日のスケジュールをキャンセルしました`,
                             referenceId: scheduleId,
                             referenceType: 'SCHEDULE',
+                            metadata: {
+                                communityId: activity.communityId,
+                                activityId,
+                                activityTitle: activity.title,
+                                scheduleDate: scheduleDate.toISOString(),
+                            },
                         },
                     )
                 }
@@ -287,6 +322,11 @@ export class CancelParticipationUseCase {
                             body: `${cancellerName}さんが${activity.title}のスケジュールをキャンセルしました。返金対応をご確認ください。`,
                             referenceId: scheduleId,
                             referenceType: 'SCHEDULE',
+                            metadata: {
+                                communityId: activity.communityId,
+                                activityId,
+                                activityTitle: activity.title,
+                            },
                         },
                     )
                 }

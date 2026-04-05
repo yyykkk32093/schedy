@@ -51,9 +51,9 @@ export class Participation extends AggregateRoot {
     }
 
     /**
-     * 未登録ビジター用ファクトリ
+     * 未登録ビジター用ファクトリ（userId=null, isVisitor=true）
      */
-    static createGuestVisitor(params: {
+    static createUnregisteredVisitor(params: {
         id: string
         scheduleId: ScheduleId
         visitorName: string
@@ -96,12 +96,12 @@ export class Participation extends AggregateRoot {
         )
     }
 
-    /** 未登録ビジターかどうか */
-    isGuestVisitor(): boolean {
+    /** 未登録ビジターかどうか（isVisitor=true かつ userId=null） */
+    isUnregisteredVisitor(): boolean {
         return this.isVisitor && this.userId === null
     }
 
-    /** 登録済みビジターかどうか */
+    /** 登録済みビジターかどうか（isVisitor=true かつ userId!=null） */
     isRegisteredVisitor(): boolean {
         return this.isVisitor && this.userId !== null
     }

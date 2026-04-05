@@ -15,6 +15,8 @@ export type ApiError = {
     code: string
     message: string
     details?: unknown
+    /** バリデーションエラー時のフィールド別詳細 */
+    errors?: Array<{ path: string; message: string }>
 }
 
 /** HTTP レスポンスが !ok の場合に throw されるエラー */
@@ -31,6 +33,20 @@ export class HttpError extends Error {
 /** unknown を HttpError かどうか判定する型ガード */
 export function isHttpError(e: unknown): e is HttpError {
     return e instanceof HttpError
+}
+
+/**
+ * 汎用エラーメッセージ抽出ヘルパー
+ *
+ * - HttpError（バリデーション含む）の場合: api.message を返す
+ *   → バックエンドが「バリデーションエラー: [field] reason」形式で返すので詳細が表示される
+ * - Error の場合: e.message
+ * - その他: fallback メッセージ
+ */
+export function extractErrorMessage(e: unknown, fallback = '処理に失敗しました'): string {
+    if (isHttpError(e)) return e.api.message
+    if (e instanceof Error) return e.message
+    return fallback
 }
 
 // ─── HTTP 関数 ────────────────────────────────────────────

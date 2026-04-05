@@ -5,7 +5,7 @@ import { ImagePreviewGallery, SingleImagePreview } from '@/shared/components/ui/
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip'
 import type { AnnouncementFeedItem } from '@/shared/types/api'
 import { formatAbsoluteDateTime, formatRelativeTime } from '@/shared/utils/dateFormat'
-import { Bookmark, Eye, Heart, MessageCircle, MoreHorizontal } from 'lucide-react'
+import { Eye, MessageCircle, MoreHorizontal, Paperclip } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
@@ -111,7 +111,7 @@ export function FeedCard({ item }: FeedCardProps) {
                                     onClick={handleToggleBookmark}
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
                                 >
-                                    {item.isBookmarked ? 'ブックマーク解除' : 'ブックマークする'}
+                                    {item.isBookmarked ? 'クリップ解除' : 'クリップする'}
                                 </button>
                                 {isAdminOrAbove && (
                                     <button
@@ -159,12 +159,10 @@ export function FeedCard({ item }: FeedCardProps) {
                     type="button"
                     onClick={() => likeMutation.mutate(item.id)}
                     disabled={likeMutation.isPending}
-                    className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-500 transition-colors"
+                    className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                    <Heart
-                        className={`h-4 w-4 ${item.isLiked ? 'fill-red-500 text-red-500' : ''}`}
-                    />
-                    {item.likeCount > 0 && <span>{item.likeCount}</span>}
+                    <span className={`text-base leading-none ${item.isLiked ? '' : 'grayscale opacity-40'}`}>👍</span>
+                    {item.likeCount > 0 && <span className={item.isLiked ? 'text-blue-500' : ''}>{item.likeCount}</span>}
                 </button>
 
                 {/* #6: コメントボタンも詳細画面へ遷移 */}
@@ -189,10 +187,10 @@ export function FeedCard({ item }: FeedCardProps) {
                 {item.activityId && (
                     <button
                         type="button"
-                        onClick={() => navigate(`/activities/${item.activityId}${item.scheduleInfo ? `?schedule=${item.scheduleInfo.scheduleId}` : ''}`)}
+                        onClick={() => navigate(`/communities/${item.communityId}/activities/${item.activityId}${item.scheduleInfo ? `?schedule=${item.scheduleInfo.scheduleId}` : ''}`)}
                         className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors"
                     >
-                        詳細へ
+                        参加する
                     </button>
                 )}
 
@@ -200,10 +198,10 @@ export function FeedCard({ item }: FeedCardProps) {
                     type="button"
                     onClick={() => bookmarkMutation.mutate(item.id)}
                     disabled={bookmarkMutation.isPending}
-                    className="flex items-center gap-1 text-sm text-gray-500 hover:text-yellow-500 transition-colors ml-auto"
+                    className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-500 transition-colors ml-auto"
                 >
-                    <Bookmark
-                        className={`h-4 w-4 ${item.isBookmarked ? 'fill-yellow-500 text-yellow-500' : ''}`}
+                    <Paperclip
+                        className={`h-4 w-4 ${item.isBookmarked ? 'text-blue-500' : ''}`}
                     />
                 </button>
             </div>

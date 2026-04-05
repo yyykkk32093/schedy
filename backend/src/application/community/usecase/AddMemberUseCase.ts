@@ -10,6 +10,7 @@ import type { ICommunityMembershipRepository } from '@/domains/community/members
 import { CommunityNotFoundError } from '../error/CommunityNotFoundError.js'
 import { CommunityPermissionError } from '../error/CommunityPermissionError.js'
 import { MembershipAlreadyExistsError } from '../error/MembershipAlreadyExistsError.js'
+import { propagateJoinToChildren } from '../helper/membershipPropagation.js'
 
 export type AddMemberTxRepositories = {
     community: ICommunityRepository
@@ -57,6 +58,13 @@ export class AddMemberUseCase {
                 role: MembershipRole.member(),
             })
             await repos.membership.save(membership)
+
+            // W4-05: 子コミュニティにもメンバーシップを自動作成
+            await propagateJoinToChildren(
+                repos, this.idGenerator,
+                input.communityId, input.targetUserId, MembershipRole.member(),
+            )
+
             membershipId = id.getValue()
         })
 

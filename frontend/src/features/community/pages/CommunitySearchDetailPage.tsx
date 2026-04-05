@@ -4,8 +4,6 @@ import { Button } from '@/shared/components/ui/button'
 import {
     Calendar,
     Clock,
-    MapPin,
-    Train,
     UserPlus,
     Users,
 } from 'lucide-react'
@@ -71,20 +69,14 @@ export function CommunitySearchDetailPage() {
                 {/* メタ情報 */}
                 <div className="px-4 pb-4 grid grid-cols-2 gap-2">
                     <MetaItem icon={<Users className="w-4 h-4" />} label="メンバー" value={`${community.memberCount}人`} />
-                    {community.mainActivityArea && (
-                        <MetaItem icon={<MapPin className="w-4 h-4" />} label="活動エリア" value={community.mainActivityArea} />
-                    )}
-                    {community.nearestStation && (
-                        <MetaItem icon={<Train className="w-4 h-4" />} label="最寄り駅" value={community.nearestStation} />
-                    )}
                     {community.activityFrequency && (
                         <MetaItem icon={<Clock className="w-4 h-4" />} label="活動頻度" value={community.activityFrequency} />
                     )}
-                    {community.ageRange && (
-                        <MetaItem icon={<Users className="w-4 h-4" />} label="対象年齢" value={community.ageRange} />
+                    {(community.ageMin != null || community.ageMax != null) && (
+                        <MetaItem icon={<Users className="w-4 h-4" />} label="対象年齢" value={`${community.ageMin ?? 0}歳〜${community.ageMax ?? ''}歳`} />
                     )}
-                    {community.targetGender && (
-                        <MetaItem icon={<Users className="w-4 h-4" />} label="対象性別" value={community.targetGender} />
+                    {community.targetGender.length > 0 && (
+                        <MetaItem icon={<Users className="w-4 h-4" />} label="対象性別" value={community.targetGender.join(', ')} />
                     )}
                 </div>
 

@@ -41,4 +41,8 @@ export class PasswordCredentialRepositoryImpl implements IPasswordCredentialRepo
             }
         })
     }
+
+    async deleteByUserId(userId: string): Promise<void> {
+        await this.db.passwordCredential.deleteMany({ where: { userId } })
+    }
 }

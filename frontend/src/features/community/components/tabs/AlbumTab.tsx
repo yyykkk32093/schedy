@@ -1,8 +1,11 @@
 import {
+    useAddAlbumPhoto,
     useAlbumPhotos,
     useAlbums,
     useDeleteAlbumPhoto,
 } from '@/features/album/hooks/useAlbumQueries'
+import { FileUploadZone } from '@/shared/components/FileUploadZone'
+import type { UploadResult } from '@/shared/lib/uploadClient'
 import type { AlbumItem } from '@/shared/types/api'
 import { ArrowLeft, ImageIcon, Loader2, Trash2 } from 'lucide-react'
 import { useState } from 'react'
@@ -93,8 +96,18 @@ interface AlbumPhotoViewProps {
 function AlbumPhotoView({ album, communityId, onBack }: AlbumPhotoViewProps) {
     const { data: photosData, isLoading } = useAlbumPhotos(album.id)
     const deletePhotoMutation = useDeleteAlbumPhoto(album.id, communityId)
+    const addPhotoMutation = useAddAlbumPhoto(album.id, communityId)
 
     const photos = photosData?.photos ?? []
+
+    const handleUploadComplete = (result: UploadResult) => {
+        addPhotoMutation.mutate({
+            fileUrl: result.url,
+            fileName: result.fileName,
+            mimeType: result.mimeType,
+            fileSize: result.fileSize,
+        })
+    }
 
     return (
         <div className="py-4">
@@ -114,6 +127,18 @@ function AlbumPhotoView({ album, communityId, onBack }: AlbumPhotoViewProps) {
             {album.description && (
                 <p className="px-1 mb-3 text-xs text-gray-500">{album.description}</p>
             )}
+
+            {/* 写真追加エリア */}
+            <div className="px-1 mb-4">
+                <FileUploadZone
+                    onUploadComplete={handleUploadComplete}
+                    accept="image/*"
+                    multiple
+                    label="写真を追加"
+                    showPreview={false}
+                    disabled={addPhotoMutation.isPending}
+                />
+            </div>
 
             {isLoading && (
                 <div className="flex justify-center py-8">

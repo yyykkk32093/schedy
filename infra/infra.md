@@ -5,10 +5,10 @@
 ローカル開発に必要なミドルウェアを **Docker Compose** で一括管理している。  
 本番環境（AWS）と同等のサービスをローカルで再現し、クラウドへの依存なしに開発・テストが可能。
 
-| サービス                   | 技術                   | コンテナ名          | ポート | 利用目的                                   |
-| -------------------------- | ---------------------- | ------------------- | ------ | ------------------------------------------ |
-| **データベース**           | PostgreSQL 14 (Alpine) | `schedy-postgres`   | `5432` | アプリケーションの永続化層                 |
-| **オブジェクトストレージ** | LocalStack (S3)        | `schedy-localstack` | `4566` | ファイルアップロード（ロゴ・カバー画像等） |
+| サービス                   | 技術                   | コンテナ名            | ポート | 利用目的                                   |
+| -------------------------- | ---------------------- | --------------------- | ------ | ------------------------------------------ |
+| **データベース**           | PostgreSQL 14 (Alpine) | `tsudocan-postgres`   | `5432` | アプリケーションの永続化層                 |
+| **オブジェクトストレージ** | LocalStack (S3)        | `tsudocan-localstack` | `4566` | ファイルアップロード（ロゴ・カバー画像等） |
 
 ---
 
@@ -90,7 +90,7 @@ env $(grep -v '^#' env/.env.local | xargs) pnpm prisma migrate reset --force
 | ---------------- | ----------------------- |
 | エンドポイント   | `http://localhost:4566` |
 | リージョン       | `ap-northeast-1`        |
-| バケット名       | `schedy-local`          |
+| バケット名       | `tsudocan-local`        |
 | アクセスキー     | `test`                  |
 | シークレットキー | `test`                  |
 
@@ -98,7 +98,7 @@ env $(grep -v '^#' env/.env.local | xargs) pnpm prisma migrate reset --force
 
 [infra/localstack/init-s3.sh](localstack/init-s3.sh) がコンテナ起動時に自動実行され、以下を行う：
 
-1. S3 バケット `schedy-local` の作成
+1. S3 バケット `tsudocan-local` の作成
 2. CORS 設定（`http://localhost:5173` からの GET/PUT/POST を許可）
 
 ### 動作確認
@@ -108,13 +108,13 @@ env $(grep -v '^#' env/.env.local | xargs) pnpm prisma migrate reset --force
 aws --endpoint-url=http://localhost:4566 s3 ls
 
 # バケット内のオブジェクト一覧
-aws --endpoint-url=http://localhost:4566 s3 ls s3://schedy-local/
+aws --endpoint-url=http://localhost:4566 s3 ls s3://tsudocan-local/
 ```
 
 ### 環境変数（backend/env/.env.local）
 
 ```dotenv
-S3_BUCKET=schedy-local
+S3_BUCKET=tsudocan-local
 S3_REGION=ap-northeast-1
 S3_ENDPOINT=http://localhost:4566
 S3_FORCE_PATH_STYLE=true
@@ -130,7 +130,7 @@ AWS_SECRET_ACCESS_KEY=test
 ## ディレクトリ構成
 
 ```
-schedy/
+tsudocan/
 ├── docker-compose.yml          # Docker Compose 定義
 ├── package.json                # infra:up / infra:down / infra:reset スクリプト
 └── infra/
@@ -143,10 +143,10 @@ schedy/
 
 ## ボリューム
 
-| ボリューム名        | 用途                      |
-| ------------------- | ------------------------- |
-| `schedy-pgdata`     | PostgreSQL のデータ永続化 |
-| `schedy-localstack` | LocalStack の状態永続化   |
+| ボリューム名          | 用途                      |
+| --------------------- | ------------------------- |
+| `tsudocan-pgdata`     | PostgreSQL のデータ永続化 |
+| `tsudocan-localstack` | LocalStack の状態永続化   |
 
 `pnpm infra:reset` でボリュームごと削除される。
 

@@ -74,6 +74,19 @@ export class ExpenseCategory extends AggregateRoot {
     getCreatedAt(): Date { return this.createdAt }
 
     // ---- Commands ----
+    rename(newName: string): void {
+        if (this.isSystem) {
+            throw new DomainValidationError('システムカテゴリは名前を変更できません', 'CANNOT_RENAME_SYSTEM_CATEGORY')
+        }
+        if (!newName || newName.trim() === '') {
+            throw new DomainValidationError('カテゴリ名は必須です', 'INVALID_CATEGORY_NAME')
+        }
+        if (newName.length > 50) {
+            throw new DomainValidationError('カテゴリ名は50文字以内で入力してください', 'CATEGORY_NAME_TOO_LONG')
+        }
+        this.name = newName.trim()
+    }
+
     deactivate(): void {
         if (this.isSystem) {
             throw new DomainValidationError('システムカテゴリは無効化できません', 'CANNOT_DEACTIVATE_SYSTEM_CATEGORY')

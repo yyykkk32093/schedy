@@ -2,6 +2,7 @@ import { announcementApi } from '@/features/announcement/api/announcementApi'
 import {
     announcementCommentKeys,
     announcementFeedKeys,
+    announcementKeys,
     announcementListKeys,
     announcementSearchKeys,
 } from '@/shared/lib/queryKeys'
@@ -39,8 +40,13 @@ export function useToggleAnnouncementLike() {
                 },
             )
         },
-        onSettled: () => {
+        onSettled: (_data, _error, announcementId) => {
             qc.invalidateQueries({ queryKey: announcementFeedKeys.all })
+            qc.invalidateQueries({ queryKey: announcementListKeys.all })
+            // C-07: お知らせ詳細ページのキャッシュも更新
+            qc.invalidateQueries({ queryKey: announcementKeys.detail(announcementId) })
+            // C-05: 検索結果のキャッシュも更新
+            qc.invalidateQueries({ queryKey: ['announcements', 'search'] })
         },
     })
 }

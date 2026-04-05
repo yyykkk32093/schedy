@@ -3,8 +3,9 @@ import { ImagePreviewGallery } from '@/shared/components/ui/ImagePreviewModal'
 import { cn } from '@/shared/lib/utils'
 import type { MessageAttachment, MessageReactionSummary } from '@/shared/types/api'
 import { estimateLineCount, formatTime } from '@/shared/utils/dateFormat'
-import { Smile, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { MessageCircleReply, Smile, Trash2 } from 'lucide-react'
+import { useCallback, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 interface MessageBubbleProps {
     /** メッセージID */
@@ -23,6 +24,8 @@ interface MessageBubbleProps {
     reactions: MessageReactionSummary[]
     /** スレッド返信数 */
     replyCount: number
+    /** 最新の返信プレビュー */
+    latestReply?: { senderDisplayName: string | null; content: string; createdAt: string } | null
     /** 送信日時 */
     createdAt: string
     /** 自分のメッセージか */
@@ -41,6 +44,8 @@ interface MessageBubbleProps {
     onOpenEmojiPicker?: (messageId: string) => void
     /** メッセージ削除コールバック */
     onDelete: (messageId: string) => void
+    /** スレッドを開くコールバック */
+    onOpenThread?: (messageId: string) => void
 }
 
 /** クイックリアクション絵文字 */
@@ -60,6 +65,7 @@ export function MessageBubble({
     attachments,
     reactions,
     replyCount,
+    latestReply,
     isMine,
     isContinuation,
     createdAt,
@@ -69,6 +75,7 @@ export function MessageBubble({
     onOpenStampPicker,
     onOpenEmojiPicker,
     onDelete,
+    onOpenThread,
 }: MessageBubbleProps) {
     const [showActions, setShowActions] = useState(false)
     // #22: インライン展開状態
@@ -77,6 +84,22 @@ export function MessageBubble({
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     // #18: クイックリアクションバー表示
     const [showQuickReactions, setShowQuickReactions] = useState(false)
+    const [reactionBarPos, setReactionBarPos] = useState<{ top: number; left: number } | null>(null)
+    const reactionBtnRef = useRef<HTMLButtonElement>(null)
+
+    /** リアクションボタンクリック → fixed 位置を計算して表示 */
+    const toggleQuickReactions = useCallback(() => {
+        setShowQuickReactions((prev) => {
+            if (!prev && reactionBtnRef.current) {
+                const rect = reactionBtnRef.current.getBoundingClientRect()
+                setReactionBarPos({
+                    top: rect.top - 4, // ボタンの上に表示
+                    left: isMine ? rect.right : rect.left,
+                })
+            }
+            return !prev
+        })
+    }, [isMine])
 
     const isDeleted = !!deletedBy
     const lineCount = estimateLineCount(content)
@@ -111,10 +134,21 @@ export function MessageBubble({
 
             {/* #21: アクションアイコン（自分のメッセージ = バブル左、相手 = バブル右） */}
             {isMine && showActions && !isDeleted && (
-                <div className="flex flex-col gap-1 items-center justify-center self-center relative">
+                <div className="flex flex-row gap-1 items-center justify-center self-center">
+                    {onOpenThread && (
+                        <button
+                            type="button"
+                            onClick={() => onOpenThread(messageId)}
+                            className="p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-blue-500 transition-colors"
+                            title="返信"
+                        >
+                            <MessageCircleReply className="w-4 h-4" />
+                        </button>
+                    )}
                     <button
+                        ref={reactionBtnRef}
                         type="button"
-                        onClick={() => setShowQuickReactions((v) => !v)}
+                        onClick={toggleQuickReactions}
                         className="p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-blue-500 transition-colors"
                         title="リアクション"
                     >
@@ -128,37 +162,6 @@ export function MessageBubble({
                     >
                         <Trash2 className="w-4 h-4" />
                     </button>
-
-                    {/* #18: クイックリアクションバー */}
-                    {showQuickReactions && (
-                        <div className="absolute bottom-full mb-1 right-0 flex items-center gap-0.5 bg-white border border-gray-200 rounded-full px-1.5 py-0.5 shadow-lg z-10">
-                            {QUICK_EMOJIS.map((emoji) => (
-                                <button
-                                    key={emoji}
-                                    type="button"
-                                    onClick={() => {
-                                        onAddReaction(messageId, { emoji })
-                                        setShowQuickReactions(false)
-                                    }}
-                                    className="text-lg hover:scale-125 transition-transform p-0.5"
-                                >
-                                    {emoji}
-                                </button>
-                            ))}
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setShowQuickReactions(false)
-                                    if (onOpenEmojiPicker) onOpenEmojiPicker(messageId)
-                                    else onOpenStampPicker(messageId)
-                                }}
-                                className="text-xs text-gray-400 hover:text-blue-500 px-1"
-                                title="もっと見る"
-                            >
-                                +
-                            </button>
-                        </div>
-                    )}
                 </div>
             )}
 
@@ -270,61 +273,99 @@ export function MessageBubble({
                     </div>
                 )}
 
-                {/* スレッド返信カウント */}
+                {/* スレッド返信カウント + 最新返信プレビュー */}
                 {replyCount > 0 && (
-                    <p className="text-xs text-blue-500 mt-0.5">💬 {replyCount}件の返信</p>
+                    <button
+                        type="button"
+                        onClick={() => onOpenThread?.(messageId)}
+                        className="text-left mt-1 group"
+                    >
+                        <p className="text-xs text-blue-500 group-hover:text-blue-600 group-hover:underline">
+                            💬 {replyCount}件の返信
+                        </p>
+                        {latestReply && (
+                            <p className="text-[10px] text-gray-400 mt-0.5 truncate max-w-[200px]">
+                                {latestReply.senderDisplayName ?? '不明'}: {latestReply.content}
+                            </p>
+                        )}
+                    </button>
                 )}
             </div>
 
             {/* #21: アクションアイコン（相手のメッセージ = バブル右） */}
             {!isMine && showActions && !isDeleted && (
-                <div className="flex flex-col gap-1 items-center justify-center self-center relative">
+                <div className="flex flex-row gap-1 items-center justify-center self-center">
+                    {onOpenThread && (
+                        <button
+                            type="button"
+                            onClick={() => onOpenThread(messageId)}
+                            className="p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-blue-500 transition-colors"
+                            title="返信"
+                        >
+                            <MessageCircleReply className="w-4 h-4" />
+                        </button>
+                    )}
                     <button
+                        ref={reactionBtnRef}
                         type="button"
-                        onClick={() => setShowQuickReactions((v) => !v)}
+                        onClick={toggleQuickReactions}
                         className="p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-blue-500 transition-colors"
                         title="リアクション"
                     >
                         <Smile className="w-4 h-4" />
                     </button>
+                </div>
+            )}
 
-                    {/* #18: クイックリアクションバー（相手のメッセージ） */}
-                    {showQuickReactions && (
-                        <div className="absolute bottom-full mb-1 left-0 flex items-center gap-0.5 bg-white border border-gray-200 rounded-full px-1.5 py-0.5 shadow-lg z-10">
-                            {QUICK_EMOJIS.map((emoji) => (
-                                <button
-                                    key={emoji}
-                                    type="button"
-                                    onClick={() => {
-                                        onAddReaction(messageId, { emoji })
-                                        setShowQuickReactions(false)
-                                    }}
-                                    className="text-lg hover:scale-125 transition-transform p-0.5"
-                                >
-                                    {emoji}
-                                </button>
-                            ))}
+            {/* #18: クイックリアクションバー（fixed ポータル） */}
+            {showQuickReactions && reactionBarPos && createPortal(
+                <>
+                    {/* 背景タップで閉じる */}
+                    <div className="fixed inset-0 z-[79]" onClick={() => setShowQuickReactions(false)} />
+                    <div
+                        className="fixed z-[80] flex items-center gap-0.5 bg-white border border-gray-200 rounded-full px-1.5 py-0.5 shadow-lg whitespace-nowrap"
+                        style={{
+                            top: reactionBarPos.top,
+                            ...(isMine
+                                ? { right: window.innerWidth - reactionBarPos.left }
+                                : { left: reactionBarPos.left }),
+                            transform: 'translateY(-100%)',
+                        }}
+                    >
+                        {QUICK_EMOJIS.map((emoji) => (
                             <button
+                                key={emoji}
                                 type="button"
                                 onClick={() => {
+                                    onAddReaction(messageId, { emoji })
                                     setShowQuickReactions(false)
-                                    if (onOpenEmojiPicker) onOpenEmojiPicker(messageId)
-                                    else onOpenStampPicker(messageId)
                                 }}
-                                className="text-xs text-gray-400 hover:text-blue-500 px-1"
-                                title="もっと見る"
+                                className="text-lg hover:scale-125 transition-transform p-0.5"
                             >
-                                +
+                                {emoji}
                             </button>
-                        </div>
-                    )}
-                </div>
+                        ))}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setShowQuickReactions(false)
+                                if (onOpenEmojiPicker) onOpenEmojiPicker(messageId)
+                                else onOpenStampPicker(messageId)
+                            }}
+                            className="text-xs text-gray-400 hover:text-blue-500 px-1"
+                            title="もっと見る"
+                        >
+                            +
+                        </button>
+                    </div>
+                </>,
+                document.body,
             )}
 
             {/* #20: 削除確認ダイアログ */}
             {showDeleteConfirm && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+                    className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30"
                     onClick={() => setShowDeleteConfirm(false)}
                 >
                     <div

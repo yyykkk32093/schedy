@@ -12,6 +12,7 @@ import type { IActivityRepository } from '@/domains/activity/domain/repository/I
 import { Schedule } from '@/domains/activity/schedule/domain/model/entity/Schedule.js'
 import { ScheduleId } from '@/domains/activity/schedule/domain/model/valueObject/ScheduleId.js'
 import type { IScheduleRepository } from '@/domains/activity/schedule/domain/repository/IScheduleRepository.js'
+import { RecurringScheduleGenerator } from '@/domains/activity/schedule/domain/service/RecurringScheduleGenerator.js'
 import { Announcement } from '@/domains/announcement/domain/model/entity/Announcement.js'
 import { AnnouncementContent } from '@/domains/announcement/domain/model/valueObject/AnnouncementContent.js'
 import { AnnouncementId } from '@/domains/announcement/domain/model/valueObject/AnnouncementId.js'
@@ -53,7 +54,9 @@ export class CreateActivityUseCase {
         meetingUrl?: string | null
         capacity?: number | null
         userId: string
+        allowVisitorWaitlist?: boolean
         shouldPostAnnouncement?: boolean  // Phase3 #4: お知らせ同時投稿
+        recurrenceGenerationMonths?: number  // 繰返しスケジュール生成期間（月数）デフォルト2、最大12
     }): Promise<{ activityId: string; scheduleId?: string }> {
         let activityId = ''
         let scheduleId: string | undefined
@@ -81,6 +84,11 @@ export class CreateActivityUseCase {
                 defaultAddress: input.defaultAddress ?? null,
                 defaultStartTime: TimeOfDay.createNullable(input.defaultStartTime),
                 defaultEndTime: TimeOfDay.createNullable(input.defaultEndTime),
+                // D-4: フォーム値を Activity デフォルト属性にも暗黙同期
+                defaultParticipationFee: input.participationFee ?? null,
+                defaultVisitorFee: input.visitorFee ?? null,
+                defaultCapacity: input.capacity ?? null,
+                allowVisitorWaitlist: input.allowVisitorWaitlist ?? false,
                 recurrenceRule: input.recurrenceRule ?? null,
                 organizerUserId: input.organizerUserId ? UserId.create(input.organizerUserId) : null,
                 createdBy: UserId.create(input.userId),
@@ -123,6 +131,21 @@ export class CreateActivityUseCase {
                     activityId: id,
                 })
                 await repos.announcement.save(announcement)
+            }
+
+            // recurrenceRule がある場合、ドメインサービスで指定期間分のスケジュールをバルク生成
+            if (input.recurrenceRule) {
+                const existingDates = new Set<string>()
+                // 初回スケジュールの日付を既存として登録（重複防止）
+                if (input.date) {
+                    existingDates.add(input.date)
+                }
+                const newSchedules = RecurringScheduleGenerator.generateSchedules(
+                    activity, existingDates, this.idGenerator, input.recurrenceGenerationMonths,
+                )
+                if (newSchedules.length > 0) {
+                    await repos.schedule.saveMany(newSchedules)
+                }
             }
         })
 

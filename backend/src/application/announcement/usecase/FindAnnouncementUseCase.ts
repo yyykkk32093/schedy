@@ -10,6 +10,9 @@ export interface AnnouncementDetailDto {
     communityId: string
     activityId: string | null
     authorId: string
+    authorName: string | null
+    authorAvatarUrl: string | null
+    communityName: string
     title: string
     content: string
     createdAt: string
@@ -44,7 +47,7 @@ export class FindAnnouncementUseCase {
             this.commentRepository.countByAnnouncementIds(ids),
             this.likeRepository.findLikedIds(input.userId, ids),
             this.bookmarkRepository.findBookmarkedIds(input.userId, ids),
-            this.announcementReadRepository.countByAnnouncementIds(ids),
+            this.announcementReadRepository.countByAnnouncementIds(ids, input.userId),
         ])
 
         return {
@@ -52,6 +55,9 @@ export class FindAnnouncementUseCase {
             communityId: detail.communityId,
             activityId: detail.activityId,
             authorId: detail.authorId,
+            authorName: detail.authorName,
+            authorAvatarUrl: detail.authorAvatarUrl,
+            communityName: detail.communityName,
             title: detail.title,
             content: detail.content,
             createdAt: detail.createdAt.toISOString(),

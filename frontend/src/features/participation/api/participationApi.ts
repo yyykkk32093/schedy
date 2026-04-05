@@ -1,5 +1,5 @@
 import { http } from '@/shared/lib/apiClient';
-import type { AddGuestVisitorRequest, AddGuestVisitorResponse, AttendScheduleRequest, AttendScheduleResponse, CreateStripePaymentIntentResponse, GetParticipationHistoryResponse, JoinWaitlistResponse, ListParticipantsResponse, ListPaymentHistoryResponse, ListRefundPendingResponse, ListWaitlistResponse, UpdateVisitorPaymentRequest } from '@/shared/types/api';
+import type { AddVisitorRequest, AddVisitorResponse, AttendScheduleRequest, AttendScheduleResponse, CreateStripePaymentIntentResponse, GetParticipationHistoryResponse, JoinWaitlistResponse, ListParticipantsResponse, ListPaymentHistoryResponse, ListRefundPendingResponse, ListWaitlistResponse, UpdateVisitorPaymentRequest } from '@/shared/types/api';
 
 export const participationApi = {
     list: (scheduleId: string) =>
@@ -33,6 +33,13 @@ export const participationApi = {
         http<{ results: { participationId: string; success: boolean; error?: string }[] }>(
             `/v1/schedules/${scheduleId}/payments/bulk-confirm`,
             { method: 'PATCH', json: { participationIds } },
+        ),
+
+    /** W3-09: ビジター支払い方法一括設定（管理者） */
+    bulkUpdatePayment: (scheduleId: string, updates: Array<{ participationId: string; paymentMethod: string }>) =>
+        http<void>(
+            `/v1/schedules/${scheduleId}/payments/bulk`,
+            { method: 'PATCH', json: { updates } },
         ),
 
     /** 管理者による参加者除外 */
@@ -73,11 +80,27 @@ export const participationApi = {
         http<void>(`/v1/payments/${paymentId}/revert-refund`, { method: 'PATCH' }),
 
     // ---- ビジター管理 ----
-    /** ゲストビジター追加 */
-    addGuestVisitor: (scheduleId: string, data: AddGuestVisitorRequest) =>
-        http<AddGuestVisitorResponse>(`/v1/schedules/${scheduleId}/guest-visitors`, { method: 'POST', json: data }),
+    /** ビジター追加 */
+    addVisitor: (scheduleId: string, data: AddVisitorRequest) =>
+        http<AddVisitorResponse>(`/v1/schedules/${scheduleId}/guest-visitors`, { method: 'POST', json: data }),
+
+    /** W3-13a: 登録済みビジター追加 */
+    addRegisteredVisitor: (scheduleId: string, visitorUserId: string) =>
+        http<{ participationId: string }>(`/v1/schedules/${scheduleId}/registered-visitors`, { method: 'POST', json: { visitorUserId } }),
+
+    /** W3-13b: ビジター名サジェスト */
+    suggestVisitorNames: (communityId: string, query?: string) =>
+        http<{ names: string[] }>(`/v1/communities/${communityId}/visitor-names`, { query: query ? { q: query } : undefined }),
 
     /** ビジター支払い更新（管理者） */
     updateVisitorPayment: (participationId: string, data: UpdateVisitorPaymentRequest) =>
         http<void>(`/v1/participations/${participationId}/visitor-payment`, { method: 'PATCH', json: data }),
+
+    /** 繰り上げ参加者の支払い方法選択 */
+    selectPaymentMethod: (participationId: string, paymentMethod: string) =>
+        http<void>(`/v1/participations/${participationId}/select-payment-method`, { method: 'PATCH', json: { paymentMethod } }),
+
+    /** 参加者削除（participationId ベース・権限制御付き） */
+    removeParticipation: (participationId: string) =>
+        http<void>(`/v1/participations/${participationId}`, { method: 'DELETE' }),
 }

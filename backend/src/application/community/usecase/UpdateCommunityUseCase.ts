@@ -33,8 +33,13 @@ export class UpdateCommunityUseCase {
         cancellationAlertEnabled?: boolean
         joinMethod?: string
         isPublic?: boolean
-        mainActivityArea?: string | null
         activityFrequency?: string | null
+        targetGender?: string[]
+        ageMin?: number | null
+        ageMax?: number | null
+        categoryId?: string | null
+        recommendedLevelMin?: number | null
+        recommendedLevelMax?: number | null
     }): Promise<void> {
         await this.unitOfWork.run(async (repos) => {
             const community = await repos.community.findById(input.communityId)
@@ -88,11 +93,30 @@ export class UpdateCommunityUseCase {
             if (input.isPublic !== undefined && input.isPublic !== community.getIsPublic()) {
                 changes.push({ field: 'isPublic', before: String(community.getIsPublic()), after: String(input.isPublic) })
             }
-            if (input.mainActivityArea !== undefined && input.mainActivityArea !== community.getMainActivityArea()) {
-                changes.push({ field: 'mainActivityArea', before: community.getMainActivityArea(), after: input.mainActivityArea })
-            }
             if (input.activityFrequency !== undefined && input.activityFrequency !== community.getActivityFrequency()) {
                 changes.push({ field: 'activityFrequency', before: community.getActivityFrequency(), after: input.activityFrequency })
+            }
+            if (input.targetGender !== undefined) {
+                const beforeGender = community.getTargetGender().join(',')
+                const afterGender = input.targetGender.join(',')
+                if (beforeGender !== afterGender) {
+                    changes.push({ field: 'targetGender', before: beforeGender, after: afterGender })
+                }
+            }
+            if (input.ageMin !== undefined && input.ageMin !== community.getAgeMin()) {
+                changes.push({ field: 'ageMin', before: String(community.getAgeMin() ?? ''), after: String(input.ageMin ?? '') })
+            }
+            if (input.ageMax !== undefined && input.ageMax !== community.getAgeMax()) {
+                changes.push({ field: 'ageMax', before: String(community.getAgeMax() ?? ''), after: String(input.ageMax ?? '') })
+            }
+            if (input.categoryId !== undefined && input.categoryId !== community.getCategoryId()) {
+                changes.push({ field: 'categoryId', before: community.getCategoryId(), after: input.categoryId })
+            }
+            if (input.recommendedLevelMin !== undefined && input.recommendedLevelMin !== community.getRecommendedLevelMin()) {
+                changes.push({ field: 'recommendedLevelMin', before: String(community.getRecommendedLevelMin() ?? ''), after: String(input.recommendedLevelMin ?? '') })
+            }
+            if (input.recommendedLevelMax !== undefined && input.recommendedLevelMax !== community.getRecommendedLevelMax()) {
+                changes.push({ field: 'recommendedLevelMax', before: String(community.getRecommendedLevelMax() ?? ''), after: String(input.recommendedLevelMax ?? '') })
             }
 
             community.update({
@@ -108,8 +132,13 @@ export class UpdateCommunityUseCase {
                 cancellationAlertEnabled: input.cancellationAlertEnabled,
                 joinMethod: input.joinMethod ? JoinMethod.create(input.joinMethod) : undefined,
                 isPublic: input.isPublic,
-                mainActivityArea: input.mainActivityArea !== undefined ? input.mainActivityArea : undefined,
                 activityFrequency: input.activityFrequency !== undefined ? input.activityFrequency : undefined,
+                targetGender: input.targetGender,
+                ageMin: input.ageMin !== undefined ? input.ageMin : undefined,
+                ageMax: input.ageMax !== undefined ? input.ageMax : undefined,
+                categoryId: input.categoryId !== undefined ? input.categoryId : undefined,
+                recommendedLevelMin: input.recommendedLevelMin !== undefined ? input.recommendedLevelMin : undefined,
+                recommendedLevelMax: input.recommendedLevelMax !== undefined ? input.recommendedLevelMax : undefined,
             })
 
             await repos.community.save(community)

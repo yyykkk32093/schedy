@@ -12,7 +12,10 @@ export class WaitlistEntry extends AggregateRoot {
     private constructor(
         private readonly id: string,
         private readonly scheduleId: ScheduleId,
-        private readonly userId: UserId,
+        private readonly userId: UserId | null,
+        private readonly isVisitor: boolean,
+        private readonly visitorName: string | null,
+        private readonly addedBy: string | null,
         private readonly registeredAt: Date,
     ) {
         super()
@@ -21,12 +24,18 @@ export class WaitlistEntry extends AggregateRoot {
     static create(params: {
         id: string
         scheduleId: ScheduleId
-        userId: UserId
+        userId?: UserId | null
+        isVisitor?: boolean
+        visitorName?: string | null
+        addedBy?: string | null
     }): WaitlistEntry {
         return new WaitlistEntry(
             params.id,
             params.scheduleId,
-            params.userId,
+            params.userId ?? null,
+            params.isVisitor ?? false,
+            params.visitorName ?? null,
+            params.addedBy ?? null,
             new Date(),
         )
     }
@@ -34,19 +43,28 @@ export class WaitlistEntry extends AggregateRoot {
     static reconstruct(params: {
         id: string
         scheduleId: ScheduleId
-        userId: UserId
+        userId: UserId | null
+        isVisitor: boolean
+        visitorName: string | null
+        addedBy: string | null
         registeredAt: Date
     }): WaitlistEntry {
         return new WaitlistEntry(
             params.id,
             params.scheduleId,
             params.userId,
+            params.isVisitor,
+            params.visitorName,
+            params.addedBy,
             params.registeredAt,
         )
     }
 
     getId(): string { return this.id }
     getScheduleId(): ScheduleId { return this.scheduleId }
-    getUserId(): UserId { return this.userId }
+    getUserId(): UserId | null { return this.userId }
+    getIsVisitor(): boolean { return this.isVisitor }
+    getVisitorName(): string | null { return this.visitorName }
+    getAddedBy(): string | null { return this.addedBy }
     getRegisteredAt(): Date { return this.registeredAt }
 }

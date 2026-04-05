@@ -29,12 +29,12 @@ export function ActivityListPage() {
                 <ul className="space-y-3">
                     {activities.map((a) => (
                         <li key={a.id} className="p-4 border rounded-lg hover:bg-gray-50 flex justify-between items-center">
-                            <Link to={`/activities/${a.id}${a.upcomingSchedules[0]?.id ? `?schedule=${a.upcomingSchedules[0].id}` : ''}`} className="flex-1">
+                            <Link to={`/communities/${communityId}/activities/${a.id}${a.upcomingSchedules[0]?.id ? `?schedule=${a.upcomingSchedules[0].id}` : ''}`} className="flex-1">
                                 <p className="font-semibold">{a.title}</p>
                                 {a.description && <p className="text-sm text-gray-500 mt-1">{a.description}</p>}
                             </Link>
                             <button
-                                onClick={() => { if (confirm('削除しますか？')) deleteMutation.mutate(a.id) }}
+                                onClick={() => { if (confirm('削除しますか？')) deleteMutation.mutate({ activityId: a.id, notifyOption: 'none' }) }}
                                 className="text-red-500 text-sm hover:underline ml-4"
                             >
                                 削除

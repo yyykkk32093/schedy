@@ -60,8 +60,8 @@ export class ExportCalendarUseCase {
         const { ICalCalendar, ICalCalendarMethod } = await import('ical-generator')
 
         const calendar = new ICalCalendar({
-            name: 'Schedy スケジュール',
-            prodId: { company: 'schedy', product: 'calendar-export' },
+            name: 'TsudoCan スケジュール',
+            prodId: { company: 'tsudocan', product: 'calendar-export' },
             method: ICalCalendarMethod.PUBLISH,
         })
 

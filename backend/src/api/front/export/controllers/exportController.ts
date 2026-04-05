@@ -67,7 +67,7 @@ export const exportController = {
             res.setHeader('Content-Type', 'text/calendar; charset=utf-8')
             res.setHeader(
                 'Content-Disposition',
-                'attachment; filename="schedy-calendar.ics"',
+                'attachment; filename="tsudocan-calendar.ics"',
             )
             res.send(ical)
         } catch (err) {

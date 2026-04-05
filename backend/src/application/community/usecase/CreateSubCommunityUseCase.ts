@@ -7,6 +7,7 @@ import { Community } from '@/domains/community/domain/model/entity/Community.js'
 import { CommunityDescription } from '@/domains/community/domain/model/valueObject/CommunityDescription.js'
 import { CommunityId } from '@/domains/community/domain/model/valueObject/CommunityId.js'
 import { CommunityName } from '@/domains/community/domain/model/valueObject/CommunityName.js'
+import { JoinMethod } from '@/domains/community/domain/model/valueObject/JoinMethod.js'
 import type { ICommunityRepository } from '@/domains/community/domain/repository/ICommunityRepository.js'
 import { CommunityGradePolicy } from '@/domains/community/domain/service/CommunityGradePolicy.js'
 import { CommunityMembership } from '@/domains/community/membership/domain/model/entity/CommunityMembership.js'
@@ -16,6 +17,7 @@ import type { ICommunityMembershipRepository } from '@/domains/community/members
 import type { IUserRepository } from '@/domains/user/domain/repository/IUserRepository.js'
 import { CommunityNotFoundError } from '../error/CommunityNotFoundError.js'
 import { CommunityPermissionError } from '../error/CommunityPermissionError.js'
+import { copyParentMembersToChild } from '../helper/membershipPropagation.js'
 
 export type CreateSubCommunityTxRepositories = {
     community: ICommunityRepository
@@ -35,11 +37,32 @@ export class CreateSubCommunityUseCase {
         name: string
         description?: string | null
         userId: string
+        /** 親の設定を全て引き継ぐ（デフォルト true） */
+        inheritSettings?: boolean
+        /** メンバー引き継ぎ方式 */
+        memberInheritance?: 'ALL' | 'SELECT' | 'OWNER_ONLY' | 'ADMIN_AND_ABOVE'
+        /** SELECT 時の選択メンバーID */
+        selectedMemberIds?: string[]
+        // --- 入力し直す場合の設定フィールド ---
+        joinMethod?: string
+        isPublic?: boolean
+        maxMembers?: number | null
+        targetGender?: string[]
+        ageMin?: number | null
+        ageMax?: number | null
+        activityFrequency?: string | null
+        activityDays?: string[]
+        categoryId?: string | null
+        recommendedLevelMin?: number | null
+        recommendedLevelMax?: number | null
+        tags?: string[]
     }): Promise<{ communityId: string }> {
         const communityId = CommunityId.create(this.idGenerator.generate())
         const name = CommunityName.create(input.name)
         const description = CommunityDescription.createNullable(input.description)
         const createdBy = UserId.create(input.userId)
+        const shouldInheritSettings = input.inheritSettings !== false
+        const memberMode = input.memberInheritance ?? 'ADMIN_AND_ABOVE'
 
         let eventsToPublish: BaseDomainEvent[] = []
 
@@ -61,6 +84,35 @@ export class CreateSubCommunityUseCase {
             if (!user) throw new Error('User not found')
             const grade = CommunityGradePolicy.gradeFromPlan(user.getPlan())
 
+            // 設定を決定: 引き継ぎか入力し直しか
+            const childSettings = shouldInheritSettings
+                ? {
+                    // 親の設定をそのままコピー
+                    joinMethod: parent.getJoinMethod(),
+                    isPublic: parent.getIsPublic(),
+                    maxMembers: parent.getMaxMembers(),
+                    activityFrequency: parent.getActivityFrequency(),
+                    targetGender: parent.getTargetGender(),
+                    ageMin: parent.getAgeMin(),
+                    ageMax: parent.getAgeMax(),
+                    categoryId: parent.getCategoryId(),
+                    recommendedLevelMin: parent.getRecommendedLevelMin(),
+                    recommendedLevelMax: parent.getRecommendedLevelMax(),
+                }
+                : {
+                    // フロントから入力された設定を使用
+                    joinMethod: input.joinMethod ? JoinMethod.create(input.joinMethod) : undefined,
+                    isPublic: input.isPublic,
+                    maxMembers: input.maxMembers,
+                    activityFrequency: input.activityFrequency,
+                    targetGender: input.targetGender,
+                    ageMin: input.ageMin,
+                    ageMax: input.ageMax,
+                    categoryId: input.categoryId,
+                    recommendedLevelMin: input.recommendedLevelMin,
+                    recommendedLevelMax: input.recommendedLevelMax,
+                }
+
             // 子コミュニティ作成（depth バリデーション含む）
             const child = Community.createChild({
                 id: communityId,
@@ -70,6 +122,7 @@ export class CreateSubCommunityUseCase {
                 parentId: parent.getId(),
                 parentDepth: parent.getDepth(),
                 createdBy,
+                ...childSettings,
             })
             await repos.community.save(child)
 
@@ -81,6 +134,13 @@ export class CreateSubCommunityUseCase {
                 role: MembershipRole.owner(),
             })
             await repos.membership.save(childMembership)
+
+            // メンバー引き継ぎ
+            await copyParentMembersToChild(
+                repos, this.idGenerator,
+                input.parentId, communityId.getValue(), input.userId,
+                memberMode, input.selectedMemberIds,
+            )
 
             eventsToPublish = child.pullDomainEvents()
         })

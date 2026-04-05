@@ -1,6 +1,7 @@
 import { useAnnouncement, useCreateAnnouncement, useUpdateAnnouncement } from '@/features/announcement/hooks/useAnnouncementQueries'
 import { PollCreateForm } from '@/features/poll/components/PollCreateForm'
 import { SectionTabs, type SectionTab } from '@/shared/components/SectionTabs'
+import { CharacterCounter } from '@/shared/components/ui/CharacterCounter'
 import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card'
 import { Input } from '@/shared/components/ui/input'
@@ -9,6 +10,7 @@ import { uploadFile } from '@/shared/lib/uploadClient'
 import { ImagePlus, Send, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
 
 /**
  * AnnouncementCreatePage — 投稿作成 / 編集画面（UBL-35 + UBL-34 タブ統合 + Phase3 編集プリフィル）
@@ -54,8 +56,9 @@ export function AnnouncementCreatePage() {
             setUploading(true)
             const result = await uploadFile(file)
             setAttachments((prev) => [...prev, { url: result.url, name: result.fileName, mimeType: result.mimeType, fileSize: result.fileSize }])
-        } catch {
-            // upload error — silently ignore
+        } catch (err) {
+            console.error('Image upload failed:', err)
+            toast.error('画像のアップロードに失敗しました')
         } finally {
             setUploading(false)
             if (fileInputRef.current) fileInputRef.current.value = ''
@@ -126,6 +129,7 @@ export function AnnouncementCreatePage() {
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         placeholder="お知らせのタイトル"
+                        maxLength={100}
                         required
                     />
                 </div>
@@ -138,9 +142,11 @@ export function AnnouncementCreatePage() {
                         onChange={(e) => setContent(e.target.value)}
                         placeholder="お知らせの内容を入力..."
                         rows={6}
+                        maxLength={10000}
                         required
                         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                     />
+                    <CharacterCounter current={content.length} max={10000} />
                 </div>
 
                 {/* Attachments preview */}

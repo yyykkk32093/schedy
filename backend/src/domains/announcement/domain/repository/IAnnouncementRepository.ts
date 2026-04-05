@@ -6,6 +6,9 @@ export interface AnnouncementDetailRow {
     communityId: string
     activityId: string | null
     authorId: string
+    authorName: string | null
+    authorAvatarUrl: string | null
+    communityName: string
     title: string
     content: string
     createdAt: Date

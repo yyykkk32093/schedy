@@ -1,6 +1,6 @@
 import { useHomeFeed } from '@/features/home/hooks/useHomeFeed'
 import { Separator } from '@/shared/components/ui/separator'
-import { Bookmark, CalendarCheck, Loader2, Megaphone } from 'lucide-react'
+import { CalendarCheck, Loader2, Megaphone, Paperclip } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FeedCard } from './FeedCard'
 
@@ -86,8 +86,8 @@ export function FeedList() {
         )
     }
 
-    // ── 空 ──
-    if (allItems.length === 0) {
+    // ── 空（フィルタ未使用時のみ早期return） ──
+    if (allItems.length === 0 && !activityOnly && !bookmarkOnly) {
         return (
             <div className="flex flex-col items-center justify-center py-20 text-gray-400">
                 <Megaphone className="mb-3 h-12 w-12" />
@@ -107,12 +107,12 @@ export function FeedList() {
                     type="button"
                     onClick={() => setBookmarkOnly(!bookmarkOnly)}
                     className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${bookmarkOnly
-                        ? 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                        ? 'bg-blue-100 text-blue-700 border border-blue-300'
                         : 'bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200'
                         }`}
                 >
-                    <Bookmark className={`h-3.5 w-3.5 ${bookmarkOnly ? 'fill-yellow-500' : ''}`} />
-                    お気に入り
+                    <Paperclip className={`h-3.5 w-3.5 ${bookmarkOnly ? 'text-blue-500' : ''}`} />
+                    クリップ
                 </button>
                 <button
                     type="button"
@@ -127,10 +127,24 @@ export function FeedList() {
                 </button>
             </div>
 
-            {displayItems.length === 0 && bookmarkOnly ? (
+            {displayItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-                    <Bookmark className="mb-3 h-10 w-10" />
-                    <p className="text-sm">ブックマークしたお知らせはありません</p>
+                    {bookmarkOnly ? (
+                        <>
+                            <Paperclip className="mb-3 h-10 w-10" />
+                            <p className="text-sm">クリップしたお知らせはありません</p>
+                        </>
+                    ) : activityOnly ? (
+                        <>
+                            <CalendarCheck className="mb-3 h-10 w-10" />
+                            <p className="text-sm">アクティビティに紐づくお知らせはありません</p>
+                        </>
+                    ) : (
+                        <>
+                            <Megaphone className="mb-3 h-10 w-10" />
+                            <p className="text-sm">お知らせはまだありません</p>
+                        </>
+                    )}
                 </div>
             ) : (
                 displayItems.map((item, idx) => (

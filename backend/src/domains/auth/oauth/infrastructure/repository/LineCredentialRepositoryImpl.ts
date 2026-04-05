@@ -32,4 +32,8 @@ export class LineCredentialRepositoryImpl implements ILineCredentialRepository {
             } satisfies Prisma.LineCredentialUncheckedCreateInput,
         })
     }
+
+    async deleteByUserId(userId: string): Promise<void> {
+        await this.db.lineCredential.deleteMany({ where: { userId } })
+    }
 }

@@ -25,7 +25,7 @@ export const stripeWebhookController = {
                 return
             }
 
-            // イベントタイプごとにディスパッチ
+            // ── Connect / Payment 系イベント ──
             switch (event.type) {
                 case 'payment_intent.succeeded': {
                     const paymentIntent = event.data.object as Stripe.PaymentIntent
@@ -43,6 +43,18 @@ export const stripeWebhookController = {
                     await useCase.execute({
                         paymentIntentId: (charge.payment_intent as string) ?? '',
                         metadata: charge.metadata as Record<string, string>,
+                    })
+                    break
+                }
+
+                case 'account.updated': {
+                    const account = event.data.object as Stripe.Account
+                    const useCase = usecaseFactory.createHandleStripeAccountUpdatedUseCase()
+                    await useCase.execute({
+                        stripeAccountId: account.id,
+                        chargesEnabled: account.charges_enabled ?? false,
+                        payoutsEnabled: account.payouts_enabled ?? false,
+                        detailsSubmitted: account.details_submitted ?? false,
                     })
                     break
                 }

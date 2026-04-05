@@ -2,6 +2,7 @@ import { DomainValidationError } from '@/domains/_sharedDomains/error/DomainVali
 import { AggregateRoot } from '@/domains/_sharedDomains/model/entity/AggregateRoot.js'
 import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
 import { CommunityId } from '@/domains/community/domain/model/valueObject/CommunityId.js'
+import { MemberLeftEvent } from '../../event/MemberLeftEvent.js'
 import { MembershipId } from '../valueObject/MembershipId.js'
 import { MembershipRole } from '../valueObject/MembershipRole.js'
 
@@ -77,6 +78,10 @@ export class CommunityMembership extends AggregateRoot {
             )
         }
         this.leftAt = new Date()
+        this.addDomainEvent(new MemberLeftEvent(
+            this.communityId.getValue(),
+            this.userId.getValue(),
+        ))
     }
 
     // ---- Query ----

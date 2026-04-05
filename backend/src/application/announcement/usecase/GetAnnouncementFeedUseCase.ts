@@ -77,7 +77,7 @@ export class GetAnnouncementFeedUseCase {
             this.commentRepository.countByAnnouncementIds(announcementIds),
             this.likeRepository.findLikedIds(input.userId, announcementIds),
             this.bookmarkRepository.findBookmarkedIds(input.userId, announcementIds),
-            this.announcementReadRepository.countByAnnouncementIds(announcementIds),
+            this.announcementReadRepository.countByAnnouncementIds(announcementIds, input.userId),
         ])
 
         const readSet = new Set(readIds)

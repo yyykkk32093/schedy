@@ -1,5 +1,5 @@
 {
-    "name": "schedy",
+    "name": "tsudocan",
     "private": true,
     "scripts": {
         "infra:up": "docker compose up -d",

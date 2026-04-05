@@ -1,5 +1,5 @@
-import type { IExpenseCategoryRepository } from '@/domains/expense/domain/repository/IExpenseCategoryRepository.js'
-import type { IExpenseRepository } from '@/domains/expense/domain/repository/IExpenseRepository.js'
+import type { IExpenseCategoryRepository } from '@/domains/expense/domain/repository/IExpenseCategoryRepository.js';
+import type { IExpenseRepository } from '@/domains/expense/domain/repository/IExpenseRepository.js';
 
 export class ListExpensesUseCase {
     constructor(
@@ -7,7 +7,7 @@ export class ListExpensesUseCase {
         private readonly categoryRepository: IExpenseCategoryRepository,
     ) { }
 
-    async execute(input: { communityId: string }): Promise<{
+    async execute(input: { communityId: string; from?: string; to?: string }): Promise<{
         expenses: Array<{
             id: string
             communityId: string
@@ -20,8 +20,15 @@ export class ListExpensesUseCase {
             createdAt: string
         }>
     }> {
+        const dateRange = (input.from || input.to)
+            ? {
+                from: input.from ? new Date(input.from) : undefined,
+                to: input.to ? new Date(input.to) : undefined,
+            }
+            : undefined
+
         const [expenses, categories] = await Promise.all([
-            this.expenseRepository.findsByCommunityId(input.communityId),
+            this.expenseRepository.findsByCommunityId(input.communityId, dateRange),
             this.categoryRepository.findsByCommunityId(input.communityId),
         ])
 

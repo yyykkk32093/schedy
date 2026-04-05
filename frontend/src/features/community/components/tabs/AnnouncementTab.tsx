@@ -1,7 +1,7 @@
 import { useAnnouncements } from '@/features/announcement/hooks/useAnnouncementQueries'
 import { FeedCard } from '@/features/home/components/FeedCard'
 import type { AnnouncementFeedItem } from '@/shared/types/api'
-import { Bookmark, CalendarCheck, Megaphone } from 'lucide-react'
+import { CalendarCheck, Megaphone, Paperclip } from 'lucide-react'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 
@@ -24,16 +24,6 @@ export function AnnouncementTab() {
     }
 
     const announcements = data?.announcements ?? []
-
-    if (announcements.length === 0) {
-        return (
-            <div className="py-12 flex flex-col items-center gap-2 text-gray-400">
-                <Megaphone className="h-8 w-8" />
-                <p className="text-sm">まだお知らせはありません</p>
-            </div>
-        )
-    }
-
     const displayItems = bookmarkOnly
         ? announcements.filter((item) => item.isBookmarked)
         : announcements
@@ -46,12 +36,12 @@ export function AnnouncementTab() {
                     type="button"
                     onClick={() => setBookmarkOnly(!bookmarkOnly)}
                     className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${bookmarkOnly
-                        ? 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                        ? 'bg-blue-100 text-blue-700 border border-blue-300'
                         : 'bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200'
                         }`}
                 >
-                    <Bookmark className={`h-3.5 w-3.5 ${bookmarkOnly ? 'fill-yellow-500' : ''}`} />
-                    お気に入り
+                    <Paperclip className={`h-3.5 w-3.5 ${bookmarkOnly ? 'text-blue-500' : ''}`} />
+                    クリップ
                 </button>
                 <button
                     type="button"
@@ -66,10 +56,24 @@ export function AnnouncementTab() {
                 </button>
             </div>
 
-            {displayItems.length === 0 && bookmarkOnly ? (
+            {displayItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-                    <Bookmark className="mb-2 h-8 w-8" />
-                    <p className="text-sm">ブックマークしたお知らせはありません</p>
+                    {bookmarkOnly ? (
+                        <>
+                            <Paperclip className="mb-2 h-8 w-8" />
+                            <p className="text-sm">クリップしたお知らせはありません</p>
+                        </>
+                    ) : activityOnly ? (
+                        <>
+                            <CalendarCheck className="mb-2 h-8 w-8" />
+                            <p className="text-sm">アクティビティに紐づくお知らせはありません</p>
+                        </>
+                    ) : (
+                        <>
+                            <Megaphone className="h-8 w-8" />
+                            <p className="text-sm">まだお知らせはありません</p>
+                        </>
+                    )}
                 </div>
             ) : (
                 <div className="divide-y">

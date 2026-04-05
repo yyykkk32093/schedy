@@ -37,6 +37,8 @@ export type CommunityFeatureType =
 export const CommunityLimitKey = {
     /** メンバー上限 */
     MAX_MEMBERS: 'maxMembers',
+    /** タグ上限 */
+    MAX_TAGS: 'maxTags',
 } as const
 
 export type CommunityLimitKeyType =

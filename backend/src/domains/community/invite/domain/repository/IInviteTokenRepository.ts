@@ -5,6 +5,7 @@ export interface IInviteTokenRepository {
         token: string
         createdBy: string
         expiresAt: Date
+        maxUses?: number | null
     }): Promise<void>
 
     findByToken(token: string): Promise<{
@@ -13,20 +14,21 @@ export interface IInviteTokenRepository {
         token: string
         createdBy: string
         expiresAt: Date
-        usedAt: Date | null
-        usedBy: string | null
+        maxUses: number | null
+        currentUses: number
         createdAt: Date
     } | null>
 
-    markUsed(token: string, usedBy: string): Promise<void>
+    /** 使用回数をインクリメントし、InviteTokenUsage レコードを作成 */
+    recordUsage(tokenId: string, userId: string): Promise<void>
 
     findByCommunityId(communityId: string): Promise<Array<{
         id: string
         token: string
         createdBy: string
         expiresAt: Date
-        usedAt: Date | null
-        usedBy: string | null
+        maxUses: number | null
+        currentUses: number
         createdAt: Date
     }>>
 }

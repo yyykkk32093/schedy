@@ -35,21 +35,27 @@ export function useCreateActivity(communityId: string) {
     })
 }
 
-export function useUpdateActivity(id: string, communityId: string) {
+export function useUpdateActivity() {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: (data: Parameters<typeof activityApi.update>[1]) => activityApi.update(id, data),
-        onSuccess: () => {
-            qc.invalidateQueries({ queryKey: activityListKeys.byCommunity(communityId) })
-            qc.invalidateQueries({ queryKey: activityKeys.detail(id) })
+        mutationFn: (input: { activityId: string; communityId: string } & Parameters<typeof activityApi.update>[1]) => {
+            const { activityId, communityId, ...data } = input
+            return activityApi.update(activityId, data)
+        },
+        onSuccess: (_data, variables) => {
+            qc.invalidateQueries({ queryKey: activityListKeys.byCommunity(variables.communityId) })
+            qc.invalidateQueries({ queryKey: activityKeys.detail(variables.activityId) })
         },
     })
 }
 
+export type NotifyOption = 'announcement' | 'push_only' | 'none'
+
 export function useDeleteActivity(communityId: string) {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: activityApi.remove,
+        mutationFn: ({ activityId, notifyOption }: { activityId: string; notifyOption: NotifyOption }) =>
+            activityApi.remove(activityId, notifyOption),
         onSuccess: () => qc.invalidateQueries({ queryKey: activityListKeys.byCommunity(communityId) }),
     })
 }

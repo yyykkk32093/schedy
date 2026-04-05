@@ -1,6 +1,7 @@
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useMembers } from '@/features/community/hooks/useMemberQueries'
 import { Button } from '@/shared/components/ui/button'
+import { CharacterCounter } from '@/shared/components/ui/CharacterCounter'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import {
@@ -116,8 +117,8 @@ function addMinutesToTime(time: string, minutes: number): string {
 }
 
 const activityFormSchema = z.object({
-    title: z.string().min(1, 'アクティビティ名を入力してください'),
-    description: z.string(),
+    title: z.string().min(1, 'アクティビティ名を入力してください').max(100, 'アクティビティ名は100文字以内で入力してください'),
+    description: z.string().max(500, '説明は500文字以内で入力してください'),
     defaultLocation: z.string(),
     defaultAddress: z.string(),
     date: z.string(),
@@ -125,6 +126,7 @@ const activityFormSchema = z.object({
     defaultEndTime: z.string(),
     organizerUserId: z.string(),
     repeat: z.string(),
+    recurrenceGenerationMonths: z.string(),
     visibility: z.string(),
     participationFee: z.string(),
     visitorFee: z.string(),
@@ -133,6 +135,12 @@ const activityFormSchema = z.object({
     hasCapacity: z.boolean(),
     capacity: z.string(),
     shouldPostAnnouncement: z.boolean(),
+    // --- edit mode: Activity defaults ---
+    defaultParticipationFee: z.string(),
+    defaultVisitorFee: z.string(),
+    hasDefaultCapacity: z.boolean(),
+    defaultCapacity: z.string(),
+    allowVisitorWaitlist: z.boolean(),
 }).refine(
     (data) => {
         if (data.defaultStartTime && data.defaultEndTime) {
@@ -158,6 +166,7 @@ export interface ActivityFormValues {
     organizerUserId: string
     repeat: string
     recurrenceRule: string | null
+    recurrenceGenerationMonths: number | null
     visibility: string
     description: string
     defaultStartTime: string
@@ -168,6 +177,11 @@ export interface ActivityFormValues {
     meetingUrl: string | null
     capacity: number | null
     shouldPostAnnouncement: boolean  // Phase3 #4
+    // --- edit mode: Activity defaults ---
+    defaultParticipationFee: number | null
+    defaultVisitorFee: number | null
+    defaultCapacity: number | null
+    allowVisitorWaitlist: boolean
 }
 
 interface ActivityFormProps {
@@ -180,6 +194,8 @@ interface ActivityFormProps {
     error?: string | null
     /** true の場合、過去日付のバリデーションをスキップ（編集時に既存の日付を保持する場合） */
     allowPastDate?: boolean
+    /** 編集モードの場合 true。Activity デフォルト設定セクションを表示 */
+    isEditMode?: boolean
 }
 
 /**
@@ -199,6 +215,7 @@ export function ActivityForm({
     isPending,
     error,
     allowPastDate,
+    isEditMode,
 }: ActivityFormProps) {
     const { user } = useAuth()
     const {
@@ -220,6 +237,8 @@ export function ActivityForm({
             defaultEndTime: initialValues?.defaultEndTime ?? '',
             organizerUserId: initialValues?.organizerUserId ?? user?.userId ?? '',
             repeat: initialValues?.repeat ?? rruleToRepeat(initialValues?.recurrenceRule),
+            recurrenceGenerationMonths: initialValues?.recurrenceGenerationMonths != null
+                ? String(initialValues.recurrenceGenerationMonths) : '2',
             visibility: initialValues?.visibility ?? 'private',
             participationFee: initialValues?.participationFee != null ? String(initialValues.participationFee) : '',
             visitorFee: initialValues?.visitorFee != null ? String(initialValues.visitorFee) : '',
@@ -228,6 +247,12 @@ export function ActivityForm({
             hasCapacity: initialValues?.capacity != null,
             capacity: initialValues?.capacity != null ? String(initialValues.capacity) : '',
             shouldPostAnnouncement: false,
+            // --- edit mode: Activity defaults ---
+            defaultParticipationFee: initialValues?.defaultParticipationFee != null ? String(initialValues.defaultParticipationFee) : '',
+            defaultVisitorFee: initialValues?.defaultVisitorFee != null ? String(initialValues.defaultVisitorFee) : '',
+            hasDefaultCapacity: initialValues?.defaultCapacity != null,
+            defaultCapacity: initialValues?.defaultCapacity != null ? String(initialValues.defaultCapacity) : '',
+            allowVisitorWaitlist: initialValues?.allowVisitorWaitlist ?? false,
         },
     })
 
@@ -291,6 +316,8 @@ export function ActivityForm({
             organizerUserId: data.organizerUserId,
             repeat: data.repeat,
             recurrenceRule: repeatToRRule(data.repeat, data.date),
+            recurrenceGenerationMonths: data.repeat !== 'none' && data.recurrenceGenerationMonths
+                ? Number(data.recurrenceGenerationMonths) : null,
             visibility: data.visibility,
             defaultStartTime: data.defaultStartTime,
             defaultEndTime: data.defaultEndTime,
@@ -300,6 +327,11 @@ export function ActivityForm({
             meetingUrl: data.isOnline && data.meetingUrl.trim() ? data.meetingUrl.trim() : null,
             capacity: data.hasCapacity && data.capacity ? Number(data.capacity) : null,
             shouldPostAnnouncement: data.shouldPostAnnouncement,
+            // --- edit mode: Activity defaults ---
+            defaultParticipationFee: data.defaultParticipationFee ? Number(data.defaultParticipationFee) : null,
+            defaultVisitorFee: data.defaultVisitorFee ? Number(data.defaultVisitorFee) : null,
+            defaultCapacity: data.hasDefaultCapacity && data.defaultCapacity ? Number(data.defaultCapacity) : null,
+            allowVisitorWaitlist: data.allowVisitorWaitlist,
         })
     }
 
@@ -311,6 +343,7 @@ export function ActivityForm({
                 <Input
                     id="activityName"
                     placeholder="アクティビティ名を入力"
+                    maxLength={100}
                     {...register('title')}
                 />
                 {errors.title && (
@@ -537,6 +570,32 @@ export function ActivityForm({
                 />
             </div>
 
+            {/* 繰り返し生成期間（繰り返し選択時のみ表示） */}
+            {watch('repeat') !== 'none' && (
+                <div className="space-y-1.5">
+                    <Label>スケジュール生成期間</Label>
+                    <Controller
+                        name="recurrenceGenerationMonths"
+                        control={control}
+                        render={({ field }) => (
+                            <Select value={field.value} onValueChange={field.onChange}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent side="bottom" sideOffset={4}>
+                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => (
+                                        <SelectItem key={m} value={String(m)}>
+                                            {m}ヶ月先まで
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                    <p className="text-xs text-gray-400">繰り返しスケジュールを何ヶ月先まで自動生成するか指定します（デフォルト: 2ヶ月）</p>
+                </div>
+            )}
+
             {/* 公開設定 */}
             <div className="space-y-1.5">
                 <Label>公開設定</Label>
@@ -680,9 +739,14 @@ export function ActivityForm({
                     id="description"
                     placeholder="説明を入力"
                     rows={3}
+                    maxLength={500}
                     className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     {...register('description')}
                 />
+                {errors.description && (
+                    <p className="text-sm text-destructive">{errors.description.message}</p>
+                )}
+                <CharacterCounter current={watch('description')?.length ?? 0} max={500} />
             </div>
 
             {/* Phase3 #4: お知らせ同時投稿 */}
@@ -702,6 +766,28 @@ export function ActivityForm({
                         </label>
                     )}
                 />
+            </div>
+
+            {/* ビジターキャンセル待ち許可 */}
+            <div className="space-y-1.5">
+                <Controller
+                    name="allowVisitorWaitlist"
+                    control={control}
+                    render={({ field }) => (
+                        <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={field.value}
+                                onChange={(e) => field.onChange(e.target.checked)}
+                                className="accent-blue-600"
+                            />
+                            ビジターのキャンセル待ちを許可する
+                        </label>
+                    )}
+                />
+                <p className="text-xs text-muted-foreground">
+                    有効にすると、ビジター（非会員）もキャンセル待ちに登録できます。
+                </p>
             </div>
 
             {/* Error */}

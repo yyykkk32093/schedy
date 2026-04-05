@@ -9,7 +9,7 @@ import { CommunityName } from '../valueObject/CommunityName.js'
 import { JoinMethod } from '../valueObject/JoinMethod.js'
 
 export class Community extends AggregateRoot {
-    private static readonly MAX_DEPTH = 3
+    private static readonly MAX_DEPTH = 1
 
     private constructor(
         private readonly id: CommunityId,
@@ -27,11 +27,13 @@ export class Community extends AggregateRoot {
         private joinMethod: JoinMethod,
         private isPublic: boolean,
         private maxMembers: number | null,
-        private mainActivityArea: string | null,
         private activityFrequency: string | null,
-        private nearestStation: string | null,
-        private targetGender: string | null,
-        private ageRange: string | null,
+        private targetGender: string[],
+        private ageMin: number | null,
+        private ageMax: number | null,
+        private categoryId: string | null,
+        private recommendedLevelMin: number | null,
+        private recommendedLevelMax: number | null,
         // UBL-8: Payment settings
         private payPayId: string | null,
         private enabledPaymentMethods: string[],
@@ -56,11 +58,13 @@ export class Community extends AggregateRoot {
         joinMethod?: JoinMethod
         isPublic?: boolean
         maxMembers?: number | null
-        mainActivityArea?: string | null
         activityFrequency?: string | null
-        nearestStation?: string | null
-        targetGender?: string | null
-        ageRange?: string | null
+        targetGender?: string[]
+        ageMin?: number | null
+        ageMax?: number | null
+        categoryId?: string | null
+        recommendedLevelMin?: number | null
+        recommendedLevelMax?: number | null
     }): Community {
         const isPublic = params.isPublic ?? true
         const joinMethod = isPublic
@@ -82,11 +86,13 @@ export class Community extends AggregateRoot {
             joinMethod,
             isPublic,
             params.maxMembers ?? null,
-            params.mainActivityArea ?? null,
             params.activityFrequency ?? null,
-            params.nearestStation ?? null,
-            params.targetGender ?? null,
-            params.ageRange ?? null,
+            params.targetGender ?? [],
+            params.ageMin ?? null,
+            params.ageMax ?? null,
+            params.categoryId ?? null,
+            params.recommendedLevelMin ?? null,
+            params.recommendedLevelMax ?? null,
             null,       // payPayId
             ['CASH'],   // enabledPaymentMethods
             null,       // stripeAccountId
@@ -118,11 +124,13 @@ export class Community extends AggregateRoot {
         joinMethod?: JoinMethod
         isPublic?: boolean
         maxMembers?: number | null
-        mainActivityArea?: string | null
         activityFrequency?: string | null
-        nearestStation?: string | null
-        targetGender?: string | null
-        ageRange?: string | null
+        targetGender?: string[]
+        ageMin?: number | null
+        ageMax?: number | null
+        categoryId?: string | null
+        recommendedLevelMin?: number | null
+        recommendedLevelMax?: number | null
     }): Community {
         const childDepth = params.parentDepth + 1
         if (childDepth > Community.MAX_DEPTH) {
@@ -151,11 +159,13 @@ export class Community extends AggregateRoot {
             joinMethod,
             isPublic,
             params.maxMembers ?? null,
-            params.mainActivityArea ?? null,
             params.activityFrequency ?? null,
-            params.nearestStation ?? null,
-            params.targetGender ?? null,
-            params.ageRange ?? null,
+            params.targetGender ?? [],
+            params.ageMin ?? null,
+            params.ageMax ?? null,
+            params.categoryId ?? null,
+            params.recommendedLevelMin ?? null,
+            params.recommendedLevelMax ?? null,
             null,       // payPayId
             ['CASH'],   // enabledPaymentMethods
             null,       // stripeAccountId
@@ -190,11 +200,13 @@ export class Community extends AggregateRoot {
         joinMethod: JoinMethod
         isPublic: boolean
         maxMembers: number | null
-        mainActivityArea: string | null
         activityFrequency: string | null
-        nearestStation: string | null
-        targetGender: string | null
-        ageRange: string | null
+        targetGender: string[]
+        ageMin: number | null
+        ageMax: number | null
+        categoryId: string | null
+        recommendedLevelMin: number | null
+        recommendedLevelMax: number | null
         payPayId: string | null
         enabledPaymentMethods: string[]
         stripeAccountId: string | null
@@ -216,11 +228,13 @@ export class Community extends AggregateRoot {
             params.joinMethod,
             params.isPublic,
             params.maxMembers,
-            params.mainActivityArea,
             params.activityFrequency,
-            params.nearestStation,
             params.targetGender,
-            params.ageRange,
+            params.ageMin,
+            params.ageMax,
+            params.categoryId,
+            params.recommendedLevelMin,
+            params.recommendedLevelMax,
             params.payPayId,
             params.enabledPaymentMethods,
             params.stripeAccountId,
@@ -240,11 +254,13 @@ export class Community extends AggregateRoot {
         joinMethod?: JoinMethod
         isPublic?: boolean
         maxMembers?: number | null
-        mainActivityArea?: string | null
         activityFrequency?: string | null
-        nearestStation?: string | null
-        targetGender?: string | null
-        ageRange?: string | null
+        targetGender?: string[]
+        ageMin?: number | null
+        ageMax?: number | null
+        categoryId?: string | null
+        recommendedLevelMin?: number | null
+        recommendedLevelMax?: number | null
         payPayId?: string | null
         enabledPaymentMethods?: string[]
         stripeAccountId?: string | null
@@ -267,11 +283,13 @@ export class Community extends AggregateRoot {
         }
         if (params.joinMethod !== undefined && this.isPublic) this.joinMethod = params.joinMethod
         if (params.maxMembers !== undefined) this.maxMembers = params.maxMembers
-        if (params.mainActivityArea !== undefined) this.mainActivityArea = params.mainActivityArea
         if (params.activityFrequency !== undefined) this.activityFrequency = params.activityFrequency
-        if (params.nearestStation !== undefined) this.nearestStation = params.nearestStation
         if (params.targetGender !== undefined) this.targetGender = params.targetGender
-        if (params.ageRange !== undefined) this.ageRange = params.ageRange
+        if (params.ageMin !== undefined) this.ageMin = params.ageMin
+        if (params.ageMax !== undefined) this.ageMax = params.ageMax
+        if (params.categoryId !== undefined) this.categoryId = params.categoryId
+        if (params.recommendedLevelMin !== undefined) this.recommendedLevelMin = params.recommendedLevelMin
+        if (params.recommendedLevelMax !== undefined) this.recommendedLevelMax = params.recommendedLevelMax
         if (params.payPayId !== undefined) this.payPayId = params.payPayId
         if (params.enabledPaymentMethods !== undefined) this.enabledPaymentMethods = params.enabledPaymentMethods
         if (params.stripeAccountId !== undefined) this.stripeAccountId = params.stripeAccountId
@@ -313,11 +331,13 @@ export class Community extends AggregateRoot {
     getJoinMethod(): JoinMethod { return this.joinMethod }
     getIsPublic(): boolean { return this.isPublic }
     getMaxMembers(): number | null { return this.maxMembers }
-    getMainActivityArea(): string | null { return this.mainActivityArea }
     getActivityFrequency(): string | null { return this.activityFrequency }
-    getNearestStation(): string | null { return this.nearestStation }
-    getTargetGender(): string | null { return this.targetGender }
-    getAgeRange(): string | null { return this.ageRange }
+    getTargetGender(): string[] { return this.targetGender }
+    getAgeMin(): number | null { return this.ageMin }
+    getAgeMax(): number | null { return this.ageMax }
+    getCategoryId(): string | null { return this.categoryId }
+    getRecommendedLevelMin(): number | null { return this.recommendedLevelMin }
+    getRecommendedLevelMax(): number | null { return this.recommendedLevelMax }
     getPayPayId(): string | null { return this.payPayId }
     getEnabledPaymentMethods(): string[] { return this.enabledPaymentMethods }
     getStripeAccountId(): string | null { return this.stripeAccountId }

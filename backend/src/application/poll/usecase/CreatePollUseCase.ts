@@ -95,6 +95,11 @@ export class CreatePollUseCase {
                     body: input.question,
                     referenceId: pollId,
                     referenceType: 'POLL',
+                    metadata: {
+                        communityId: input.communityId,
+                        pollId,
+                        pollTitle: input.question,
+                    },
                 })
             }
 

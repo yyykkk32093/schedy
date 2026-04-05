@@ -52,22 +52,68 @@ export const chatApi = {
     deleteMessage: (messageId: string) =>
         http<void>(`/v1/messages/${messageId}`, { method: 'DELETE' }),
 
-    /** メッセージにファイルを添付 */
-    uploadAttachment: async (channelId: string, messageId: string, file: File): Promise<MessageAttachment> => {
-        const formData = new FormData()
-        formData.append('file', file)
+    /** DM チャンネルから退出 */
+    leaveDmChannel: (channelId: string) =>
+        http<void>(`/v1/dm/channels/${channelId}/leave`, { method: 'DELETE' }),
 
-        const res = await fetch(
-            `${baseURL}/v1/channels/${channelId}/messages/${messageId}/attachments`,
-            { method: 'POST', body: formData, credentials: 'include' },
-        )
-        const body = await res.json()
-        if (!res.ok) {
+    /** メッセージにファイルを添付（Presigned URL フロー） */
+    uploadAttachment: async (channelId: string, messageId: string, file: File): Promise<MessageAttachment> => {
+        // Step 1: Presigned URL 取得
+        const urlRes = await fetch(`${baseURL}/v1/channels/${channelId}/attachments/url`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fileName: file.name,
+                mimeType: file.type || 'application/octet-stream',
+                fileSize: file.size,
+            }),
+            credentials: 'include',
+        })
+        if (!urlRes.ok) {
+            const body = await urlRes.json().catch(() => null)
             const apiError: ApiError =
                 body && typeof body === 'object' && 'code' in body
                     ? (body as ApiError)
-                    : { code: 'UPLOAD_ERROR', message: `Upload failed: HTTP ${res.status}` }
-            throw new HttpError(res.status, apiError)
+                    : { code: 'UPLOAD_ERROR', message: `Failed to get upload URL: HTTP ${urlRes.status}` }
+            throw new HttpError(urlRes.status, apiError)
+        }
+        const { uploadUrl, key } = await urlRes.json()
+
+        // Step 2: S3 に直接アップロード
+        const putRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': file.type || 'application/octet-stream' },
+            body: file,
+        })
+        if (!putRes.ok) {
+            throw new HttpError(putRes.status, {
+                code: 'UPLOAD_ERROR',
+                message: `S3 upload failed: HTTP ${putRes.status}`,
+            })
+        }
+
+        // Step 3: 確認 + DB 登録
+        const confirmRes = await fetch(
+            `${baseURL}/v1/channels/${channelId}/messages/${messageId}/attachments/confirm`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    key,
+                    fileName: file.name,
+                    mimeType: file.type || 'application/octet-stream',
+                    fileSize: file.size,
+                }),
+                credentials: 'include',
+            },
+        )
+        const body = await confirmRes.json()
+        if (!confirmRes.ok) {
+            const apiError: ApiError =
+                body && typeof body === 'object' && 'code' in body
+                    ? (body as ApiError)
+                    : { code: 'UPLOAD_ERROR', message: `Confirm failed: HTTP ${confirmRes.status}` }
+            throw new HttpError(confirmRes.status, apiError)
         }
         return body as MessageAttachment
     },

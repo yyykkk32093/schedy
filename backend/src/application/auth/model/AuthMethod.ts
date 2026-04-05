@@ -1,15 +1,8 @@
 // src/application/auth/model/AuthMethod.ts
 
 /**
- * 認証方式
- *
- * - password : パスワード認証
- * - line     : LINE OAuth
- * - apple    : Apple Sign In
- * - google   : Google OAuth
+ * @deprecated ドメイン層に移動済み。
+ * import { AuthMethod } from '@/domains/_sharedDomains/domain/model/valueObject/AuthMethod.js' を使用してください。
  */
-export type AuthMethod =
-    | 'password'
-    | 'line'
-    | 'apple'
-    | 'google'
+export type { AuthMethod } from '@/domains/_sharedDomains/domain/model/valueObject/AuthMethod.js';
+

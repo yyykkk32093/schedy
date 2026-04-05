@@ -84,6 +84,10 @@ export class CreateAnnouncementUseCase {
                     body: input.title,
                     referenceId: announcementId,
                     referenceType: 'ANNOUNCEMENT',
+                    metadata: {
+                        communityId: input.communityId,
+                        announcementId,
+                    },
                 })
             }
 

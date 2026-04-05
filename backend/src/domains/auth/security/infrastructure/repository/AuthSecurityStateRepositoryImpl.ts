@@ -126,4 +126,8 @@ export class AuthSecurityStateRepositoryImpl implements IAuthSecurityStateReposi
         const code = (err as { code?: string }).code
         return code === 'P2003' || code === 'P2025'
     }
+
+    async deleteByUserId(userId: string): Promise<void> {
+        await this.db.authSecurityState.deleteMany({ where: { userId } })
+    }
 }

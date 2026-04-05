@@ -78,17 +78,16 @@ export interface SignUpResponse {
 export interface CreateCommunityRequest {
     name: string
     description?: string
-    communityTypeId?: string
     joinMethod?: 'FREE_JOIN' | 'APPROVAL' | 'INVITATION'
     isPublic?: boolean
     maxMembers?: number
-    mainActivityArea?: string
     activityFrequency?: string
-    nearestStation?: string
-    targetGender?: string
-    ageRange?: string
-    categoryIds?: string[]
-    participationLevelIds?: string[]
+    targetGender?: string[]
+    ageMin?: number
+    ageMax?: number
+    categoryId?: string
+    recommendedLevelMin?: number
+    recommendedLevelMax?: number
     activityDays?: string[]
     tags?: string[]
 }
@@ -105,6 +104,7 @@ export interface ListCommunitiesResponse {
 
 export interface CommunityListItem {
     id: string
+    parentId: string | null
     name: string
     description: string | null
     logoUrl: string | null
@@ -116,7 +116,6 @@ export interface CommunityListItem {
     joinMethod: string
     isPublic: boolean
     maxMembers: number | null
-    mainActivityArea: string | null
     latestAnnouncementTitle: string | null
     latestAnnouncementAt: string | null
     bookmarked: boolean
@@ -125,6 +124,7 @@ export interface CommunityListItem {
 /** GET /v1/communities/:id — レスポンス */
 export interface CommunityDetail {
     id: string
+    parentId: string | null
     name: string
     description: string | null
     logoUrl: string | null
@@ -135,11 +135,13 @@ export interface CommunityDetail {
     joinMethod: string
     isPublic: boolean
     maxMembers: number | null
-    mainActivityArea: string | null
     activityFrequency: string | null
-    nearestStation: string | null
-    targetGender: string | null
-    ageRange: string | null
+    targetGender: string[]
+    ageMin: number | null
+    ageMax: number | null
+    categoryId: string | null
+    recommendedLevelMin: number | null
+    recommendedLevelMax: number | null
     categories: Array<{ id: string; name: string; nameEn: string }>
     participationLevels: Array<{ id: string; name: string; nameEn: string }>
     activityDays: string[]
@@ -147,6 +149,14 @@ export interface CommunityDetail {
     memberCount: number
     payPayId?: string | null
     enabledPaymentMethods?: string[]
+    /** 活動拠点（MAIN/SUB） */
+    locations?: Array<{
+        id: string
+        type: 'MAIN' | 'SUB'
+        area: string
+        station: string | null
+        sortOrder: number
+    }>
 }
 
 /** PATCH /v1/communities/:id — リクエスト */
@@ -159,14 +169,50 @@ export interface UpdateCommunityRequest {
     enabledPaymentMethods?: string[]
     joinMethod?: 'FREE_JOIN' | 'APPROVAL' | 'INVITATION'
     isPublic?: boolean
-    mainActivityArea?: string | null
     activityFrequency?: string | null
+    targetGender?: string[]
+    ageMin?: number | null
+    ageMax?: number | null
+    categoryId?: string | null
+    recommendedLevelMin?: number | null
+    recommendedLevelMax?: number | null
 }
 
 /** POST /v1/communities/:parentId/children — リクエスト */
 export interface CreateSubCommunityRequest {
     name: string
     description?: string
+    /** 親の設定を全て引き継ぐ */
+    inheritSettings?: boolean
+    /** メンバー引き継ぎ方式 */
+    memberInheritance?: 'ALL' | 'SELECT' | 'OWNER_ONLY' | 'ADMIN_AND_ABOVE'
+    /** SELECT 時の選択メンバーID */
+    selectedMemberIds?: string[]
+    // --- 入力し直す場合の設定 ---
+    joinMethod?: 'FREE_JOIN' | 'APPROVAL' | 'INVITATION'
+    isPublic?: boolean
+    maxMembers?: number
+    targetGender?: string[]
+    ageMin?: number
+    ageMax?: number
+    activityFrequency?: string
+    activityDays?: string[]
+    recommendedLevelMin?: number
+    recommendedLevelMax?: number
+    categoryId?: string
+    tags?: string[]
+}
+
+/** GET /v1/communities/:id/children — サブコミュニティ一覧行 */
+export interface SubCommunityListItem {
+    id: string
+    name: string
+    logoUrl: string | null
+    memberCount: number
+}
+
+export interface ListSubCommunitiesResponse {
+    children: SubCommunityListItem[]
 }
 
 // ============================================================
@@ -276,6 +322,12 @@ export interface SearchCommunitiesParams {
     levelIds?: string[]
     area?: string
     days?: string[]
+    /** W4-03: 対象性別フィルタ */
+    targetGender?: string[]
+    /** W4-03: コミュニティタイプID */
+    communityTypeId?: string
+    /** W4-03: 参加方法 (OPEN / APPROVAL / INVITE_ONLY) */
+    joinMethod?: string
     limit?: number
     offset?: number
 }
@@ -291,11 +343,16 @@ export interface PublicCommunitySearchItem {
     name: string
     description: string | null
     logoUrl: string | null
-    mainActivityArea: string | null
     joinMethod: string
     memberCount: number
     categories: Array<{ id: string; name: string }>
     participationLevels: Array<{ id: string; name: string }>
+    /** W4-03 */
+    targetGender: string[]
+    ageMin: number | null
+    ageMax: number | null
+    activityFrequency: string | null
+    communityTypeName: string | null
 }
 
 /** POST /v1/communities/:id/join — レスポンス */
@@ -333,6 +390,8 @@ export interface CreateActivityRequest {
     meetingUrl?: string | null
     capacity?: number | null
     shouldPostAnnouncement?: boolean  // Phase3 #4
+    allowVisitorWaitlist?: boolean
+    recurrenceGenerationMonths?: number | null
 }
 
 export interface CreateActivityResponse {
@@ -366,6 +425,10 @@ export interface ActivityListItem {
 }
 
 export interface ActivityDetail extends ActivityListItem {
+    defaultParticipationFee: number | null
+    defaultVisitorFee: number | null
+    defaultCapacity: number | null
+    allowVisitorWaitlist: boolean
     recurrenceRule: string | null
     organizerDisplayName: string | null
     communityPaymentSettings: {
@@ -384,6 +447,11 @@ export interface UpdateActivityRequest {
     defaultEndTime?: string | null
     recurrenceRule?: string | null
     organizerUserId?: string | null
+    defaultParticipationFee?: number | null
+    defaultVisitorFee?: number | null
+    defaultCapacity?: number | null
+    allowVisitorWaitlist?: boolean
+    recurrenceGenerationMonths?: number | null
 }
 
 export interface ChangeOrganizerRequest {
@@ -437,6 +505,8 @@ export interface ScheduleListItem {
     myPaymentStatus?: string | null
     attendingCount?: number
     waitlistCount?: number
+    enabledPaymentMethods?: string[]
+    paypayId?: string | null
 }
 
 export interface UpdateScheduleRequest {
@@ -505,7 +575,6 @@ export interface ParticipantItem {
     addedBy: string | null
     status: string
     isVisitor: boolean
-    isGuestVisitor: boolean
     respondedAt: string
     paymentMethod: string | null
     paymentStatus: string | null
@@ -519,6 +588,8 @@ export interface WaitlistItem {
     id: string
     userId: string
     displayName: string | null
+    isVisitor: boolean
+    visitorName: string | null
     position: number
     status: string
     registeredAt: string
@@ -629,6 +700,9 @@ export interface AnnouncementDetail {
     communityId: string
     activityId: string | null
     authorId: string
+    authorName: string | null
+    authorAvatarUrl: string | null
+    communityName: string
     title: string
     content: string
     createdAt: string
@@ -723,6 +797,7 @@ export interface MessageItem {
     attachments: MessageAttachment[]
     reactions: MessageReactionSummary[]
     replyCount: number
+    latestReply: { senderDisplayName: string | null; content: string; createdAt: string } | null
     createdAt: string
 }
 
@@ -773,6 +848,8 @@ export interface MyActivityChannel {
     name: string
     subtitle: string
     communityName: string
+    /** W4-08: コミュニティIDを追加（アクティビティパスのネスト用） */
+    communityId: string | null
     activityId: string | null
     scheduleDate: string | null
     scheduleStartTime: string | null
@@ -1053,16 +1130,17 @@ export interface AbsenceReportResponse {
 }
 
 // ============================================================
-// Guest Visitor
+// Visitor
 // ============================================================
 
-export interface AddGuestVisitorRequest {
+export interface AddVisitorRequest {
     visitorName: string
     paymentMethod?: string | null
 }
 
-export interface AddGuestVisitorResponse {
+export interface AddVisitorResponse {
     participationId: string
+    waitlisted: boolean
 }
 
 export interface UpdateVisitorPaymentRequest {
@@ -1115,5 +1193,52 @@ export interface FinanceSummaryResponse {
         categoryName: string
         total: number
     }>
+}
+
+export interface CommunityIncomeResponse {
+    totalIncome: number
+    incomeByActivity: Array<{
+        activityId: string
+        activityTitle: string
+        total: number
+    }>
+}
+
+export interface ActivityIncomeDetailResponse {
+    schedules: Array<{
+        scheduleId: string
+        label: string
+        total: number
+        payments: Array<{
+            displayName: string | null
+            amount: number
+            isVisitor: boolean
+            isGuest: boolean
+        }>
+    }>
+}
+
+/** ルートコミュニティ用: サブコミュニティ含む収支ツリー */
+export interface FinanceSummaryTreeResponse {
+    communities: Array<{
+        communityId: string
+        communityName: string
+        income: number
+        expense: number
+        balance: number
+    }>
+    totals: {
+        income: number
+        expense: number
+        balance: number
+    }
+}
+
+export interface CreateExpenseCategoryRequest {
+    name: string
+}
+
+export interface UpdateExpenseCategoryRequest {
+    name: string
 }
 

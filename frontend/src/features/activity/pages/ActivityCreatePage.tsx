@@ -1,5 +1,6 @@
 import { ActivityForm, type ActivityFormValues } from '@/features/activity/components/ActivityForm'
 import { useCreateActivity } from '@/features/activity/hooks/useActivityQueries'
+import { extractErrorMessage } from '@/shared/lib/apiClient'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
@@ -36,14 +37,14 @@ export function ActivityCreatePage() {
                 meetingUrl: values.meetingUrl,
                 capacity: values.capacity,
                 shouldPostAnnouncement: values.shouldPostAnnouncement,
+                allowVisitorWaitlist: values.allowVisitorWaitlist,
+                recurrenceGenerationMonths: values.recurrenceGenerationMonths,
             })
 
             const scheduleParam = result.scheduleId ? `?schedule=${result.scheduleId}` : ''
-            navigate(`/activities/${result.activityId}${scheduleParam}`, { replace: true })
+            navigate(`/communities/${communityId}/activities/${result.activityId}${scheduleParam}`, { replace: true })
         } catch (e) {
-            const msg =
-                e instanceof Error ? e.message : 'アクティビティの作成に失敗しました'
-            setError(msg)
+            setError(extractErrorMessage(e, 'アクティビティの作成に失敗しました'))
         }
     }
 

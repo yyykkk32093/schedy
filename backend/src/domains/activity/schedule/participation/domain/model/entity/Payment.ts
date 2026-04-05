@@ -22,6 +22,7 @@ export class Payment extends AggregateRoot {
         private readonly participationId: string | null,
         private readonly userId: UserId | null,
         private paymentMethod: PaymentMethod | null,
+        private readonly displayName: string | null,
         private readonly amount: number,
         private readonly feeAmount: number,
         private paymentStatus: PaymentStatus,
@@ -41,6 +42,7 @@ export class Payment extends AggregateRoot {
         participationId?: string | null
         userId?: UserId | null
         paymentMethod?: PaymentMethod | null
+        displayName?: string | null
         amount: number
         feeAmount?: number
     }): Payment {
@@ -50,6 +52,7 @@ export class Payment extends AggregateRoot {
             params.participationId ?? null,
             params.userId ?? null,
             params.paymentMethod ?? null,
+            params.displayName ?? null,
             params.amount,
             params.feeAmount ?? 0,
             PaymentStatus.unpaid(),
@@ -68,6 +71,7 @@ export class Payment extends AggregateRoot {
         participationId: string | null
         userId: UserId | null
         paymentMethod: PaymentMethod | null
+        displayName: string | null
         amount: number
         feeAmount: number
         paymentStatus: PaymentStatus
@@ -84,6 +88,7 @@ export class Payment extends AggregateRoot {
             params.participationId,
             params.userId,
             params.paymentMethod,
+            params.displayName,
             params.amount,
             params.feeAmount,
             params.paymentStatus,
@@ -171,6 +176,15 @@ export class Payment extends AggregateRoot {
         this.updatedAt = new Date()
     }
 
+    /** 繰り上げ参加者が支払い方法を選択（paymentMethod が未設定の場合のみ） */
+    selectPaymentMethod(method: PaymentMethod): void {
+        if (this.paymentMethod !== null) {
+            throw new DomainValidationError('支払い方法は既に設定されています', 'PAYMENT_METHOD_ALREADY_SET')
+        }
+        this.paymentMethod = method
+        this.updatedAt = new Date()
+    }
+
     isStripePaid(): boolean {
         return (
             this.paymentMethod != null &&
@@ -187,6 +201,7 @@ export class Payment extends AggregateRoot {
     getParticipationId(): string | null { return this.participationId }
     getUserId(): UserId | null { return this.userId }
     getPaymentMethod(): PaymentMethod | null { return this.paymentMethod }
+    getDisplayName(): string | null { return this.displayName }
     getAmount(): number { return this.amount }
     getFeeAmount(): number { return this.feeAmount }
     getPaymentStatus(): PaymentStatus { return this.paymentStatus }

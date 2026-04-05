@@ -46,11 +46,13 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
                 joinMethod: community.getJoinMethod().getValue(),
                 isPublic: community.getIsPublic(),
                 maxMembers: community.getMaxMembers(),
-                mainActivityArea: community.getMainActivityArea(),
                 activityFrequency: community.getActivityFrequency(),
-                nearestStation: community.getNearestStation(),
                 targetGender: community.getTargetGender(),
-                ageRange: community.getAgeRange(),
+                ageMin: community.getAgeMin(),
+                ageMax: community.getAgeMax(),
+                categoryId: community.getCategoryId(),
+                recommendedLevelMin: community.getRecommendedLevelMin(),
+                recommendedLevelMax: community.getRecommendedLevelMax(),
                 payPayId: community.getPayPayId(),
                 enabledPaymentMethods: community.getEnabledPaymentMethods(),
                 stripeAccountId: community.getStripeAccountId(),
@@ -68,11 +70,13 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
                 joinMethod: community.getJoinMethod().getValue(),
                 isPublic: community.getIsPublic(),
                 maxMembers: community.getMaxMembers(),
-                mainActivityArea: community.getMainActivityArea(),
                 activityFrequency: community.getActivityFrequency(),
-                nearestStation: community.getNearestStation(),
                 targetGender: community.getTargetGender(),
-                ageRange: community.getAgeRange(),
+                ageMin: community.getAgeMin(),
+                ageMax: community.getAgeMax(),
+                categoryId: community.getCategoryId(),
+                recommendedLevelMin: community.getRecommendedLevelMin(),
+                recommendedLevelMax: community.getRecommendedLevelMax(),
                 payPayId: community.getPayPayId(),
                 enabledPaymentMethods: community.getEnabledPaymentMethods(),
                 stripeAccountId: community.getStripeAccountId(),
@@ -98,11 +102,13 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
             joinMethod: JoinMethod.reconstruct(row.joinMethod),
             isPublic: row.isPublic,
             maxMembers: row.maxMembers,
-            mainActivityArea: row.mainActivityArea,
             activityFrequency: row.activityFrequency,
-            nearestStation: row.nearestStation,
             targetGender: row.targetGender,
-            ageRange: row.ageRange,
+            ageMin: row.ageMin,
+            ageMax: row.ageMax,
+            categoryId: row.categoryId,
+            recommendedLevelMin: row.recommendedLevelMin,
+            recommendedLevelMax: row.recommendedLevelMax,
             payPayId: row.payPayId,
             enabledPaymentMethods: row.enabledPaymentMethods,
             stripeAccountId: row.stripeAccountId,
@@ -136,6 +142,7 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
                 const latestAnn = c.announcements[0] ?? null
                 return {
                     id: c.id,
+                    parentId: c.parentId,
                     name: c.name,
                     description: c.description,
                     logoUrl: c.logoUrl,
@@ -147,7 +154,6 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
                     joinMethod: c.joinMethod,
                     isPublic: c.isPublic,
                     maxMembers: c.maxMembers,
-                    mainActivityArea: c.mainActivityArea,
                     latestAnnouncementTitle: latestAnn?.title ?? null,
                     latestAnnouncementAt: latestAnn?.createdAt ?? null,
                 }
@@ -166,6 +172,10 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
                 },
                 activityDays: { select: { day: true } },
                 tags: { select: { tag: true } },
+                locations: {
+                    select: { id: true, type: true, area: true, station: true, sortOrder: true },
+                    orderBy: { sortOrder: 'asc' },
+                },
                 _count: { select: { memberships: { where: { leftAt: null } } } },
             },
         })
@@ -173,6 +183,7 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
 
         return {
             id: row.id,
+            parentId: row.parentId,
             name: row.name,
             description: row.description,
             logoUrl: row.logoUrl,
@@ -183,11 +194,12 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
             joinMethod: row.joinMethod,
             isPublic: row.isPublic,
             maxMembers: row.maxMembers,
-            mainActivityArea: row.mainActivityArea,
             activityFrequency: row.activityFrequency,
-            nearestStation: row.nearestStation,
             targetGender: row.targetGender,
-            ageRange: row.ageRange,
+            ageMin: row.ageMin,
+            ageMax: row.ageMax,
+            recommendedLevelMin: row.recommendedLevelMin,
+            recommendedLevelMax: row.recommendedLevelMax,
             payPayId: row.payPayId,
             enabledPaymentMethods: row.enabledPaymentMethods,
             stripeAccountId: row.stripeAccountId,
@@ -204,11 +216,18 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
             activityDays: row.activityDays.map((d) => d.day),
             tags: row.tags.map((t) => t.tag),
             memberCount: row._count.memberships,
+            locations: row.locations.map((loc) => ({
+                id: loc.id,
+                type: loc.type as 'MAIN' | 'SUB',
+                area: loc.area,
+                station: loc.station,
+                sortOrder: loc.sortOrder,
+            })),
         }
     }
 
     async searchPublic(params: SearchCommunitiesParams): Promise<{ items: PublicCommunitySearchItem[]; total: number }> {
-        const { keyword, categoryIds, levelIds, area, days, limit = 20, offset = 0 } = params
+        const { keyword, categoryIds, levelIds, area, days, targetGender, communityTypeId, joinMethod, limit = 20, offset = 0 } = params
 
         // AND 条件を組み立て
         const where: Prisma.CommunityWhereInput = {
@@ -224,9 +243,9 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
             ]
         }
 
-        // エリア: mainActivityArea に含まれる
+        // エリア: CommunityLocation テーブル経由で検索
         if (area) {
-            where.mainActivityArea = { contains: area, mode: 'insensitive' }
+            where.locations = { some: { area: { contains: area, mode: 'insensitive' } } }
         }
 
         // カテゴリ: OR（同フィルタ内はOR）
@@ -244,6 +263,21 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
             where.activityDays = { some: { day: { in: days } } }
         }
 
+        // W4-03: 対象性別 (配列の重複: hasSome)
+        if (targetGender && targetGender.length > 0) {
+            where.targetGender = { hasSome: targetGender }
+        }
+
+        // W4-03: コミュニティタイプ
+        if (communityTypeId) {
+            where.communityTypeId = communityTypeId
+        }
+
+        // W4-03: 参加方法
+        if (joinMethod) {
+            where.joinMethod = joinMethod
+        }
+
         const [rows, total] = await Promise.all([
             this.prisma.community.findMany({
                 where,
@@ -254,6 +288,7 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
                     participationLevels: {
                         include: { level: { select: { id: true, name: true } } },
                     },
+                    communityType: { select: { name: true } },
                     _count: { select: { memberships: { where: { leftAt: null } } } },
                 },
                 orderBy: { createdAt: 'desc' },
@@ -268,11 +303,15 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
             name: r.name,
             description: r.description,
             logoUrl: r.logoUrl,
-            mainActivityArea: r.mainActivityArea,
             joinMethod: r.joinMethod,
             memberCount: r._count.memberships,
             categories: r.categories.map((c) => ({ id: c.category.id, name: c.category.name })),
             participationLevels: r.participationLevels.map((l) => ({ id: l.level.id, name: l.level.name })),
+            targetGender: r.targetGender,
+            ageMin: r.ageMin,
+            ageMax: r.ageMax,
+            activityFrequency: r.activityFrequency,
+            communityTypeName: r.communityType?.name ?? null,
         }))
 
         return { items, total }
@@ -290,6 +329,10 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
                 },
                 activityDays: { select: { day: true } },
                 tags: { select: { tag: true } },
+                locations: {
+                    select: { id: true, type: true, area: true, station: true, sortOrder: true },
+                    orderBy: { sortOrder: 'asc' },
+                },
                 _count: { select: { memberships: { where: { leftAt: null } } } },
             },
         })
@@ -297,6 +340,7 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
 
         return {
             id: row.id,
+            parentId: row.parentId,
             name: row.name,
             description: row.description,
             logoUrl: row.logoUrl,
@@ -307,11 +351,12 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
             joinMethod: row.joinMethod,
             isPublic: row.isPublic,
             maxMembers: row.maxMembers,
-            mainActivityArea: row.mainActivityArea,
             activityFrequency: row.activityFrequency,
-            nearestStation: row.nearestStation,
             targetGender: row.targetGender,
-            ageRange: row.ageRange,
+            ageMin: row.ageMin,
+            ageMax: row.ageMax,
+            recommendedLevelMin: row.recommendedLevelMin,
+            recommendedLevelMax: row.recommendedLevelMax,
             payPayId: row.payPayId,
             enabledPaymentMethods: row.enabledPaymentMethods,
             stripeAccountId: row.stripeAccountId,
@@ -328,6 +373,42 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
             activityDays: row.activityDays.map((d) => d.day),
             tags: row.tags.map((t) => t.tag),
             memberCount: row._count.memberships,
+            locations: row.locations.map((loc) => ({
+                id: loc.id,
+                type: loc.type as 'MAIN' | 'SUB',
+                area: loc.area,
+                station: loc.station,
+                sortOrder: loc.sortOrder,
+            })),
         }
+    }
+
+    /** W4-05: 子コミュニティIDリスト取得（deletedAt が null のもののみ） */
+    async findChildrenIds(parentId: string): Promise<string[]> {
+        const rows = await this.prisma.community.findMany({
+            where: { parentId, deletedAt: null },
+            select: { id: true },
+        })
+        return rows.map((r) => r.id)
+    }
+
+    /** 子コミュニティ一覧（詳細付き：カルーセル表示用） */
+    async findChildrenWithDetails(parentId: string): Promise<import('../../domain/repository/ICommunityRepository.js').SubCommunityListItem[]> {
+        const rows = await this.prisma.community.findMany({
+            where: { parentId, deletedAt: null },
+            select: {
+                id: true,
+                name: true,
+                logoUrl: true,
+                _count: { select: { memberships: { where: { leftAt: null } } } },
+            },
+            orderBy: { createdAt: 'asc' },
+        })
+        return rows.map((r) => ({
+            id: r.id,
+            name: r.name,
+            logoUrl: r.logoUrl,
+            memberCount: r._count.memberships,
+        }))
     }
 }

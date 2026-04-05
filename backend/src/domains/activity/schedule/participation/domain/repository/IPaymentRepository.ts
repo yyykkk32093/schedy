@@ -34,6 +34,23 @@ export interface IPaymentRepository {
     /** Participation ID から Payment を取得（ビジター支払い管理用） */
     findByParticipationId(participationId: string): Promise<Payment | null>
 
+    /** W3-11: コミュニティ配下の CONFIRMED Payment をアクティビティ別に集計。dateRange は Schedule.date で絞り込み (D-3:A) */
+    aggregateConfirmedIncomeByActivity(communityId: string, dateRange?: { from?: Date; to?: Date }): Promise<Array<{
+        activityId: string
+        total: number
+    }>>
+
+    /** 収入タブ詳細: 指定 Activity の CONFIRMED Payment を個別取得（Schedule 別展開用） */
+    getConfirmedPaymentsByActivity(activityId: string, dateRange?: { from?: Date; to?: Date }): Promise<Array<{
+        scheduleId: string
+        scheduleDate: Date
+        scheduleStartTime: string
+        displayName: string | null
+        amount: number
+        userId: string | null
+        isVisitor: boolean
+    }>>
+
     add(payment: Payment): Promise<void>
     update(payment: Payment): Promise<void>
 }

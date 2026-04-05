@@ -14,26 +14,26 @@ BEGIN;
 
 INSERT INTO "User" ("id", "displayName", "plan", "email", "avatarUrl", "biography", "notificationSetting", "createdAt", "updatedAt")
 VALUES
-  ('test-user-helena-001', 'Helena', 'SUBSCRIBER', 'helena@test.com', NULL, 'テストユーザー Helena です', '{}', NOW(), NOW()),
-  ('test-user-daniel-001', 'Daniel', 'FREE', 'daniel@test.com', NULL, 'テストユーザー Daniel です', '{}', NOW(), NOW()),
-  ('test-user-sakura-001', 'Sakura', 'FREE', 'sakura@test.com', NULL, 'テストユーザー Sakura です', '{}', NOW(), NOW())
+  ('e2e00000-0000-4000-a000-000000000101', 'Helena', 'SUBSCRIBER', 'helena@test.com', NULL, 'テストユーザー Helena です', '{}', NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000102', 'Daniel', 'FREE', 'daniel@test.com', NULL, 'テストユーザー Daniel です', '{}', NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000103', 'Sakura', 'FREE', 'sakura@test.com', NULL, 'テストユーザー Sakura です', '{}', NOW(), NOW())
 ON CONFLICT ("id") DO NOTHING;
 
 -- パスワード認証情報
 -- ログインパスワード（全ユーザー共通）: Test1234!
 INSERT INTO "PasswordCredential" ("userId", "hashedPassword", "createdAt", "updatedAt")
 VALUES
-  ('test-user-helena-001', '$2b$10$/v0yU0NLpEk7tep3BkuWIedxeUksLil3sh6ffw81LmEH.jbdar/Hu', NOW(), NOW()),
-  ('test-user-daniel-001', '$2b$10$/v0yU0NLpEk7tep3BkuWIedxeUksLil3sh6ffw81LmEH.jbdar/Hu', NOW(), NOW()),
-  ('test-user-sakura-001', '$2b$10$/v0yU0NLpEk7tep3BkuWIedxeUksLil3sh6ffw81LmEH.jbdar/Hu', NOW(), NOW())
+  ('e2e00000-0000-4000-a000-000000000101', '$2b$10$/v0yU0NLpEk7tep3BkuWIedxeUksLil3sh6ffw81LmEH.jbdar/Hu', NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000102', '$2b$10$/v0yU0NLpEk7tep3BkuWIedxeUksLil3sh6ffw81LmEH.jbdar/Hu', NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000103', '$2b$10$/v0yU0NLpEk7tep3BkuWIedxeUksLil3sh6ffw81LmEH.jbdar/Hu', NOW(), NOW())
 ON CONFLICT ("userId") DO NOTHING;
 
 -- AuthSecurityState
 INSERT INTO "auth_security_states" ("user_id", "auth_method", "last_login_at", "failed_sign_in_count", "created_at", "updated_at")
 VALUES
-  ('test-user-helena-001', 'password', NOW(), 0, NOW(), NOW()),
-  ('test-user-daniel-001', 'password', NOW(), 0, NOW(), NOW()),
-  ('test-user-sakura-001', 'password', NOW(), 0, NOW(), NOW())
+  ('e2e00000-0000-4000-a000-000000000101', 'password', NOW(), 0, NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000102', 'password', NOW(), 0, NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000103', 'password', NOW(), 0, NOW(), NOW())
 ON CONFLICT ("user_id") DO NOTHING;
 
 -- ============================================================
@@ -42,31 +42,31 @@ ON CONFLICT ("user_id") DO NOTHING;
 
 -- Helena が作成した「週末フットサル」
 INSERT INTO "Community" ("id", "name", "description", "logoUrl", "coverUrl", "grade", "createdBy",
-  "communityTypeId", "joinMethod", "isPublic", "maxMembers", "mainActivityArea", "activityFrequency", "nearestStation", "targetGender", "ageRange",
+  "communityTypeId", "categoryId", "joinMethod", "isPublic", "maxMembers", "activityFrequency", "targetGender", "ageMin", "ageMax", "recommendedLevelMin", "recommendedLevelMax",
   "createdAt", "updatedAt")
 VALUES
-  ('test-community-futsal-001', '週末フットサル', '毎週末にフットサルを楽しむコミュニティです 🏃‍♂️⚽', NULL, NULL, 'FREE', 'test-user-helena-001',
-   'ct-sports', 'FREE_JOIN', true, 30, '代々木公園フットサルコート', '週1回', '代々木', '指定なし', '20代〜40代',
+  ('e2e00000-0000-4000-a000-000000000201', '週末フットサル', '毎週末にフットサルを楽しむコミュニティです 🏃‍♂️⚽', NULL, NULL, 'FREE', 'e2e00000-0000-4000-a000-000000000101',
+   'ct-sports', 'cat-futsal', 'FREE_JOIN', true, 30, '週1回', '{指定なし}', 20, 49, 1, 4,
    NOW() - INTERVAL '30 days', NOW())
 ON CONFLICT ("id") DO NOTHING;
 
 -- Daniel が作成した「朝ヨガサークル」
 INSERT INTO "Community" ("id", "name", "description", "logoUrl", "coverUrl", "grade", "createdBy",
-  "communityTypeId", "joinMethod", "isPublic", "maxMembers", "mainActivityArea", "activityFrequency", "nearestStation", "targetGender", "ageRange",
+  "communityTypeId", "categoryId", "joinMethod", "isPublic", "maxMembers", "activityFrequency", "targetGender", "ageMin", "ageMax", "recommendedLevelMin", "recommendedLevelMax",
   "createdAt", "updatedAt")
 VALUES
-  ('test-community-yoga-001', '朝ヨガサークル', '朝7時から公園でヨガをしています 🧘‍♀️', NULL, NULL, 'FREE', 'test-user-daniel-001',
-   'ct-sports', 'APPROVAL', true, 15, '新宿御苑', '週3回', '新宿御苑前', '指定なし', '20代〜50代',
+  ('e2e00000-0000-4000-a000-000000000202', '朝ヨガサークル', '朝7時から公園でヨガをしています 🧘‍♀️', NULL, NULL, 'FREE', 'e2e00000-0000-4000-a000-000000000102',
+   'ct-sports', 'cat-other', 'APPROVAL', true, 15, '週3回', '{指定なし}', 20, 59, 0, 3,
    NOW() - INTERVAL '20 days', NOW())
 ON CONFLICT ("id") DO NOTHING;
 
 -- Sakura が作成した「読書クラブ」
 INSERT INTO "Community" ("id", "name", "description", "logoUrl", "coverUrl", "grade", "createdBy",
-  "communityTypeId", "joinMethod", "isPublic", "maxMembers", "mainActivityArea", "activityFrequency", "nearestStation", "targetGender", "ageRange",
+  "communityTypeId", "categoryId", "joinMethod", "isPublic", "maxMembers", "activityFrequency", "targetGender",
   "createdAt", "updatedAt")
 VALUES
-  ('test-community-book-001', '読書クラブ', '月1回の読書会。今月のテーマ本を語り合おう 📚', NULL, NULL, 'FREE', 'test-user-sakura-001',
-   'ct-hobby', 'INVITATION', false, NULL, 'オンライン (Zoom)', '月1回', NULL, '指定なし', NULL,
+  ('e2e00000-0000-4000-a000-000000000203', '読書クラブ', '月1回の読書会。今月のテーマ本を語り合おう 📚', NULL, NULL, 'FREE', 'e2e00000-0000-4000-a000-000000000103',
+   'ct-hobby', 'cat-other', 'INVITATION', false, NULL, '月1回', '{指定なし}',
    NOW() - INTERVAL '15 days', NOW())
 ON CONFLICT ("id") DO NOTHING;
 
@@ -76,23 +76,26 @@ ON CONFLICT ("id") DO NOTHING;
 
 INSERT INTO "CommunityCategory" ("id", "communityId", "categoryId")
 VALUES
-  ('test-cc-futsal-futsal', 'test-community-futsal-001', 'cat-futsal'),
-  ('test-cc-yoga-other',    'test-community-yoga-001',   'cat-other'),
-  ('test-cc-book-other',    'test-community-book-001',   'cat-other')
+  ('e2e00000-0000-4000-a000-000000000211', 'e2e00000-0000-4000-a000-000000000201', 'cat-futsal'),
+  ('e2e00000-0000-4000-a000-000000000212',    'e2e00000-0000-4000-a000-000000000202',   'cat-other'),
+  ('e2e00000-0000-4000-a000-000000000213',    'e2e00000-0000-4000-a000-000000000203',   'cat-other')
+ON CONFLICT ("id") DO NOTHING;
+
+-- ============================================================
+-- 2b-2. コミュニティ — 活動拠点 (CommunityLocation)
+-- ============================================================
+
+INSERT INTO "CommunityLocation" ("id", "communityId", "type", "area", "station", "sortOrder", "createdAt", "updatedAt")
+VALUES
+  ('e2e00000-0000-4000-a000-000000000221', 'e2e00000-0000-4000-a000-000000000202', 'MAIN', '新宿区', '新宿御苑前駅', 0, NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000222', 'e2e00000-0000-4000-a000-000000000202', 'SUB',  '渋谷区', '代々木公園駅', 1, NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000223', 'e2e00000-0000-4000-a000-000000000202', 'SUB',  '中央区', '築地駅',       2, NOW(), NOW())
 ON CONFLICT ("id") DO NOTHING;
 
 -- ============================================================
 -- 2c. コミュニティ — 参加レベル（中間テーブル）
+-- ※ Wave5以降は Community.recommendedLevelMin/Max を使用。既存互換用に残す。
 -- ============================================================
-
-INSERT INTO "CommunityParticipationLevel" ("id", "communityId", "levelId")
-VALUES
-  ('test-cpl-futsal-welcome',  'test-community-futsal-001', 'pl-welcome'),
-  ('test-cpl-futsal-beginner', 'test-community-futsal-001', 'pl-beginner'),
-  ('test-cpl-yoga-welcome',    'test-community-yoga-001',   'pl-welcome'),
-  ('test-cpl-yoga-noexp',      'test-community-yoga-001',   'pl-noexp'),
-  ('test-cpl-book-welcome',    'test-community-book-001',   'pl-welcome')
-ON CONFLICT ("id") DO NOTHING;
 
 -- ============================================================
 -- 2d. コミュニティ — 活動曜日（値テーブル）
@@ -100,11 +103,11 @@ ON CONFLICT ("id") DO NOTHING;
 
 INSERT INTO "CommunityActivityDay" ("id", "communityId", "day")
 VALUES
-  ('test-cad-futsal-sat', 'test-community-futsal-001', '土'),
-  ('test-cad-futsal-sun', 'test-community-futsal-001', '日'),
-  ('test-cad-yoga-mon',   'test-community-yoga-001',   '月'),
-  ('test-cad-yoga-wed',   'test-community-yoga-001',   '水'),
-  ('test-cad-yoga-fri',   'test-community-yoga-001',   '金')
+  ('e2e00000-0000-4000-a000-000000000241', 'e2e00000-0000-4000-a000-000000000201', '土'),
+  ('e2e00000-0000-4000-a000-000000000242', 'e2e00000-0000-4000-a000-000000000201', '日'),
+  ('e2e00000-0000-4000-a000-000000000243',   'e2e00000-0000-4000-a000-000000000202',   '月'),
+  ('e2e00000-0000-4000-a000-000000000244',   'e2e00000-0000-4000-a000-000000000202',   '水'),
+  ('e2e00000-0000-4000-a000-000000000245',   'e2e00000-0000-4000-a000-000000000202',   '金')
 ON CONFLICT ("communityId", "day") DO NOTHING;
 
 -- ============================================================
@@ -113,12 +116,12 @@ ON CONFLICT ("communityId", "day") DO NOTHING;
 
 INSERT INTO "CommunityTag" ("id", "communityId", "tag")
 VALUES
-  ('test-ctag-futsal-1', 'test-community-futsal-001', 'フットサル'),
-  ('test-ctag-futsal-2', 'test-community-futsal-001', '週末スポーツ'),
-  ('test-ctag-yoga-1',   'test-community-yoga-001',   'ヨガ'),
-  ('test-ctag-yoga-2',   'test-community-yoga-001',   '朝活'),
-  ('test-ctag-book-1',   'test-community-book-001',   '読書'),
-  ('test-ctag-book-2',   'test-community-book-001',   '読書会')
+  ('e2e00000-0000-4000-a000-000000000251', 'e2e00000-0000-4000-a000-000000000201', 'フットサル'),
+  ('e2e00000-0000-4000-a000-000000000252', 'e2e00000-0000-4000-a000-000000000201', '週末スポーツ'),
+  ('e2e00000-0000-4000-a000-000000000253',   'e2e00000-0000-4000-a000-000000000202',   'ヨガ'),
+  ('e2e00000-0000-4000-a000-000000000254',   'e2e00000-0000-4000-a000-000000000202',   '朝活'),
+  ('e2e00000-0000-4000-a000-000000000255',   'e2e00000-0000-4000-a000-000000000203',   '読書'),
+  ('e2e00000-0000-4000-a000-000000000256',   'e2e00000-0000-4000-a000-000000000203',   '読書会')
 ON CONFLICT ("communityId", "tag") DO NOTHING;
 
 -- ============================================================
@@ -128,24 +131,24 @@ ON CONFLICT ("communityId", "tag") DO NOTHING;
 -- 週末フットサル: Helena=OWNER, Daniel=MEMBER, Sakura=MEMBER
 INSERT INTO "CommunityMembership" ("id", "communityId", "userId", "role", "joinedAt")
 VALUES
-  ('test-membership-futsal-helena', 'test-community-futsal-001', 'test-user-helena-001', 'OWNER',  NOW() - INTERVAL '30 days'),
-  ('test-membership-futsal-daniel', 'test-community-futsal-001', 'test-user-daniel-001', 'MEMBER', NOW() - INTERVAL '28 days'),
-  ('test-membership-futsal-sakura', 'test-community-futsal-001', 'test-user-sakura-001', 'MEMBER', NOW() - INTERVAL '25 days')
+  ('e2e00000-0000-4000-a000-000000000301', 'e2e00000-0000-4000-a000-000000000201', 'e2e00000-0000-4000-a000-000000000101', 'OWNER',  NOW() - INTERVAL '30 days'),
+  ('e2e00000-0000-4000-a000-000000000302', 'e2e00000-0000-4000-a000-000000000201', 'e2e00000-0000-4000-a000-000000000102', 'MEMBER', NOW() - INTERVAL '28 days'),
+  ('e2e00000-0000-4000-a000-000000000303', 'e2e00000-0000-4000-a000-000000000201', 'e2e00000-0000-4000-a000-000000000103', 'MEMBER', NOW() - INTERVAL '25 days')
 ON CONFLICT ("id") DO NOTHING;
 
 -- 朝ヨガサークル: Daniel=OWNER, Helena=ADMIN, Sakura=MEMBER
 INSERT INTO "CommunityMembership" ("id", "communityId", "userId", "role", "joinedAt")
 VALUES
-  ('test-membership-yoga-daniel', 'test-community-yoga-001', 'test-user-daniel-001', 'OWNER',  NOW() - INTERVAL '20 days'),
-  ('test-membership-yoga-helena', 'test-community-yoga-001', 'test-user-helena-001', 'ADMIN',  NOW() - INTERVAL '18 days'),
-  ('test-membership-yoga-sakura', 'test-community-yoga-001', 'test-user-sakura-001', 'MEMBER', NOW() - INTERVAL '15 days')
+  ('e2e00000-0000-4000-a000-000000000304', 'e2e00000-0000-4000-a000-000000000202', 'e2e00000-0000-4000-a000-000000000102', 'OWNER',  NOW() - INTERVAL '20 days'),
+  ('e2e00000-0000-4000-a000-000000000305', 'e2e00000-0000-4000-a000-000000000202', 'e2e00000-0000-4000-a000-000000000101', 'ADMIN',  NOW() - INTERVAL '18 days'),
+  ('e2e00000-0000-4000-a000-000000000306', 'e2e00000-0000-4000-a000-000000000202', 'e2e00000-0000-4000-a000-000000000103', 'MEMBER', NOW() - INTERVAL '15 days')
 ON CONFLICT ("id") DO NOTHING;
 
 -- 読書クラブ: Sakura=OWNER, Helena=MEMBER （Danielは未参加）
 INSERT INTO "CommunityMembership" ("id", "communityId", "userId", "role", "joinedAt")
 VALUES
-  ('test-membership-book-sakura', 'test-community-book-001', 'test-user-sakura-001', 'OWNER',  NOW() - INTERVAL '15 days'),
-  ('test-membership-book-helena', 'test-community-book-001', 'test-user-helena-001', 'MEMBER', NOW() - INTERVAL '10 days')
+  ('e2e00000-0000-4000-a000-000000000307', 'e2e00000-0000-4000-a000-000000000203', 'e2e00000-0000-4000-a000-000000000103', 'OWNER',  NOW() - INTERVAL '15 days'),
+  ('e2e00000-0000-4000-a000-000000000308', 'e2e00000-0000-4000-a000-000000000203', 'e2e00000-0000-4000-a000-000000000101', 'MEMBER', NOW() - INTERVAL '10 days')
 ON CONFLICT ("id") DO NOTHING;
 
 -- ============================================================
@@ -153,36 +156,60 @@ ON CONFLICT ("id") DO NOTHING;
 -- ============================================================
 
 -- 週末フットサル
-INSERT INTO "Activity" ("id", "communityId", "title", "description", "defaultLocation", "defaultStartTime", "defaultEndTime", "createdBy", "createdAt", "updatedAt")
+INSERT INTO "Activity" ("id", "communityId", "title", "description", "defaultLocation", "defaultStartTime", "defaultEndTime",
+  "recurrenceRule", "defaultParticipationFee", "defaultVisitorFee", "defaultCapacity", "allowVisitorWaitlist",
+  "createdBy", "createdAt", "updatedAt")
 VALUES
-  ('test-activity-futsal-sat', 'test-community-futsal-001', '土曜フットサル', '毎週土曜の定期フットサル', '代々木公園フットサルコート', '10:00', '12:00', 'test-user-helena-001', NOW() - INTERVAL '28 days', NOW()),
-  ('test-activity-futsal-sun', 'test-community-futsal-001', '日曜ミニゲーム', '日曜午後のミニゲーム大会', '駒沢公園', '14:00', '16:00', 'test-user-helena-001', NOW() - INTERVAL '20 days', NOW())
+  ('e2e00000-0000-4000-a000-000000000401', 'e2e00000-0000-4000-a000-000000000201', '土曜フットサル', '毎週土曜の定期フットサル', '代々木公園フットサルコート', '10:00', '12:00',
+   'FREQ=WEEKLY;BYDAY=SA', 500, 800, 20, true,
+   'e2e00000-0000-4000-a000-000000000101', NOW() - INTERVAL '28 days', NOW()),
+  ('e2e00000-0000-4000-a000-000000000402', 'e2e00000-0000-4000-a000-000000000201', '日曜ミニゲーム', '日曜午後のミニゲーム大会', '駒沢公園', '14:00', '16:00',
+   'FREQ=WEEKLY;BYDAY=SU', 0, NULL, 16, false,
+   'e2e00000-0000-4000-a000-000000000101', NOW() - INTERVAL '20 days', NOW())
 ON CONFLICT ("id") DO NOTHING;
 
 -- 朝ヨガサークル
-INSERT INTO "Activity" ("id", "communityId", "title", "description", "defaultLocation", "defaultStartTime", "defaultEndTime", "createdBy", "createdAt", "updatedAt")
+INSERT INTO "Activity" ("id", "communityId", "title", "description", "defaultLocation", "defaultStartTime", "defaultEndTime",
+  "recurrenceRule", "defaultParticipationFee", "defaultVisitorFee", "defaultCapacity", "allowVisitorWaitlist",
+  "createdBy", "createdAt", "updatedAt")
 VALUES
-  ('test-activity-yoga-morning', 'test-community-yoga-001', 'モーニングヨガ', '朝の公園でリフレッシュヨガ', '新宿御苑', '07:00', '08:00', 'test-user-daniel-001', NOW() - INTERVAL '18 days', NOW())
+  ('e2e00000-0000-4000-a000-000000000403', 'e2e00000-0000-4000-a000-000000000202', 'モーニングヨガ', '朝の公園でリフレッシュヨガ', '新宿御苑', '07:00', '08:00',
+   'FREQ=WEEKLY;BYDAY=MO,WE,FR', 0, NULL, NULL, false,
+   'e2e00000-0000-4000-a000-000000000102', NOW() - INTERVAL '18 days', NOW())
 ON CONFLICT ("id") DO NOTHING;
 
--- 読書クラブ
-INSERT INTO "Activity" ("id", "communityId", "title", "description", "defaultLocation", "defaultStartTime", "defaultEndTime", "createdBy", "createdAt", "updatedAt")
+-- 読書クラブ（繰り返しなし = 単発）
+INSERT INTO "Activity" ("id", "communityId", "title", "description", "defaultLocation", "defaultStartTime", "defaultEndTime",
+  "recurrenceRule", "defaultParticipationFee", "defaultVisitorFee", "defaultCapacity", "allowVisitorWaitlist",
+  "createdBy", "createdAt", "updatedAt")
 VALUES
-  ('test-activity-book-monthly', 'test-community-book-001', '月例読書会', '今月のテーマ本についてディスカッション', 'オンライン (Zoom)', '19:00', '21:00', 'test-user-sakura-001', NOW() - INTERVAL '12 days', NOW())
+  ('e2e00000-0000-4000-a000-000000000404', 'e2e00000-0000-4000-a000-000000000203', '月例読書会', '今月のテーマ本についてディスカッション', 'オンライン (Zoom)', '19:00', '21:00',
+   NULL, 0, NULL, 15, false,
+   'e2e00000-0000-4000-a000-000000000103', NOW() - INTERVAL '12 days', NOW())
 ON CONFLICT ("id") DO NOTHING;
 
 -- ============================================================
 -- 4-b. スケジュール（各アクティビティの初回日程）
 -- ============================================================
 
-INSERT INTO "Schedule" ("id", "activityId", "date", "startTime", "endTime", "location", "status", "capacity", "participationFee", "isOnline", "meetingUrl", "createdAt", "updatedAt")
+INSERT INTO "Schedule" ("id", "activityId", "date", "startTime", "endTime", "location", "status", "capacity", "participationFee", "visitorFee", "isOnline", "meetingUrl", "createdAt", "updatedAt")
 VALUES
-  ('test-sched-futsal-sat-01', 'test-activity-futsal-sat', '2026-03-15', '10:00', '12:00', '代々木公園フットサルコート', 'SCHEDULED', 20, 500,  false, NULL, NOW(), NOW()),
-  ('test-sched-futsal-sat-02', 'test-activity-futsal-sat', '2026-03-22', '10:00', '12:00', '代々木公園フットサルコート', 'SCHEDULED', 20, 500,  false, NULL, NOW(), NOW()),
-  ('test-sched-futsal-sun-01', 'test-activity-futsal-sun', '2026-03-16', '14:00', '16:00', '駒沢公園', 'SCHEDULED', 16, 0, false, NULL, NOW(), NOW()),
-  ('test-sched-yoga-01',       'test-activity-yoga-morning', '2026-03-10', '07:00', '08:00', '新宿御苑', 'SCHEDULED', NULL, 0, false, NULL, NOW(), NOW()),
-  ('test-sched-yoga-02',       'test-activity-yoga-morning', '2026-03-17', '07:00', '08:00', '新宿御苑', 'SCHEDULED', NULL, 0, false, NULL, NOW(), NOW()),
-  ('test-sched-book-01',       'test-activity-book-monthly', '2026-03-20', '19:00', '21:00', 'オンライン (Zoom)', 'SCHEDULED', 15, 0, true, 'https://zoom.us/j/1234567890', NOW(), NOW())
+  -- 土曜フットサル（繰り返し: 4週分）
+  ('e2e00000-0000-4000-a000-000000000501', 'e2e00000-0000-4000-a000-000000000401', '2026-03-14', '10:00', '12:00', '代々木公園フットサルコート', 'SCHEDULED', 20, 500, 800, false, NULL, NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000502', 'e2e00000-0000-4000-a000-000000000401', '2026-03-21', '10:00', '12:00', '代々木公園フットサルコート', 'SCHEDULED', 20, 500, 800, false, NULL, NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000503', 'e2e00000-0000-4000-a000-000000000401', '2026-03-28', '10:00', '12:00', '代々木公園フットサルコート', 'SCHEDULED', 20, 500, 800, false, NULL, NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000504', 'e2e00000-0000-4000-a000-000000000401', '2026-04-04', '10:00', '12:00', '代々木公園フットサルコート', 'SCHEDULED', 20, 500, 800, false, NULL, NOW(), NOW()),
+  -- 日曜ミニゲーム（繰り返し: 3週分）
+  ('e2e00000-0000-4000-a000-000000000505', 'e2e00000-0000-4000-a000-000000000402', '2026-03-15', '14:00', '16:00', '駒沢公園', 'SCHEDULED', 16, 0, NULL, false, NULL, NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000506', 'e2e00000-0000-4000-a000-000000000402', '2026-03-22', '14:00', '16:00', '駒沢公園', 'SCHEDULED', 16, 0, NULL, false, NULL, NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000507', 'e2e00000-0000-4000-a000-000000000402', '2026-03-29', '14:00', '16:00', '駒沢公園', 'SCHEDULED', 16, 0, NULL, false, NULL, NOW(), NOW()),
+  -- モーニングヨガ（繰り返し: 月水金 × 2週分）
+  ('e2e00000-0000-4000-a000-000000000508',       'e2e00000-0000-4000-a000-000000000403', '2026-03-09', '07:00', '08:00', '新宿御苑', 'SCHEDULED', NULL, 0, NULL, false, NULL, NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000509',       'e2e00000-0000-4000-a000-000000000403', '2026-03-11', '07:00', '08:00', '新宿御苑', 'SCHEDULED', NULL, 0, NULL, false, NULL, NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-00000000050a',       'e2e00000-0000-4000-a000-000000000403', '2026-03-13', '07:00', '08:00', '新宿御苑', 'SCHEDULED', NULL, 0, NULL, false, NULL, NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-00000000050b',       'e2e00000-0000-4000-a000-000000000403', '2026-03-16', '07:00', '08:00', '新宿御苑', 'SCHEDULED', NULL, 0, NULL, false, NULL, NOW(), NOW()),
+  -- 月例読書会（単発）
+  ('e2e00000-0000-4000-a000-00000000050c',       'e2e00000-0000-4000-a000-000000000404', '2026-03-20', '19:00', '21:00', 'オンライン (Zoom)', 'SCHEDULED', 15, 0, NULL, true, 'https://zoom.us/j/1234567890', NOW(), NOW())
 ON CONFLICT ("id") DO NOTHING;
 
 -- ============================================================
@@ -192,17 +219,17 @@ ON CONFLICT ("id") DO NOTHING;
 -- Helena → 週末フットサル: 3件
 INSERT INTO "Announcement" ("id", "communityId", "authorId", "title", "content", "createdAt", "updatedAt")
 VALUES
-  ('test-ann-futsal-001', 'test-community-futsal-001', 'test-user-helena-001',
+  ('e2e00000-0000-4000-a000-000000000601', 'e2e00000-0000-4000-a000-000000000201', 'e2e00000-0000-4000-a000-000000000101',
    '今週末のフットサルについて',
    '今週土曜は雨予報のため、室内コートに変更します。場所は渋谷スポーツセンター B1F です。参加される方は11:00までにお越しください！',
    NOW() - INTERVAL '3 minutes', NOW()),
 
-  ('test-ann-futsal-002', 'test-community-futsal-001', 'test-user-helena-001',
+  ('e2e00000-0000-4000-a000-000000000602', 'e2e00000-0000-4000-a000-000000000201', 'e2e00000-0000-4000-a000-000000000101',
    '新メンバー歓迎！',
    '先週から3名の新しいメンバーが加入しました 🎉 次回の集まりで自己紹介タイムを設けますので、皆さんよろしくお願いします。',
    NOW() - INTERVAL '2 hours', NOW()),
 
-  ('test-ann-futsal-003', 'test-community-futsal-001', 'test-user-helena-001',
+  ('e2e00000-0000-4000-a000-000000000603', 'e2e00000-0000-4000-a000-000000000201', 'e2e00000-0000-4000-a000-000000000101',
    'ユニフォームの件',
    'チームユニフォームのデザイン案を3つ用意しました。来週の練習後に投票を行いますので、楽しみにしていてください！予算は一人3,000円を想定しています。',
    NOW() - INTERVAL '3 days', NOW())
@@ -211,17 +238,17 @@ ON CONFLICT ("id") DO NOTHING;
 -- Daniel → 朝ヨガサークル: 3件
 INSERT INTO "Announcement" ("id", "communityId", "authorId", "title", "content", "createdAt", "updatedAt")
 VALUES
-  ('test-ann-yoga-001', 'test-community-yoga-001', 'test-user-daniel-001',
+  ('e2e00000-0000-4000-a000-000000000604', 'e2e00000-0000-4000-a000-000000000202', 'e2e00000-0000-4000-a000-000000000102',
    '明日のヨガは中止です',
    '明日3/4は講師の体調不良のため、モーニングヨガは中止とします。次回は3/6（木）に開催予定です。ご了承ください 🙏',
    NOW() - INTERVAL '30 minutes', NOW()),
 
-  ('test-ann-yoga-002', 'test-community-yoga-001', 'test-user-daniel-001',
+  ('e2e00000-0000-4000-a000-000000000605', 'e2e00000-0000-4000-a000-000000000202', 'e2e00000-0000-4000-a000-000000000102',
    '春の特別レッスン開催',
    '3月21日（春分の日）に特別レッスンを開催します！テーマは「太陽礼拝マスター」。初心者も大歓迎です。参加費は無料、持ち物はヨガマットのみ。',
    NOW() - INTERVAL '1 day', NOW()),
 
-  ('test-ann-yoga-003', 'test-community-yoga-001', 'test-user-helena-001',
+  ('e2e00000-0000-4000-a000-000000000606', 'e2e00000-0000-4000-a000-000000000202', 'e2e00000-0000-4000-a000-000000000101',
    'ヨガマットのおすすめ',
    '最近買い替えたヨガマットがすごく良かったので共有します。Manduka PRO（6mm）です。グリップ力が段違いで、汗をかいても滑りません。Amazonで15%オフやってました！',
    NOW() - INTERVAL '5 days', NOW())
@@ -230,12 +257,12 @@ ON CONFLICT ("id") DO NOTHING;
 -- Sakura → 読書クラブ: 2件
 INSERT INTO "Announcement" ("id", "communityId", "authorId", "title", "content", "createdAt", "updatedAt")
 VALUES
-  ('test-ann-book-001', 'test-community-book-001', 'test-user-sakura-001',
+  ('e2e00000-0000-4000-a000-000000000607', 'e2e00000-0000-4000-a000-000000000203', 'e2e00000-0000-4000-a000-000000000103',
    '3月のテーマ本が決まりました',
    '3月のテーマ本は「コンビニ人間」（村田沙耶香）に決定しました📖 読書会は3/22(土) 19:00〜 Zoomで開催します。初参加の方も気軽にどうぞ！',
    NOW() - INTERVAL '4 hours', NOW()),
 
-  ('test-ann-book-002', 'test-community-book-001', 'test-user-sakura-001',
+  ('e2e00000-0000-4000-a000-000000000608', 'e2e00000-0000-4000-a000-000000000203', 'e2e00000-0000-4000-a000-000000000103',
    '2月読書会のまとめ',
    '2月の読書会「推し、燃ゆ」のディスカッションまとめを共有します。「推し活」の意味について深い議論ができました。参加者は8名でした。来月もよろしくお願いします！',
    NOW() - INTERVAL '7 days', NOW())
@@ -248,19 +275,19 @@ ON CONFLICT ("id") DO NOTHING;
 -- Helena は自分の投稿は既読扱い + ヨガの最新を既読
 INSERT INTO "AnnouncementRead" ("id", "announcementId", "userId", "readAt")
 VALUES
-  ('test-read-001', 'test-ann-futsal-001', 'test-user-helena-001', NOW()),
-  ('test-read-002', 'test-ann-futsal-002', 'test-user-helena-001', NOW()),
-  ('test-read-003', 'test-ann-futsal-003', 'test-user-helena-001', NOW()),
-  ('test-read-004', 'test-ann-yoga-001',   'test-user-helena-001', NOW())
+  ('e2e00000-0000-4000-a000-000000000611', 'e2e00000-0000-4000-a000-000000000601', 'e2e00000-0000-4000-a000-000000000101', NOW()),
+  ('e2e00000-0000-4000-a000-000000000612', 'e2e00000-0000-4000-a000-000000000602', 'e2e00000-0000-4000-a000-000000000101', NOW()),
+  ('e2e00000-0000-4000-a000-000000000613', 'e2e00000-0000-4000-a000-000000000603', 'e2e00000-0000-4000-a000-000000000101', NOW()),
+  ('e2e00000-0000-4000-a000-000000000614', 'e2e00000-0000-4000-a000-000000000604',   'e2e00000-0000-4000-a000-000000000101', NOW())
 ON CONFLICT ("announcementId", "userId") DO NOTHING;
 
 -- Daniel はフットサルの最新1件を既読
 INSERT INTO "AnnouncementRead" ("id", "announcementId", "userId", "readAt")
 VALUES
-  ('test-read-005', 'test-ann-futsal-001', 'test-user-daniel-001', NOW()),
-  ('test-read-006', 'test-ann-yoga-001',   'test-user-daniel-001', NOW()),
-  ('test-read-007', 'test-ann-yoga-002',   'test-user-daniel-001', NOW()),
-  ('test-read-008', 'test-ann-yoga-003',   'test-user-daniel-001', NOW())
+  ('e2e00000-0000-4000-a000-000000000615', 'e2e00000-0000-4000-a000-000000000601', 'e2e00000-0000-4000-a000-000000000102', NOW()),
+  ('e2e00000-0000-4000-a000-000000000616', 'e2e00000-0000-4000-a000-000000000604',   'e2e00000-0000-4000-a000-000000000102', NOW()),
+  ('e2e00000-0000-4000-a000-000000000617', 'e2e00000-0000-4000-a000-000000000605',   'e2e00000-0000-4000-a000-000000000102', NOW()),
+  ('e2e00000-0000-4000-a000-000000000618', 'e2e00000-0000-4000-a000-000000000606',   'e2e00000-0000-4000-a000-000000000102', NOW())
 ON CONFLICT ("announcementId", "userId") DO NOTHING;
 
 -- ============================================================
@@ -270,14 +297,14 @@ ON CONFLICT ("announcementId", "userId") DO NOTHING;
 -- Helena はフットサルの最新＋読書会をブックマーク
 INSERT INTO "AnnouncementBookmark" ("id", "announcementId", "userId", "createdAt")
 VALUES
-  ('test-bookmark-001', 'test-ann-futsal-001', 'test-user-helena-001', NOW()),
-  ('test-bookmark-002', 'test-ann-book-001',   'test-user-helena-001', NOW())
+  ('e2e00000-0000-4000-a000-000000000621', 'e2e00000-0000-4000-a000-000000000601', 'e2e00000-0000-4000-a000-000000000101', NOW()),
+  ('e2e00000-0000-4000-a000-000000000622', 'e2e00000-0000-4000-a000-000000000607',   'e2e00000-0000-4000-a000-000000000101', NOW())
 ON CONFLICT ("announcementId", "userId") DO NOTHING;
 
 -- Daniel はヨガの特別レッスンをブックマーク
 INSERT INTO "AnnouncementBookmark" ("id", "announcementId", "userId", "createdAt")
 VALUES
-  ('test-bookmark-003', 'test-ann-yoga-002', 'test-user-daniel-001', NOW())
+  ('e2e00000-0000-4000-a000-000000000623', 'e2e00000-0000-4000-a000-000000000605', 'e2e00000-0000-4000-a000-000000000102', NOW())
 ON CONFLICT ("announcementId", "userId") DO NOTHING;
 
 -- ============================================================
@@ -287,47 +314,53 @@ ON CONFLICT ("announcementId", "userId") DO NOTHING;
 -- フットサル土曜 3/15: Helena=参加, Daniel=参加, Sakura=参加
 INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
 VALUES
-  ('test-part-futsal-sat01-h', 'test-sched-futsal-sat-01', 'test-user-helena-001', false, NOW()),
-  ('test-part-futsal-sat01-d', 'test-sched-futsal-sat-01', 'test-user-daniel-001', false, NOW()),
-  ('test-part-futsal-sat01-s', 'test-sched-futsal-sat-01', 'test-user-sakura-001', false, NOW())
+  ('e2e00000-0000-4000-a000-000000000701', 'e2e00000-0000-4000-a000-000000000501', 'e2e00000-0000-4000-a000-000000000101', false, NOW()),
+  ('e2e00000-0000-4000-a000-000000000702', 'e2e00000-0000-4000-a000-000000000501', 'e2e00000-0000-4000-a000-000000000102', false, NOW()),
+  ('e2e00000-0000-4000-a000-000000000703', 'e2e00000-0000-4000-a000-000000000501', 'e2e00000-0000-4000-a000-000000000103', false, NOW())
 ON CONFLICT DO NOTHING;
 
 -- フットサル土曜 3/15: Payment データ
-INSERT INTO "Payment" ("id", "participationId", "userId", "scheduleId", "amount", "paymentMethod", "status", "createdAt", "updatedAt")
+INSERT INTO "Payment" ("id", "participationId", "userId", "scheduleId", "amount", "paymentMethod", "status", "displayName", "createdAt", "updatedAt")
 VALUES
-  ('test-pay-futsal-sat01-h', 'test-part-futsal-sat01-h', 'test-user-helena-001', 'test-sched-futsal-sat-01', 500, 'PAYPAY', 'CONFIRMED', NOW(), NOW()),
-  ('test-pay-futsal-sat01-d', 'test-part-futsal-sat01-d', 'test-user-daniel-001', 'test-sched-futsal-sat-01', 500, 'CASH',   'UNPAID',    NOW(), NOW())
+  ('e2e00000-0000-4000-a000-000000000801', 'e2e00000-0000-4000-a000-000000000701', 'e2e00000-0000-4000-a000-000000000101', 'e2e00000-0000-4000-a000-000000000501', 500, 'PAYPAY', 'CONFIRMED', 'Helena', NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000802', 'e2e00000-0000-4000-a000-000000000702', 'e2e00000-0000-4000-a000-000000000102', 'e2e00000-0000-4000-a000-000000000501', 500, 'CASH',   'UNPAID',    'Daniel', NOW(), NOW())
 ON CONFLICT DO NOTHING;
 
 -- フットサル土曜 3/22: Helena=参加
 INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
 VALUES
-  ('test-part-futsal-sat02-h', 'test-sched-futsal-sat-02', 'test-user-helena-001', false, NOW())
+  ('e2e00000-0000-4000-a000-000000000704', 'e2e00000-0000-4000-a000-000000000502', 'e2e00000-0000-4000-a000-000000000101', false, NOW())
 ON CONFLICT DO NOTHING;
 
 -- ヨガ 3/10: Daniel=参加, Sakura=参加
 INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
 VALUES
-  ('test-part-yoga01-d', 'test-sched-yoga-01', 'test-user-daniel-001', false, NOW()),
-  ('test-part-yoga01-s', 'test-sched-yoga-01', 'test-user-sakura-001', false, NOW())
+  ('e2e00000-0000-4000-a000-000000000705', 'e2e00000-0000-4000-a000-000000000508', 'e2e00000-0000-4000-a000-000000000102', false, NOW()),
+  ('e2e00000-0000-4000-a000-000000000706', 'e2e00000-0000-4000-a000-000000000508', 'e2e00000-0000-4000-a000-000000000103', false, NOW())
 ON CONFLICT DO NOTHING;
 
 -- 読書会 3/20: Sakura=参加, Helena=参加（オンライン）
 INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
 VALUES
-  ('test-part-book01-s', 'test-sched-book-01', 'test-user-sakura-001', false, NOW()),
-  ('test-part-book01-h', 'test-sched-book-01', 'test-user-helena-001', false, NOW())
+  ('e2e00000-0000-4000-a000-000000000707', 'e2e00000-0000-4000-a000-00000000050c', 'e2e00000-0000-4000-a000-000000000103', false, NOW()),
+  ('e2e00000-0000-4000-a000-000000000708', 'e2e00000-0000-4000-a000-00000000050c', 'e2e00000-0000-4000-a000-000000000101', false, NOW())
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
 -- 7b. キャンセル待ちデータ
 -- ============================================================
 
--- フットサル日曜 3/16 (capacity=16): Sakura がキャンセル待ち
-INSERT INTO "WaitlistEntry" ("id", "scheduleId", "userId", "registeredAt")
+-- フットサル日曜 3/16 (capacity=16): Sakura がキャンセル待ち（登録ユーザー）
+INSERT INTO "WaitlistEntry" ("id", "scheduleId", "userId", "isVisitor", "registeredAt")
 VALUES
-  ('test-wl-futsal-sun01-s', 'test-sched-futsal-sun-01', 'test-user-sakura-001', NOW())
-ON CONFLICT ("scheduleId", "userId") DO NOTHING;
+  ('e2e00000-0000-4000-a000-000000000901', 'e2e00000-0000-4000-a000-000000000505', 'e2e00000-0000-4000-a000-000000000103', false, NOW())
+ON CONFLICT DO NOTHING;
+
+-- フットサル土曜 3/28: ゲストビジターのキャンセル待ち（userId=NULL, addedBy付き）
+INSERT INTO "WaitlistEntry" ("id", "scheduleId", "userId", "isVisitor", "visitorName", "addedBy", "registeredAt")
+VALUES
+  ('e2e00000-0000-4000-a000-000000000902', 'e2e00000-0000-4000-a000-000000000503', NULL, true, '田中一郎', 'e2e00000-0000-4000-a000-000000000101', NOW())
+ON CONFLICT DO NOTHING;
 
 COMMIT;
 
@@ -340,29 +373,29 @@ BEGIN;
 -- Schedule: フットサル 3月分（統計テスト用）
 INSERT INTO "Schedule" ("id", "activityId", "date", "startTime", "endTime", "location", "status", "capacity", "participationFee", "isOnline", "createdAt", "updatedAt")
 VALUES
-  ('test-sched-futsal-0301', 'test-activity-futsal-sat', '2026-03-01', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500, false, NOW(), NOW()),
-  ('test-sched-futsal-0308', 'test-activity-futsal-sat', '2026-03-08', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500, false, NOW(), NOW()),
-  ('test-sched-futsal-0315', 'test-activity-futsal-sat', '2026-03-15', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500, false, NOW(), NOW())
+  ('e2e00000-0000-4000-a000-00000000050d', 'e2e00000-0000-4000-a000-000000000401', '2026-03-01', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500, false, NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-00000000050e', 'e2e00000-0000-4000-a000-000000000401', '2026-03-08', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500, false, NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-00000000050f', 'e2e00000-0000-4000-a000-000000000401', '2026-03-15', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500, false, NOW(), NOW())
 ON CONFLICT DO NOTHING;
 
 -- Participation: Helena, Daniel の参加（CANCELLED は Participation には入れない＝レコードが存在しない）
 INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
 VALUES
-  ('test-part-h-0301', 'test-sched-futsal-0301', 'test-user-helena-001', false, '2026-02-28T10:00:00Z'),
-  ('test-part-d-0301', 'test-sched-futsal-0301', 'test-user-daniel-001', false, '2026-02-28T12:00:00Z'),
-  ('test-part-h-0308', 'test-sched-futsal-0308', 'test-user-helena-001', false, '2026-03-05T10:00:00Z'),
-  ('test-part-d-0308', 'test-sched-futsal-0308', 'test-user-daniel-001', false, '2026-03-05T12:00:00Z'),
-  ('test-part-h-0315', 'test-sched-futsal-0315', 'test-user-helena-001', false, '2026-03-12T10:00:00Z')
+  ('e2e00000-0000-4000-a000-000000000709', 'e2e00000-0000-4000-a000-00000000050d', 'e2e00000-0000-4000-a000-000000000101', false, '2026-02-28T10:00:00Z'),
+  ('e2e00000-0000-4000-a000-00000000070a', 'e2e00000-0000-4000-a000-00000000050d', 'e2e00000-0000-4000-a000-000000000102', false, '2026-02-28T12:00:00Z'),
+  ('e2e00000-0000-4000-a000-00000000070b', 'e2e00000-0000-4000-a000-00000000050e', 'e2e00000-0000-4000-a000-000000000101', false, '2026-03-05T10:00:00Z'),
+  ('e2e00000-0000-4000-a000-00000000070c', 'e2e00000-0000-4000-a000-00000000050e', 'e2e00000-0000-4000-a000-000000000102', false, '2026-03-05T12:00:00Z'),
+  ('e2e00000-0000-4000-a000-00000000070d', 'e2e00000-0000-4000-a000-00000000050f', 'e2e00000-0000-4000-a000-000000000101', false, '2026-03-12T10:00:00Z')
 ON CONFLICT DO NOTHING;
 
 -- Payment: 統計テスト用
-INSERT INTO "Payment" ("id", "participationId", "userId", "scheduleId", "amount", "paymentMethod", "status", "createdAt", "updatedAt")
+INSERT INTO "Payment" ("id", "participationId", "userId", "scheduleId", "amount", "paymentMethod", "status", "displayName", "createdAt", "updatedAt")
 VALUES
-  ('test-pay-h-0301', 'test-part-h-0301', 'test-user-helena-001', 'test-sched-futsal-0301', 500, 'PAYPAY', 'CONFIRMED', '2026-02-28T10:00:00Z', '2026-02-28T10:00:00Z'),
-  ('test-pay-d-0301', 'test-part-d-0301', 'test-user-daniel-001', 'test-sched-futsal-0301', 500, 'CASH',   'UNPAID',    '2026-02-28T12:00:00Z', '2026-02-28T12:00:00Z'),
-  ('test-pay-h-0308', 'test-part-h-0308', 'test-user-helena-001', 'test-sched-futsal-0308', 500, 'PAYPAY', 'CONFIRMED', '2026-03-05T10:00:00Z', '2026-03-05T10:00:00Z'),
-  ('test-pay-d-0308', 'test-part-d-0308', 'test-user-daniel-001', 'test-sched-futsal-0308', 500, 'CASH',   'CONFIRMED', '2026-03-05T12:00:00Z', '2026-03-05T12:00:00Z'),
-  ('test-pay-h-0315', 'test-part-h-0315', 'test-user-helena-001', 'test-sched-futsal-0315', 500, 'PAYPAY', 'UNPAID',    '2026-03-12T10:00:00Z', '2026-03-12T10:00:00Z')
+  ('e2e00000-0000-4000-a000-000000000803', 'e2e00000-0000-4000-a000-000000000709', 'e2e00000-0000-4000-a000-000000000101', 'e2e00000-0000-4000-a000-00000000050d', 500, 'PAYPAY', 'CONFIRMED', 'Helena', '2026-02-28T10:00:00Z', '2026-02-28T10:00:00Z'),
+  ('e2e00000-0000-4000-a000-000000000804', 'e2e00000-0000-4000-a000-00000000070a', 'e2e00000-0000-4000-a000-000000000102', 'e2e00000-0000-4000-a000-00000000050d', 500, 'CASH',   'UNPAID',    'Daniel', '2026-02-28T12:00:00Z', '2026-02-28T12:00:00Z'),
+  ('e2e00000-0000-4000-a000-000000000805', 'e2e00000-0000-4000-a000-00000000070b', 'e2e00000-0000-4000-a000-000000000101', 'e2e00000-0000-4000-a000-00000000050e', 500, 'PAYPAY', 'CONFIRMED', 'Helena', '2026-03-05T10:00:00Z', '2026-03-05T10:00:00Z'),
+  ('e2e00000-0000-4000-a000-000000000806', 'e2e00000-0000-4000-a000-00000000070c', 'e2e00000-0000-4000-a000-000000000102', 'e2e00000-0000-4000-a000-00000000050e', 500, 'CASH',   'CONFIRMED', 'Daniel', '2026-03-05T12:00:00Z', '2026-03-05T12:00:00Z'),
+  ('e2e00000-0000-4000-a000-000000000807', 'e2e00000-0000-4000-a000-00000000070d', 'e2e00000-0000-4000-a000-000000000101', 'e2e00000-0000-4000-a000-00000000050f', 500, 'PAYPAY', 'UNPAID',    'Helena', '2026-03-12T10:00:00Z', '2026-03-12T10:00:00Z')
 ON CONFLICT DO NOTHING;
 
 COMMIT;
@@ -371,29 +404,25 @@ COMMIT;
 
 BEGIN;
 
--- Schedule に visitorFee を設定（フットサル土曜のスケジュール）
-UPDATE "Schedule" SET "visitorFee" = 800 WHERE "id" = 'test-sched-futsal-sat-01';
-UPDATE "Schedule" SET "visitorFee" = 800 WHERE "id" = 'test-sched-futsal-sat-02';
-
 -- ゲストビジター参加データ（userId=NULL）
 INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "visitorName", "addedBy", "respondedAt")
 VALUES
-  ('test-part-guest-taro', 'test-sched-futsal-sat-01', NULL, true, '山田太郎', 'test-user-helena-001', NOW()),
-  ('test-part-guest-hanako', 'test-sched-futsal-sat-01', NULL, true, '佐藤花子', 'test-user-daniel-001', NOW())
+  ('e2e00000-0000-4000-a000-00000000070e', 'e2e00000-0000-4000-a000-000000000501', NULL, true, '山田太郎', 'e2e00000-0000-4000-a000-000000000101', NOW()),
+  ('e2e00000-0000-4000-a000-00000000070f', 'e2e00000-0000-4000-a000-000000000501', NULL, true, '佐藤花子', 'e2e00000-0000-4000-a000-000000000102', NOW())
 ON CONFLICT DO NOTHING;
 
 -- 登録済みビジター参加データ（userId=set, isVisitor=true）
 INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
 VALUES
-  ('test-part-visitor-sakura', 'test-sched-futsal-sat-02', 'test-user-sakura-001', true, NOW())
+  ('e2e00000-0000-4000-a000-000000000710', 'e2e00000-0000-4000-a000-000000000502', 'e2e00000-0000-4000-a000-000000000103', true, NOW())
 ON CONFLICT DO NOTHING;
 
 -- ゲストビジターの Payment データ
-INSERT INTO "Payment" ("id", "participationId", "userId", "scheduleId", "amount", "paymentMethod", "status", "createdAt", "updatedAt")
+INSERT INTO "Payment" ("id", "participationId", "userId", "scheduleId", "amount", "paymentMethod", "status", "displayName", "createdAt", "updatedAt")
 VALUES
-  ('test-pay-guest-taro', 'test-part-guest-taro', NULL, 'test-sched-futsal-sat-01', 800, NULL, 'UNPAID', NOW(), NOW()),
-  ('test-pay-guest-hanako', 'test-part-guest-hanako', NULL, 'test-sched-futsal-sat-01', 800, 'CASH', 'CONFIRMED', NOW(), NOW()),
-  ('test-pay-visitor-sakura', 'test-part-visitor-sakura', 'test-user-sakura-001', 'test-sched-futsal-sat-02', 800, 'PAYPAY', 'UNPAID', NOW(), NOW())
+  ('e2e00000-0000-4000-a000-000000000808', 'e2e00000-0000-4000-a000-00000000070e', NULL, 'e2e00000-0000-4000-a000-000000000501', 800, NULL, 'UNPAID', '山田太郎', NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000809', 'e2e00000-0000-4000-a000-00000000070f', NULL, 'e2e00000-0000-4000-a000-000000000501', 800, 'CASH', 'CONFIRMED', '佐藤花子', NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-00000000080a', 'e2e00000-0000-4000-a000-000000000710', 'e2e00000-0000-4000-a000-000000000103', 'e2e00000-0000-4000-a000-000000000502', 800, 'PAYPAY', 'UNPAID', 'Sakura', NOW(), NOW())
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
@@ -402,17 +431,17 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO "ExpenseCategory" ("id", "communityId", "name", "isSystem", "sortOrder", "isActive", "createdAt")
 VALUES
-  ('test-expcat-nomikai',  NULL, '飲み会',       true, 1, true, NOW()),
-  ('test-expcat-facility', NULL, '設備利用料',   true, 2, true, NOW()),
-  ('test-expcat-supply',   NULL, '消耗品',       true, 3, true, NOW()),
-  ('test-expcat-uniform',  NULL, 'ユニフォーム', true, 4, true, NOW()),
-  ('test-expcat-misc',     NULL, '未分類',       true, 5, true, NOW())
+  ('e2e00000-0000-4000-a000-000000000a01',  NULL, '飲み会',       true, 1, true, NOW()),
+  ('e2e00000-0000-4000-a000-000000000a02', NULL, '設備利用料',   true, 2, true, NOW()),
+  ('e2e00000-0000-4000-a000-000000000a03',   NULL, '消耗品',       true, 3, true, NOW()),
+  ('e2e00000-0000-4000-a000-000000000a04',  NULL, 'ユニフォーム', true, 4, true, NOW()),
+  ('e2e00000-0000-4000-a000-000000000a05',     NULL, '未分類',       true, 5, true, NOW())
 ON CONFLICT DO NOTHING;
 
 -- フットサルコミュニティ用のカスタムカテゴリ
 INSERT INTO "ExpenseCategory" ("id", "communityId", "name", "isSystem", "sortOrder", "isActive", "createdAt")
 VALUES
-  ('test-expcat-futsal-ball', 'test-community-futsal-001', 'ボール購入', false, 10, true, NOW())
+  ('e2e00000-0000-4000-a000-000000000a06', 'e2e00000-0000-4000-a000-000000000201', 'ボール購入', false, 10, true, NOW())
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
@@ -421,11 +450,11 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO "Expense" ("id", "communityId", "categoryId", "amount", "description", "date", "createdBy", "createdAt", "updatedAt")
 VALUES
-  ('test-expense-001', 'test-community-futsal-001', 'test-expcat-facility', 3000,  'コート利用料 3/15',   '2026-03-15', 'test-user-helena-001', NOW(), NOW()),
-  ('test-expense-002', 'test-community-futsal-001', 'test-expcat-facility', 3000,  'コート利用料 3/22',   '2026-03-22', 'test-user-helena-001', NOW(), NOW()),
-  ('test-expense-003', 'test-community-futsal-001', 'test-expcat-supply',   1500,  'ビブス 10枚セット',   '2026-03-10', 'test-user-helena-001', NOW(), NOW()),
-  ('test-expense-004', 'test-community-futsal-001', 'test-expcat-futsal-ball', 4500, 'フットサルボール 5号', '2026-03-05', 'test-user-helena-001', NOW(), NOW()),
-  ('test-expense-005', 'test-community-futsal-001', 'test-expcat-nomikai',  8000,  '打ち上げ（居酒屋）',  '2026-03-15', 'test-user-helena-001', NOW(), NOW())
+  ('e2e00000-0000-4000-a000-000000000b01', 'e2e00000-0000-4000-a000-000000000201', 'e2e00000-0000-4000-a000-000000000a02', 3000,  'コート利用料 3/15',   '2026-03-15', 'e2e00000-0000-4000-a000-000000000101', NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000b02', 'e2e00000-0000-4000-a000-000000000201', 'e2e00000-0000-4000-a000-000000000a02', 3000,  'コート利用料 3/22',   '2026-03-22', 'e2e00000-0000-4000-a000-000000000101', NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000b03', 'e2e00000-0000-4000-a000-000000000201', 'e2e00000-0000-4000-a000-000000000a03',   1500,  'ビブス 10枚セット',   '2026-03-10', 'e2e00000-0000-4000-a000-000000000101', NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000b04', 'e2e00000-0000-4000-a000-000000000201', 'e2e00000-0000-4000-a000-000000000a06', 4500, 'フットサルボール 5号', '2026-03-05', 'e2e00000-0000-4000-a000-000000000101', NOW(), NOW()),
+  ('e2e00000-0000-4000-a000-000000000b05', 'e2e00000-0000-4000-a000-000000000201', 'e2e00000-0000-4000-a000-000000000a01',  8000,  '打ち上げ（居酒屋）',  '2026-03-15', 'e2e00000-0000-4000-a000-000000000101', NOW(), NOW())
 ON CONFLICT DO NOTHING;
 
 COMMIT;
@@ -434,23 +463,24 @@ COMMIT;
 -- テストデータ削除用（必要時にコメント解除して実行）
 -- ============================================================
 -- BEGIN;
--- DELETE FROM "Expense" WHERE "id" LIKE 'test-expense-%';
--- DELETE FROM "ExpenseCategory" WHERE "id" LIKE 'test-expcat-%';
--- DELETE FROM "Payment" WHERE "id" LIKE 'test-pay-%';
--- DELETE FROM "WaitlistEntry" WHERE "id" LIKE 'test-wl-%';
--- DELETE FROM "Participation" WHERE "id" LIKE 'test-part-%';
--- DELETE FROM "Schedule" WHERE "id" LIKE 'test-sched-%';
--- DELETE FROM "AnnouncementBookmark" WHERE "id" LIKE 'test-bookmark-%';
--- DELETE FROM "AnnouncementRead" WHERE "id" LIKE 'test-read-%';
--- DELETE FROM "Announcement" WHERE "id" LIKE 'test-ann-%';
--- DELETE FROM "Activity" WHERE "id" LIKE 'test-activity-%';
--- DELETE FROM "CommunityMembership" WHERE "id" LIKE 'test-membership-%';
--- DELETE FROM "CommunityTag" WHERE "id" LIKE 'test-ctag-%';
--- DELETE FROM "CommunityActivityDay" WHERE "id" LIKE 'test-cad-%';
--- DELETE FROM "CommunityParticipationLevel" WHERE "id" LIKE 'test-cpl-%';
--- DELETE FROM "CommunityCategory" WHERE "id" LIKE 'test-cc-%';
--- DELETE FROM "Community" WHERE "id" LIKE 'test-community-%';
--- DELETE FROM "PasswordCredential" WHERE "userId" LIKE 'test-user-%';
--- DELETE FROM "auth_security_states" WHERE "user_id" LIKE 'test-user-%';
--- DELETE FROM "User" WHERE "id" LIKE 'test-user-%';
+-- DELETE FROM "Expense" WHERE "id" LIKE 'e2e00000-0000-4000-a000-000000000b%';
+-- DELETE FROM "ExpenseCategory" WHERE "id" LIKE 'e2e00000-0000-4000-a000-000000000a%';
+-- DELETE FROM "Payment" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000080%';
+-- DELETE FROM "WaitlistEntry" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000090%';
+-- DELETE FROM "Participation" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000070%';
+-- DELETE FROM "Schedule" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000050%';
+-- DELETE FROM "AnnouncementBookmark" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000062%';
+-- DELETE FROM "AnnouncementRead" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000061%';
+-- DELETE FROM "Announcement" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000060%';
+-- DELETE FROM "Activity" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000040%';
+-- DELETE FROM "CommunityMembership" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000030%';
+-- DELETE FROM "CommunityTag" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000025%';
+-- DELETE FROM "CommunityActivityDay" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000024%';
+-- DELETE FROM "CommunityParticipationLevel" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000023%';
+-- DELETE FROM "CommunityCategory" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000021%';
+-- DELETE FROM "CommunityLocation" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000022%';
+-- DELETE FROM "Community" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000020%';
+-- DELETE FROM "PasswordCredential" WHERE "userId" LIKE 'e2e00000-0000-4000-a000-00000000010%';
+-- DELETE FROM "auth_security_states" WHERE "user_id" LIKE 'e2e00000-0000-4000-a000-00000000010%';
+-- DELETE FROM "User" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000010%';
 -- COMMIT;

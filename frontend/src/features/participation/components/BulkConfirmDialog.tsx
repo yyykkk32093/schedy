@@ -16,14 +16,14 @@ interface BulkConfirmDialogProps {
  * まとめて支払い確認（CONFIRMED）する。
  */
 export function BulkConfirmDialog({ scheduleId, participants, open, onClose }: BulkConfirmDialogProps) {
-    const confirmableParticipants = participants.filter((p) => p.paymentStatus === 'UNPAID' || p.paymentStatus === 'REPORTED')
+    const confirmableParticipants = participants.filter((p) => p.paymentMethod != null && (p.paymentStatus === 'UNPAID' || p.paymentStatus === 'REPORTED'))
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(confirmableParticipants.map((p) => p.id)))
     const bulkConfirm = useBulkConfirmPayment(scheduleId)
 
     // #40: ダイアログを開くたびに最新の対象者で選択をリセット
     useEffect(() => {
         if (open) {
-            const fresh = participants.filter((p) => p.paymentStatus === 'UNPAID' || p.paymentStatus === 'REPORTED')
+            const fresh = participants.filter((p) => p.paymentMethod != null && (p.paymentStatus === 'UNPAID' || p.paymentStatus === 'REPORTED'))
             setSelectedIds(new Set(fresh.map((p) => p.id)))
         }
     }, [open, participants])
@@ -110,7 +110,11 @@ export function BulkConfirmDialog({ scheduleId, participants, open, onClose }: B
                                         className="w-4 h-4 rounded accent-blue-500"
                                     />
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm text-gray-800 truncate">{p.displayName ?? p.userId}</p>
+                                        <p className="text-sm text-gray-800 truncate">
+                                            {p.visitorName ?? p.displayName ?? p.userId}
+                                            {p.isVisitor && !p.userId && <span className="text-[10px] text-gray-400 ml-1 align-middle">（ビジター・ゲスト）</span>}
+                                            {p.isVisitor && p.userId && <span className="text-[10px] text-gray-400 ml-1 align-middle">（ビジター）</span>}
+                                        </p>
                                         <p className="text-[10px] text-gray-400">
                                             {p.paymentMethod === 'CASH' ? '現金' : p.paymentMethod === 'PAYPAY' ? 'PayPay' : p.paymentMethod ?? '—'}
                                         </p>

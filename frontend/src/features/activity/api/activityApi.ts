@@ -22,8 +22,8 @@ export const activityApi = {
     update: (id: string, data: UpdateActivityRequest) =>
         http<void>(`/v1/activities/${id}`, { method: 'PATCH', json: data }),
 
-    remove: (id: string) =>
-        http<void>(`/v1/activities/${id}`, { method: 'DELETE' }),
+    remove: (id: string, notifyOption: 'announcement' | 'push_only' | 'none' = 'none') =>
+        http<void>(`/v1/activities/${id}`, { method: 'DELETE', json: { notifyOption } }),
 
     changeOrganizer: (id: string, data: ChangeOrganizerRequest) =>
         http<void>(`/v1/activities/${id}/organizer`, { method: 'PATCH', json: data }),

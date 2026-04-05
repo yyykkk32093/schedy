@@ -1,5 +1,6 @@
 import { useSocket } from '@/app/providers/SocketProvider'
 import { messageListKeys } from '@/shared/lib/queryKeys'
+import type { ListMessagesResponse, MessageItem } from '@/shared/types/api'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -9,6 +10,8 @@ interface WsMessage {
     id: string
     channelId: string
     senderId: string
+    senderDisplayName: string | null
+    senderAvatarUrl: string | null
     parentMessageId: string | null
     content: string
     mentions: string[]
@@ -16,6 +19,7 @@ interface WsMessage {
     attachments: unknown[]
     reactions: unknown[]
     deletedBy?: string | null
+    replyCount: number
     createdAt: string
 }
 
@@ -31,6 +35,13 @@ interface WsReactionUpdated {
 interface WsMessageDeleted {
     messageId: string
     channelId: string
+}
+
+/** thread:new イベントのペイロード */
+interface WsThreadNew {
+    reply: WsMessage
+    parentMessageId: string
+    replyCount: number
 }
 
 // ─── Hook ────────────────────────────────────────────────
@@ -82,7 +93,7 @@ export function useSocketChat({ channelId }: UseSocketChatOptions): UseSocketCha
         }
     }, [socket, channelId])
 
-    // ── message:new リスナー ──
+    // ── message:new リスナー（トップレベルメッセージのみ） ──
     useEffect(() => {
         if (!socket || !channelId) return
 
@@ -90,7 +101,10 @@ export function useSocketChat({ channelId }: UseSocketChatOptions): UseSocketCha
             // 現在表示中のチャンネルのメッセージのみキャッシュ更新
             if (msg.channelId !== channelId) return
 
-            qc.setQueryData<{ messages: WsMessage[] }>(
+            // スレッド返信はトップレベルキャッシュに追加しない（thread:new で処理）
+            if (msg.parentMessageId) return
+
+            qc.setQueryData<ListMessagesResponse>(
                 messageListKeys.byChannel(channelId),
                 (old) => {
                     if (!old) return old
@@ -98,7 +112,23 @@ export function useSocketChat({ channelId }: UseSocketChatOptions): UseSocketCha
                     const exists = old.messages.some((m) => m.id === msg.id)
                     if (exists) return old
                     // API は createdAt DESC で返却 → 先頭に追加
-                    return { ...old, messages: [msg, ...old.messages] }
+                    const newMsg: MessageItem = {
+                        id: msg.id,
+                        channelId: msg.channelId,
+                        senderId: msg.senderId,
+                        senderDisplayName: msg.senderDisplayName,
+                        senderAvatarUrl: msg.senderAvatarUrl,
+                        parentMessageId: msg.parentMessageId,
+                        content: msg.content,
+                        mentions: msg.mentions,
+                        deletedBy: msg.deletedBy ?? null,
+                        attachments: [],
+                        reactions: [],
+                        replyCount: 0,
+                        latestReply: null,
+                        createdAt: msg.createdAt,
+                    }
+                    return { ...old, messages: [newMsg, ...old.messages] }
                 },
             )
         }
@@ -106,6 +136,72 @@ export function useSocketChat({ channelId }: UseSocketChatOptions): UseSocketCha
         socket.on('message:new', handleNewMessage)
         return () => {
             socket.off('message:new', handleNewMessage)
+        }
+    }, [socket, channelId, qc])
+
+    // ── thread:new リスナー（スレッド返信） ──
+    useEffect(() => {
+        if (!socket || !channelId) return
+
+        const handleThreadNew = (data: WsThreadNew) => {
+            if (data.reply.channelId !== channelId) return
+
+            // 1. トップレベルメッセージの replyCount + latestReply を更新
+            qc.setQueryData<ListMessagesResponse>(
+                messageListKeys.byChannel(channelId),
+                (old) => {
+                    if (!old) return old
+                    return {
+                        ...old,
+                        messages: old.messages.map((m) =>
+                            m.id === data.parentMessageId
+                                ? {
+                                    ...m,
+                                    replyCount: data.replyCount,
+                                    latestReply: {
+                                        senderDisplayName: data.reply.senderDisplayName,
+                                        content: data.reply.content,
+                                        createdAt: data.reply.createdAt,
+                                    },
+                                }
+                                : m,
+                        ),
+                    }
+                },
+            )
+
+            // 2. スレッド返信キャッシュに新しい返信を追加（スレッドが開いている場合）
+            qc.setQueryData<ListMessagesResponse>(
+                messageListKeys.replies(data.parentMessageId),
+                (old) => {
+                    if (!old) return old
+                    const exists = old.messages.some((m) => m.id === data.reply.id)
+                    if (exists) return old
+                    const replyMsg: MessageItem = {
+                        id: data.reply.id,
+                        channelId: data.reply.channelId,
+                        senderId: data.reply.senderId,
+                        senderDisplayName: data.reply.senderDisplayName,
+                        senderAvatarUrl: data.reply.senderAvatarUrl,
+                        parentMessageId: data.reply.parentMessageId,
+                        content: data.reply.content,
+                        mentions: data.reply.mentions,
+                        deletedBy: data.reply.deletedBy ?? null,
+                        attachments: [],
+                        reactions: [],
+                        replyCount: 0,
+                        latestReply: null,
+                        createdAt: data.reply.createdAt,
+                    }
+                    // 返信は createdAt ASC → 末尾に追加
+                    return { ...old, messages: [...old.messages, replyMsg] }
+                },
+            )
+        }
+
+        socket.on('thread:new', handleThreadNew)
+        return () => {
+            socket.off('thread:new', handleThreadNew)
         }
     }, [socket, channelId, qc])
 
@@ -147,8 +243,9 @@ export function useSocketChat({ channelId }: UseSocketChatOptions): UseSocketCha
         if (!socket || !channelId) return
 
         const handleReactionUpdated = (_data: WsReactionUpdated) => {
-            // リアクション変更 → メッセージ一覧を再取得
+            // リアクション変更 → メッセージ一覧 + スレッド返信を再取得
             qc.invalidateQueries({ queryKey: messageListKeys.byChannel(channelId) })
+            qc.invalidateQueries({ queryKey: ['messages', 'replies'] })
         }
 
         socket.on('reaction:updated', handleReactionUpdated)
@@ -164,7 +261,7 @@ export function useSocketChat({ channelId }: UseSocketChatOptions): UseSocketCha
         const handleMessageDeleted = (data: WsMessageDeleted) => {
             if (data.channelId !== channelId) return
             // 削除されたメッセージのキャッシュを更新（deletedBy をセット）
-            qc.setQueryData<{ messages: WsMessage[] }>(
+            qc.setQueryData<ListMessagesResponse>(
                 messageListKeys.byChannel(channelId),
                 (old) => {
                     if (!old) return old
@@ -176,6 +273,8 @@ export function useSocketChat({ channelId }: UseSocketChatOptions): UseSocketCha
                     }
                 },
             )
+            // スレッド返信キャッシュも invalidate
+            qc.invalidateQueries({ queryKey: ['messages', 'replies'] })
         }
 
         socket.on('message:deleted', handleMessageDeleted)

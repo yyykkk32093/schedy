@@ -37,7 +37,7 @@ export const membershipController = {
     async changeRole(req: Request, res: Response, next: NextFunction) {
         try {
             const { id: communityId, userId: targetUserId } = req.params
-            const { role: newRole } = req.body
+            const { role: newRole, propagateToChildren } = req.body
             const requesterId = req.user!.userId
 
             const useCase = usecaseFactory.createChangeMemberRoleUseCase()
@@ -46,6 +46,7 @@ export const membershipController = {
                 targetUserId,
                 requesterId,
                 newRole,
+                propagateToChildren,
             })
 
             res.status(204).send()
@@ -58,9 +59,10 @@ export const membershipController = {
         try {
             const { id: communityId } = req.params
             const userId = req.user!.userId
+            const { cascadeToChildren } = req.body ?? {}
 
             const useCase = usecaseFactory.createLeaveCommunityUseCase()
-            await useCase.execute({ communityId, userId })
+            await useCase.execute({ communityId, userId, cascadeToChildren })
 
             res.status(204).send()
         } catch (err) {

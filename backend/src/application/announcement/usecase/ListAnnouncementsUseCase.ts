@@ -57,7 +57,7 @@ export class ListAnnouncementsUseCase {
             this.commentRepository.countByAnnouncementIds(ids),
             this.likeRepository.findLikedIds(input.userId, ids),
             this.bookmarkRepository.findBookmarkedIds(input.userId, ids),
-            this.announcementReadRepository.countByAnnouncementIds(ids),
+            this.announcementReadRepository.countByAnnouncementIds(ids, input.userId),
         ])
 
         const readSet = new Set(readIds)

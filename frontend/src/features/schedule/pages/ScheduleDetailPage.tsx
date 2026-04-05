@@ -41,7 +41,7 @@ export function ScheduleDetailPage() {
     const { data: schedule, isLoading } = useSchedule(id!)
     const { data: participantsData } = useParticipants(id!)
 
-    const updateMutation = useUpdateSchedule(id!, schedule?.activityId ?? '')
+    const updateMutation = useUpdateSchedule()
     const cancelScheduleMutation = useCancelSchedule(schedule?.activityId ?? '')
 
     const reportPaymentMutation = useReportPayment(id!)
@@ -63,6 +63,9 @@ export function ScheduleDetailPage() {
     if (isLoading) return <div className="p-6 text-center text-gray-500">読み込み中...</div>
     if (!schedule) return <div className="p-6 text-center text-red-500">スケジュールが見つかりません</div>
 
+    const hasFee = schedule.participationFee != null && schedule.participationFee > 0
+    const participants = participantsData?.participants ?? []
+
     const startEdit = () => {
         setDate(schedule.date)
         setStartTime(schedule.startTime)
@@ -76,6 +79,8 @@ export function ScheduleDetailPage() {
 
     const handleUpdate = async () => {
         await updateMutation.mutateAsync({
+            scheduleId: id!,
+            activityId: schedule.activityId,
             date,
             startTime,
             endTime,
@@ -90,7 +95,7 @@ export function ScheduleDetailPage() {
     const handleCancelSchedule = async () => {
         if (!confirm('このスケジュールをキャンセルしますか？')) return
         await cancelScheduleMutation.mutateAsync(id!)
-        navigate(`/activities/${schedule.activityId}/schedules`)
+        navigate(`/communities/${schedule.communityId}/activities/${schedule.activityId}/schedules`)
     }
 
     const handleRemoveParticipant = (userId: string) => {
@@ -99,8 +104,6 @@ export function ScheduleDetailPage() {
     }
 
     const isCancelled = schedule.status === 'CANCELLED'
-    const hasFee = schedule.participationFee != null && schedule.participationFee > 0
-    const participants = participantsData?.participants ?? []
     const myStatus = schedule.myStatus ?? 'none'
     const isFull = schedule.capacity != null && schedule.attendingCount != null && schedule.attendingCount >= schedule.capacity
 
@@ -173,7 +176,18 @@ export function ScheduleDetailPage() {
             {!isCancelled && (
                 <div className="border rounded-lg p-4 space-y-3">
                     <h2 className="font-semibold text-lg">参加</h2>
-                    <ParticipationActionButton scheduleId={id!} hasFee={hasFee} myStatus={myStatus} isFull={isFull} />
+                    <ParticipationActionButton
+                        scheduleId={id!}
+                        hasFee={hasFee}
+                        participationFee={schedule.participationFee}
+                        myStatus={myStatus}
+                        isFull={isFull}
+                        enabledPaymentMethods={schedule.enabledPaymentMethods}
+                        paypayId={schedule.paypayId}
+                        myParticipationId={schedule.myParticipationId}
+                        myPaymentMethod={schedule.myPaymentMethod}
+                        myPaymentStatus={schedule.myPaymentStatus}
+                    />
                 </div>
             )}
 
@@ -182,70 +196,76 @@ export function ScheduleDetailPage() {
                 <div className="mt-6 border rounded-lg p-4">
                     <h2 className="font-semibold text-lg mb-3">参加者一覧</h2>
                     <div className="divide-y">
-                        {participants.map((p) => (
-                            <div key={p.id} className="flex items-center justify-between py-2">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium">
-                                        {p.displayName ?? p.visitorName ?? (p.userId ? p.userId.slice(0, 8) + '…' : '—')}
-                                        {p.isVisitor && <span className="ml-1 text-xs text-gray-400">(ビジター)</span>}
-                                    </span>
-                                    <span className={`text-xs px-1.5 py-0.5 rounded ${p.status === 'ATTENDING' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                                        {p.status}
-                                    </span>
+                        {participants.map((p) => {
+                            const isReported = p.paymentStatus === 'REPORTED'
+
+                            return (
+                                <div key={p.id} className="flex items-center justify-between py-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium">
+                                            {p.displayName ?? p.visitorName ?? (p.userId ? p.userId.slice(0, 8) + '…' : '—')}
+                                            {p.isVisitor && <span className="ml-1 text-xs text-gray-400">(ビジター)</span>}
+                                        </span>
+                                        <span className={`text-xs px-1.5 py-0.5 rounded ${p.status === 'ATTENDING' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                                            {p.status}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        {/* 支払情報 */}
+                                        {hasFee && p.paymentStatus && (
+                                            <>
+                                                {p.paymentMethod && (
+                                                    <span className="text-xs text-gray-500">{PAYMENT_LABELS[p.paymentMethod] ?? p.paymentMethod}</span>
+                                                )}
+                                                <span className={`text-xs px-1.5 py-0.5 rounded ${PAYMENT_STATUS_COLORS[p.paymentStatus] ?? 'bg-gray-100 text-gray-600'}`}>
+                                                    {PAYMENT_STATUS_LABELS[p.paymentStatus] ?? p.paymentStatus}
+                                                </span>
+
+                                                {/* 支払報告ボタン（本人用 - UNPAID時） */}
+                                                {p.paymentStatus === 'UNPAID' && (
+                                                    <button
+                                                        onClick={() => reportPaymentMutation.mutate(p.id)}
+                                                        disabled={reportPaymentMutation.isPending}
+                                                        className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                                                    >
+                                                        支払報告
+                                                    </button>
+                                                )}
+
+                                                {/* 支払確認ボタン（管理者用 - REPORTED時） */}
+                                                {isReported && isAdminOrAbove && (
+                                                    <button
+                                                        onClick={() => confirmPaymentMutation.mutate(p.id)}
+                                                        disabled={confirmPaymentMutation.isPending}
+                                                        className="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 flex items-center gap-1"
+                                                    >
+                                                        <CheckCircle className="h-3 w-3" />
+                                                        確認
+                                                    </button>
+                                                )}
+                                            </>
+                                        )}
+
+                                        {/* 管理者による参加者除外ボタン */}
+                                        {isAdminOrAbove && p.status === 'ATTENDING' && p.userId && (
+                                            <button
+                                                onClick={() => handleRemoveParticipant(p.userId!)}
+                                                disabled={removeParticipantMutation.isPending}
+                                                className="text-xs p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
+                                                title="参加者を除外"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-
-                                <div className="flex items-center gap-2">
-                                    {/* 支払情報 */}
-                                    {hasFee && p.paymentStatus && (
-                                        <>
-                                            {p.paymentMethod && (
-                                                <span className="text-xs text-gray-500">{PAYMENT_LABELS[p.paymentMethod] ?? p.paymentMethod}</span>
-                                            )}
-                                            <span className={`text-xs px-1.5 py-0.5 rounded ${PAYMENT_STATUS_COLORS[p.paymentStatus] ?? 'bg-gray-100 text-gray-600'}`}>
-                                                {PAYMENT_STATUS_LABELS[p.paymentStatus] ?? p.paymentStatus}
-                                            </span>
-
-                                            {/* 支払報告ボタン（本人用 - UNPAID時） */}
-                                            {p.paymentStatus === 'UNPAID' && (
-                                                <button
-                                                    onClick={() => reportPaymentMutation.mutate(p.id)}
-                                                    disabled={reportPaymentMutation.isPending}
-                                                    className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-                                                >
-                                                    支払報告
-                                                </button>
-                                            )}
-
-                                            {/* 支払確認ボタン（管理者用 - REPORTED時） */}
-                                            {p.paymentStatus === 'REPORTED' && isAdminOrAbove && (
-                                                <button
-                                                    onClick={() => confirmPaymentMutation.mutate(p.id)}
-                                                    disabled={confirmPaymentMutation.isPending}
-                                                    className="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 flex items-center gap-1"
-                                                >
-                                                    <CheckCircle className="h-3 w-3" />
-                                                    確認
-                                                </button>
-                                            )}
-                                        </>
-                                    )}
-
-                                    {/* 管理者による参加者除外ボタン */}
-                                    {isAdminOrAbove && p.status === 'ATTENDING' && p.userId && (
-                                        <button
-                                            onClick={() => handleRemoveParticipant(p.userId!)}
-                                            disabled={removeParticipantMutation.isPending}
-                                            className="text-xs p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
-                                            title="参加者を除外"
-                                        >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
+                            )
+                        })}
                     </div>
-                </div>)}
+                </div>
+            )}
+
         </div>
     )
 }

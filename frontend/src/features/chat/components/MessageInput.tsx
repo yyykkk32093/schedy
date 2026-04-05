@@ -1,16 +1,18 @@
-import { Image } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { Image, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 interface MessageInputProps {
     onSend: (content: string, files: File[]) => void
     isSending: boolean
+    /** プレースホルダーテキスト */
+    placeholder?: string
 }
 
 /**
  * メッセージ入力エリア — Mockup準拠
  * テキスト入力 + マイク / 絵文字 / 画像 アイコン
  */
-export function MessageInput({ onSend, isSending }: MessageInputProps) {
+export function MessageInput({ onSend, isSending, placeholder = 'Message...' }: MessageInputProps) {
     const [content, setContent] = useState('')
     const [pendingFiles, setPendingFiles] = useState<File[]>([])
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -33,17 +35,51 @@ export function MessageInput({ onSend, isSending }: MessageInputProps) {
         setPendingFiles((prev) => prev.filter((_, i) => i !== index))
     }
 
+    // 画像ファイルのプレビューURL生成（メモリリーク防止）
+    const previewUrls = useMemo(() => {
+        return pendingFiles.map((file) =>
+            file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+        )
+    }, [pendingFiles])
+
+    // プレビューURLのクリーンアップ
+    useEffect(() => {
+        return () => {
+            previewUrls.forEach((url) => url && URL.revokeObjectURL(url))
+        }
+    }, [previewUrls])
+
     return (
         <div className="border-t border-gray-100 bg-white">
             {/* 添付ファイルプレビュー */}
             {pendingFiles.length > 0 && (
                 <div className="flex gap-2 flex-wrap px-4 pt-2">
-                    {pendingFiles.map((file, i) => (
-                        <span key={i} className="text-xs bg-gray-100 px-2 py-1 rounded flex items-center gap-1">
-                            📎 {file.name}
-                            <button type="button" onClick={() => removePendingFile(i)} className="text-red-400 hover:text-red-600">×</button>
-                        </span>
-                    ))}
+                    {pendingFiles.map((file, i) => {
+                        const previewUrl = previewUrls[i]
+                        return previewUrl ? (
+                            // 画像: サムネイルプレビュー
+                            <div key={i} className="relative group">
+                                <img
+                                    src={previewUrl}
+                                    alt={file.name}
+                                    className="h-16 w-16 object-cover rounded-lg border border-gray-200"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => removePendingFile(i)}
+                                    className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                                >
+                                    <X className="w-3 h-3" />
+                                </button>
+                            </div>
+                        ) : (
+                            // 非画像: ファイル名表示
+                            <span key={i} className="text-xs bg-gray-100 px-2 py-1 rounded flex items-center gap-1">
+                                📎 {file.name}
+                                <button type="button" onClick={() => removePendingFile(i)} className="text-red-400 hover:text-red-600">×</button>
+                            </span>
+                        )
+                    })}
                 </div>
             )}
 
@@ -61,7 +97,8 @@ export function MessageInput({ onSend, isSending }: MessageInputProps) {
                     type="text"
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    placeholder="Message..."
+                    placeholder={placeholder}
+                    maxLength={500}
                     className="flex-1 text-sm bg-transparent outline-none placeholder:text-gray-400"
                 />
 

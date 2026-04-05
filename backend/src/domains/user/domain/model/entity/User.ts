@@ -22,7 +22,8 @@ export class User extends AggregateRoot {
         private avatarUrl: AvatarUrl | null,
         private notificationSetting: UserNotificationSetting,
         private readonly createdAt: Date,
-        private updatedAt: Date
+        private updatedAt: Date,
+        private deletedAt: Date | null = null,
     ) {
         super()
     }
@@ -107,6 +108,7 @@ export class User extends AggregateRoot {
         }
         createdAt: Date
         updatedAt: Date
+        deletedAt: Date | null
     }): User {
 
         return new User(
@@ -119,7 +121,8 @@ export class User extends AggregateRoot {
             params.avatarUrl ? AvatarUrl.reconstruct(params.avatarUrl) : null,
             UserNotificationSetting.reconstruct(params.notification),
             params.createdAt,
-            params.updatedAt
+            params.updatedAt,
+            params.deletedAt,
         )
     }
 
@@ -177,6 +180,21 @@ export class User extends AggregateRoot {
         this.updatedAt = new Date()
     }
 
+    /**
+     * 論理削除（退会）
+     */
+    softDelete(): void {
+        if (this.deletedAt) {
+            throw new Error('User is already deleted')
+        }
+        this.deletedAt = new Date()
+        this.updatedAt = this.deletedAt
+    }
+
+    isDeleted(): boolean {
+        return this.deletedAt !== null
+    }
+
     // =====================================================
     // Getter
     // =====================================================
@@ -191,4 +209,5 @@ export class User extends AggregateRoot {
     getNotificationSetting() { return this.notificationSetting }
     getCreatedAt() { return this.createdAt }
     getUpdatedAt() { return this.updatedAt }
+    getDeletedAt() { return this.deletedAt }
 }

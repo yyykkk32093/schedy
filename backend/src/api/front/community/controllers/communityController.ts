@@ -7,20 +7,24 @@ export const communityController = {
         try {
             const {
                 name, description,
-                communityTypeId, joinMethod, isPublic, maxMembers,
-                mainActivityArea, activityFrequency, nearestStation,
-                targetGender, ageRange,
-                categoryIds, participationLevelIds, activityDays, tags,
+                joinMethod, isPublic, maxMembers,
+                activityFrequency,
+                targetGender,
+                ageMin, ageMax,
+                categoryId, recommendedLevelMin, recommendedLevelMax,
+                activityDays, tags,
             } = req.body
             const userId = req.user!.userId
 
             const useCase = usecaseFactory.createCreateCommunityUseCase()
             const result = await useCase.execute({
                 name, description, userId,
-                communityTypeId, joinMethod, isPublic, maxMembers,
-                mainActivityArea, activityFrequency, nearestStation,
-                targetGender, ageRange,
-                categoryIds, participationLevelIds, activityDays, tags,
+                joinMethod, isPublic, maxMembers,
+                activityFrequency,
+                targetGender,
+                ageMin, ageMax,
+                categoryId, recommendedLevelMin, recommendedLevelMax,
+                activityDays, tags,
             })
 
             res.status(201).json(result)
@@ -32,11 +36,22 @@ export const communityController = {
     async createChild(req: Request, res: Response, next: NextFunction) {
         try {
             const { parentId } = req.params
-            const { name, description } = req.body
+            const {
+                name, description, inheritSettings, memberInheritance, selectedMemberIds,
+                joinMethod, isPublic, maxMembers, targetGender, ageMin, ageMax,
+                activityFrequency, activityDays, categoryId,
+                recommendedLevelMin, recommendedLevelMax, tags,
+            } = req.body
             const userId = req.user!.userId
 
             const useCase = usecaseFactory.createCreateSubCommunityUseCase()
-            const result = await useCase.execute({ parentId, name, description, userId })
+            const result = await useCase.execute({
+                parentId, name, description, userId,
+                inheritSettings, memberInheritance, selectedMemberIds,
+                joinMethod, isPublic, maxMembers, targetGender, ageMin, ageMax,
+                activityFrequency, activityDays, categoryId,
+                recommendedLevelMin, recommendedLevelMax, tags,
+            })
 
             res.status(201).json(result)
         } catch (err) {
@@ -85,11 +100,28 @@ export const communityController = {
     async update(req: Request, res: Response, next: NextFunction) {
         try {
             const { id } = req.params
-            const { name, description, logoUrl, coverUrl, payPayId, enabledPaymentMethods, reminderEnabled, cancellationAlertEnabled, joinMethod, isPublic, mainActivityArea, activityFrequency } = req.body
+            const {
+                name, description, logoUrl, coverUrl,
+                payPayId, enabledPaymentMethods,
+                reminderEnabled, cancellationAlertEnabled,
+                joinMethod, isPublic, activityFrequency,
+                targetGender,
+                ageMin, ageMax, categoryId,
+                recommendedLevelMin, recommendedLevelMax,
+            } = req.body
             const userId = req.user!.userId
 
             const useCase = usecaseFactory.createUpdateCommunityUseCase()
-            await useCase.execute({ communityId: id, userId, name, description, logoUrl, coverUrl, payPayId, enabledPaymentMethods, reminderEnabled, cancellationAlertEnabled, joinMethod, isPublic, mainActivityArea, activityFrequency })
+            await useCase.execute({
+                communityId: id, userId,
+                name, description, logoUrl, coverUrl,
+                payPayId, enabledPaymentMethods,
+                reminderEnabled, cancellationAlertEnabled,
+                joinMethod, isPublic, activityFrequency,
+                targetGender,
+                ageMin, ageMax, categoryId,
+                recommendedLevelMin, recommendedLevelMax,
+            })
 
             res.status(204).send()
         } catch (err) {
@@ -115,7 +147,7 @@ export const communityController = {
 
     async search(req: Request, res: Response, next: NextFunction) {
         try {
-            const { keyword, categoryIds, levelIds, area, days, limit, offset } = req.query
+            const { keyword, categoryIds, levelIds, area, days, targetGender, communityTypeId, joinMethod, limit, offset } = req.query
             const useCase = usecaseFactory.createSearchCommunitiesUseCase()
             const result = await useCase.execute({
                 keyword: keyword as string | undefined,
@@ -123,6 +155,9 @@ export const communityController = {
                 levelIds: levelIds ? (Array.isArray(levelIds) ? levelIds as string[] : [levelIds as string]) : undefined,
                 area: area as string | undefined,
                 days: days ? (Array.isArray(days) ? days as string[] : [days as string]) : undefined,
+                targetGender: targetGender ? (Array.isArray(targetGender) ? targetGender as string[] : [targetGender as string]) : undefined,
+                communityTypeId: communityTypeId as string | undefined,
+                joinMethod: joinMethod as string | undefined,
                 limit: limit ? Number(limit) : undefined,
                 offset: offset ? Number(offset) : undefined,
             })
@@ -163,6 +198,17 @@ export const communityController = {
             const useCase = usecaseFactory.createRequestJoinCommunityUseCase()
             const result = await useCase.execute({ communityId: id, userId, message })
             res.status(201).json(result)
+        } catch (err) {
+            next(err)
+        }
+    },
+
+    async listChildren(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { id } = req.params
+            const useCase = usecaseFactory.createListSubCommunitiesUseCase()
+            const result = await useCase.execute({ parentId: id })
+            res.status(200).json(result)
         } catch (err) {
             next(err)
         }

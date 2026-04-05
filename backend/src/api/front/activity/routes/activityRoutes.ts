@@ -2,6 +2,8 @@ import { prisma } from '@/_sharedTech/db/client.js'
 import { featureGateService } from '@/_sharedTech/featureGate/featureGateServiceInstance.js'
 import { authMiddleware } from '@/api/middleware/authMiddleware.js'
 import { requireCommunityFeature } from '@/api/middleware/featureGateMiddleware.js'
+import { validateBody } from '@/api/middleware/validateBody.js'
+import { changeOrganizerSchema, createActivitySchema, deleteActivitySchema, updateActivitySchema } from '@/api/schemas/index.js'
 import { CommunityFeature } from '@/domains/_sharedDomains/featureGate/CommunityFeature.js'
 import type { NextFunction, Request, Response } from 'express'
 import { Router } from 'express'
@@ -68,13 +70,13 @@ async function requireAutoScheduleIfRecurrenceUpdate(req: Request, res: Response
 const router = Router()
 
 // Community 配下の Activity CRUD
-router.post('/v1/communities/:communityId/activities', authMiddleware, requireAutoScheduleIfRecurrenceCreate, activityController.create)
+router.post('/v1/communities/:communityId/activities', authMiddleware, validateBody(createActivitySchema), requireAutoScheduleIfRecurrenceCreate, activityController.create)
 router.get('/v1/communities/:communityId/activities', authMiddleware, activityController.list)
 
 // Activity 単体操作
 router.get('/v1/activities/:id', authMiddleware, activityController.findById)
-router.patch('/v1/activities/:id', authMiddleware, requireAutoScheduleIfRecurrenceUpdate, activityController.update)
-router.patch('/v1/activities/:id/organizer', authMiddleware, activityController.changeOrganizer)
-router.delete('/v1/activities/:id', authMiddleware, activityController.softDelete)
+router.patch('/v1/activities/:id', authMiddleware, validateBody(updateActivitySchema), requireAutoScheduleIfRecurrenceUpdate, activityController.update)
+router.patch('/v1/activities/:id/organizer', authMiddleware, validateBody(changeOrganizerSchema), activityController.changeOrganizer)
+router.delete('/v1/activities/:id', authMiddleware, validateBody(deleteActivitySchema), activityController.softDelete)
 
 export default router

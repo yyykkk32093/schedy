@@ -284,3 +284,12 @@ ON CONFLICT ("grade","limitKey") DO UPDATE SET "value" = EXCLUDED."value", "upda
 INSERT INTO "CommunityLimitRestriction" ("id","grade","limitKey","value","createdAt","updatedAt")
 VALUES (gen_random_uuid(), 'PREMIUM', 'maxMembers', -1, NOW(), NOW())
 ON CONFLICT ("grade","limitKey") DO UPDATE SET "value" = EXCLUDED."value", "updatedAt" = NOW();
+
+-- タグ上限
+INSERT INTO "CommunityLimitRestriction" ("id","grade","limitKey","value","createdAt","updatedAt")
+VALUES (gen_random_uuid(), 'FREE', 'maxTags', 5, NOW(), NOW())
+ON CONFLICT ("grade","limitKey") DO UPDATE SET "value" = EXCLUDED."value", "updatedAt" = NOW();
+
+INSERT INTO "CommunityLimitRestriction" ("id","grade","limitKey","value","createdAt","updatedAt")
+VALUES (gen_random_uuid(), 'PREMIUM', 'maxTags', 100, NOW(), NOW())
+ON CONFLICT ("grade","limitKey") DO UPDATE SET "value" = EXCLUDED."value", "updatedAt" = NOW();

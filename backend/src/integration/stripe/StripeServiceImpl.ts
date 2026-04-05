@@ -1,5 +1,5 @@
 /**
- * Stripe SDK を使った IStripeService 実装
+ * Stripe SDK を使った IStripeService 実装（Connect / Payment）
  *
  * AppSecretsLoader.getStripe() から API キーを取得する。
  */

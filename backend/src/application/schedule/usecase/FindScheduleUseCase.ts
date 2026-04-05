@@ -3,6 +3,7 @@ import type { IScheduleRepository } from '@/domains/activity/schedule/domain/rep
 import type { IParticipationRepository } from '@/domains/activity/schedule/participation/domain/repository/IParticipationRepository.js'
 import type { IPaymentRepository } from '@/domains/activity/schedule/participation/domain/repository/IPaymentRepository.js'
 import type { IWaitlistEntryRepository } from '@/domains/activity/schedule/waitlist/domain/repository/IWaitlistEntryRepository.js'
+import type { ICommunityRepository } from '@/domains/community/domain/repository/ICommunityRepository.js'
 import { ScheduleNotFoundError } from '../error/ScheduleNotFoundError.js'
 
 export type MyScheduleStatus = 'none' | 'attending' | 'waitlisted'
@@ -14,6 +15,7 @@ export class FindScheduleUseCase {
         private readonly participationRepository: IParticipationRepository,
         private readonly waitlistEntryRepository: IWaitlistEntryRepository,
         private readonly paymentRepository: IPaymentRepository,
+        private readonly communityRepository: ICommunityRepository,
     ) { }
 
     async execute(input: { scheduleId: string; userId?: string }): Promise<{
@@ -26,12 +28,15 @@ export class FindScheduleUseCase {
         myStatus: MyScheduleStatus; myParticipationId: string | null;
         myPaymentMethod: string | null; myPaymentStatus: string | null;
         attendingCount: number; waitlistCount: number;
+        enabledPaymentMethods: string[]; paypayId: string | null;
     }> {
         const schedule = await this.scheduleRepository.findById(input.scheduleId)
         if (!schedule) throw new ScheduleNotFoundError()
 
         const scheduleId = schedule.getId().getValue()
         const activity = await this.activityRepository.findById(schedule.getActivityId().getValue())
+        const communityId = activity?.getCommunityId().getValue() ?? ''
+        const community = communityId ? await this.communityRepository.findById(communityId) : null
 
         const [attendingCount, waitlistCount, participation, waitlistEntry, payment] = await Promise.all([
             this.participationRepository.count(scheduleId),
@@ -54,7 +59,7 @@ export class FindScheduleUseCase {
         return {
             id: scheduleId,
             activityId: schedule.getActivityId().getValue(),
-            communityId: activity?.getCommunityId().getValue() ?? '',
+            communityId,
             date: schedule.getDate().toISOString().split('T')[0],
             startTime: schedule.getStartTime().getValue(),
             endTime: schedule.getEndTime().getValue(),
@@ -72,6 +77,8 @@ export class FindScheduleUseCase {
             myPaymentStatus: payment?.getPaymentStatus().getValue() ?? null,
             attendingCount,
             waitlistCount,
+            enabledPaymentMethods: community?.getEnabledPaymentMethods() ?? ['CASH'],
+            paypayId: community?.getPayPayId() ?? null,
         }
     }
 }

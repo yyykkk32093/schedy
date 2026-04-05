@@ -1,5 +1,7 @@
 import { prisma } from '@/_sharedTech/db/client.js';
 import { authMiddleware } from '@/api/middleware/authMiddleware.js';
+import { validateBody } from '@/api/middleware/validateBody.js';
+import { registerDeviceTokenSchema } from '@/api/schemas/index.js';
 import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 
@@ -11,7 +13,7 @@ const router = Router();
  *
  * Body: { token: string, platform: 'ios' | 'android' | 'web' }
  */
-router.post('/v1/device-tokens', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/v1/device-tokens', authMiddleware, validateBody(registerDeviceTokenSchema), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = req.user!.userId;
         const { token, platform } = req.body;

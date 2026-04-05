@@ -68,18 +68,22 @@ model OutboxDeadLetter {
 }
 
 model Activity {
-  id               String    @id @default(uuid())
-  communityId      String
-  title            String
-  description      String?
-  defaultLocation  String?
-  defaultAddress   String? // 開催場所住所（任意）— Googleマップリンク用
-  defaultStartTime String? // "HH:mm" format
-  defaultEndTime   String? // "HH:mm" format
-  recurrenceRule   String? // null in Phase 1
-  organizerUserId  String? // 幹事ユーザーID（null = 未定）
-  createdBy        String
-  deletedAt        DateTime?
+  id                      String    @id @default(uuid())
+  communityId             String
+  title                   String
+  description             String?
+  defaultLocation         String?
+  defaultAddress          String? // 開催場所住所（任意）— Googleマップリンク用
+  defaultStartTime        String? // "HH:mm" format
+  defaultEndTime          String? // "HH:mm" format
+  defaultParticipationFee Int? // デフォルト参加費（繰り返し生成時に引き継ぎ）
+  defaultVisitorFee       Int? // デフォルトビジター費（繰り返し生成時に引き継ぎ）
+  defaultCapacity         Int? // デフォルト定員（繰り返し生成時に引き継ぎ）
+  allowVisitorWaitlist    Boolean   @default(false) // ビジターのキャンセル待ち参加を許可
+  recurrenceRule          String? // null in Phase 1
+  organizerUserId         String? // 幹事ユーザーID（null = 未定）
+  createdBy               String
+  deletedAt               DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -147,6 +151,7 @@ model Payment {
   participationId       String? // Participation との紐付け（未登録ビジター含む全参加者を確実に辿れる）
   userId                String? // 登録済みユーザーの場合のみ設定（高速参照用の補助カラム）
   paymentMethod         String? // CASH | PAYPAY | STRIPE | null（未決定=ビジター初期状態「ー」）
+  displayName           String?   @db.VarChar(100) // 支払い時点の表示名スナップショット（登録ユーザー=displayName, ビジター=visitorName）
   amount                Int // 参加費
   feeAmount             Int       @default(0) // プラットフォーム手数料
   status                String    @default("UNPAID") // UNPAID | REPORTED | CONFIRMED | REJECTED | REFUND_PENDING | REFUNDED | NO_REFUND
@@ -169,24 +174,29 @@ model Payment {
 model WaitlistEntry {
   id           String   @id @default(uuid())
   scheduleId   String
-  userId       String
+  userId       String?
+  isVisitor    Boolean  @default(false)
+  visitorName  String?
+  addedBy      String?
   registeredAt DateTime @default(now())
 
   schedule Schedule @relation(fields: [scheduleId], references: [id])
 
-  @@unique([scheduleId, userId])
+  // userId が NOT NULL の場合のみユニーク制約（部分インデックスはマイグレーションSQLで手動定義）
+  @@index([scheduleId, userId])
   @@index([scheduleId, registeredAt])
 }
 
 model User {
-  id                  String  @id @default(uuid())
+  id                  String    @id @default(uuid())
   displayName         String?
-  plan                String  @default("FREE")
-  email               String? @unique
+  plan                String    @default("FREE")
+  email               String?   @unique
   phone               String?
   avatarUrl           String?
   biography           String?
   notificationSetting Json
+  deletedAt           DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -206,6 +216,24 @@ model User {
 
   // Phase4: 収支機能
   expenses Expense[]
+
+  // Wave4: 退会記録
+  withdrawal UserWithdrawal?
+}
+
+// ============================================================
+// UserWithdrawal（Wave4: 退会理由記録）
+// ============================================================
+
+model UserWithdrawal {
+  id       String  @id @default(uuid())
+  userId   String  @unique
+  reason   String // 'NOT_USING' | 'FOUND_ALTERNATIVE' | 'HARD_TO_USE' | 'FEE_TOO_HIGH' | 'OTHER'
+  freeText String?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AuthSecurityState {
@@ -284,15 +312,17 @@ model Community {
   deletedAt   DateTime?
 
   // ---- Phase 2: Community Profile Fields ----
-  communityTypeId   String?
-  joinMethod        String  @default("FREE_JOIN") // 'FREE_JOIN' | 'APPROVAL' | 'INVITATION'
-  isPublic          Boolean @default(true)
-  maxMembers        Int?
-  mainActivityArea  String?
-  activityFrequency String?
-  nearestStation    String?
-  targetGender      String?
-  ageRange          String?
+  communityTypeId     String?
+  categoryId          String? // Wave5: 単一カテゴリ（中間テーブルから直接カラムへ移行）
+  joinMethod          String   @default("FREE_JOIN") // 'FREE_JOIN' | 'APPROVAL' | 'INVITATION'
+  isPublic            Boolean  @default(true)
+  maxMembers          Int?
+  activityFrequency   String?
+  targetGender        String[] @default([]) // GenderTarget VO で型安全を担保
+  ageMin              Int? // Wave5: 対象年齢下限（0-130）
+  ageMax              Int? // Wave5: 対象年齢上限（0-130）
+  recommendedLevelMin Int? // Wave5: 推奨レベル下限（0-8スケール）
+  recommendedLevelMax Int? // Wave5: 推奨レベル上限（0-8スケール）
 
   // UBL-8: Payment settings
   payPayId              String?
@@ -310,6 +340,7 @@ model Community {
   children Community[] @relation("CommunityHierarchy")
 
   communityType CommunityTypeMaster? @relation(fields: [communityTypeId], references: [id])
+  category      CategoryMaster?      @relation("CommunityCategoryDirect", fields: [categoryId], references: [id])
 
   memberships   CommunityMembership[]
   activities    Activity[]
@@ -339,9 +370,13 @@ model Community {
   expenses          Expense[]
   expenseCategories ExpenseCategory[]
 
+  // Wave4: 拠点管理
+  locations CommunityLocation[]
+
   @@index([createdBy])
   @@index([parentId])
   @@index([communityTypeId])
+  @@index([categoryId])
 }
 
 model CommunityMembership {
@@ -356,6 +391,26 @@ model CommunityMembership {
 
   @@unique([communityId, userId])
   @@index([userId])
+}
+
+// ============================================================
+// CommunityLocation（Wave4: 複数拠点管理）
+// ============================================================
+
+model CommunityLocation {
+  id          String  @id @default(uuid())
+  communityId String
+  type        String // 'MAIN' | 'SUB'
+  area        String // 活動エリア名（例: 「渋谷」「新宿」）
+  station     String? // 最寄り駅（任意）
+  sortOrder   Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@index([communityId])
 }
 
 // ============================================================
@@ -648,18 +703,32 @@ model WaitlistAuditLog {
 // ============================================================
 
 model InviteToken {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   communityId String
-  token       String    @unique @default(uuid())
+  token       String   @unique @default(uuid())
   createdBy   String
   expiresAt   DateTime
-  usedAt      DateTime?
-  usedBy      String?
+  maxUses     Int? // null = 無制限
+  currentUses Int      @default(0)
 
   createdAt DateTime @default(now())
 
+  usages InviteTokenUsage[]
+
   @@index([communityId])
   @@index([token])
+}
+
+model InviteTokenUsage {
+  id      String   @id @default(uuid())
+  tokenId String
+  userId  String
+  usedAt  DateTime @default(now())
+
+  token InviteToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@unique([tokenId, userId])
+  @@index([tokenId])
 }
 
 model ChatChannel {
@@ -777,6 +846,7 @@ model Notification {
   body          String?
   referenceId   String? // 関連エンティティのID
   referenceType String? // MESSAGE | ANNOUNCEMENT | SCHEDULE | etc.
+  metadata      Json? // 通知種別ごとの構造化メタデータ（Discriminated Union by type）
   isRead        Boolean @default(false)
 
   createdAt DateTime @default(now())
@@ -811,16 +881,20 @@ model CommunityTypeMaster {
   createdAt DateTime @default(now())
 
   communities Community[]
+  categories  CategoryMaster[]
 }
 
 model CategoryMaster {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  nameEn    String
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
+  id              String   @id @default(uuid())
+  name            String   @unique
+  nameEn          String
+  communityTypeId String? // Wave5: カテゴリ→タイプ自動解決用FK
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
 
+  communityType       CommunityTypeMaster? @relation(fields: [communityTypeId], references: [id])
   communityCategories CommunityCategory[]
+  communities         Community[]          @relation("CommunityCategoryDirect")
 }
 
 model ParticipationLevelMaster {

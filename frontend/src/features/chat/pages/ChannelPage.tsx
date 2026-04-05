@@ -1,8 +1,8 @@
 import { useAuth } from '@/app/providers/AuthProvider'
 import { ChatView } from '@/features/chat/components/ChatView'
-import { useMyChannels } from '@/features/chat/hooks/useChatQueries'
-import { useMemo } from 'react'
-import { useParams } from 'react-router-dom'
+import { useLeaveDmChannel, useMyChannels } from '@/features/chat/hooks/useChatQueries'
+import { useCallback, useMemo } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 
 /**
  * ChannelPage — チャット画面（フルスクリーン）
@@ -14,25 +14,53 @@ export function ChannelPage() {
     const { channelId } = useParams<{ channelId: string }>()
     const { user } = useAuth()
     const currentUserId = user?.userId ?? ''
+    const navigate = useNavigate()
+    const leaveDm = useLeaveDmChannel()
 
-    // チャンネル名を useMyChannels キャッシュから解決
+    // チャンネル名・タイプを useMyChannels キャッシュから解決
     const { data: channelsData } = useMyChannels()
-    const channelName = useMemo(() => {
-        if (!channelsData || !channelId) return 'チャット'
+
+    const { channelName, isDm, navigateTo } = useMemo(() => {
+        if (!channelsData || !channelId) return { channelName: 'チャット', isDm: false, navigateTo: undefined }
+
         const community = channelsData.community.find((c) => c.channelId === channelId)
-        if (community) return community.name
+        if (community) return { channelName: community.name, isDm: false, navigateTo: `/communities/${community.communityId}` }
+
         const activity = channelsData.activity.find((a) => a.channelId === channelId)
         if (activity) {
             const communityLabel = activity.communityName || activity.subtitle || ''
             const scheduleLabel = activity.scheduleDate && activity.scheduleStartTime && activity.scheduleEndTime
                 ? `${activity.scheduleDate} ${activity.scheduleStartTime}〜${activity.scheduleEndTime}`
                 : ''
-            return [communityLabel, activity.name, scheduleLabel].filter(Boolean).join('：')
+            return {
+                channelName: [communityLabel, activity.name, scheduleLabel].filter(Boolean).join('：'),
+                isDm: false,
+                navigateTo: `/communities/${activity.communityId}/activities/${activity.activityId}`,
+            }
         }
+
         const dm = channelsData.dm.find((d) => d.channelId === channelId)
-        if (dm) return dm.participants.filter((p) => p !== currentUserId).join(', ') || 'DM'
-        return 'チャット'
+        if (dm) {
+            return {
+                channelName: dm.participants.filter((p) => p !== currentUserId).join(', ') || 'DM',
+                isDm: true,
+                navigateTo: undefined,
+            }
+        }
+
+        return { channelName: 'チャット', isDm: false, navigateTo: undefined }
     }, [channelsData, channelId, currentUserId])
+
+    const handleTitlePress = useCallback(() => {
+        if (navigateTo) navigate(navigateTo)
+    }, [navigateTo, navigate])
+
+    const handleLeave = useCallback(() => {
+        if (!channelId) return
+        leaveDm.mutate(channelId, {
+            onSuccess: () => navigate('/chat', { replace: true }),
+        })
+    }, [channelId, leaveDm, navigate])
 
     if (!channelId) return null
 
@@ -42,6 +70,8 @@ export function ChannelPage() {
                 channelId={channelId}
                 showHeader={true}
                 headerName={channelName}
+                onTitlePress={navigateTo ? handleTitlePress : undefined}
+                onLeave={isDm ? handleLeave : undefined}
             />
         </div>
     )

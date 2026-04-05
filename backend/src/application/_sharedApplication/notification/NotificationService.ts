@@ -34,6 +34,8 @@ export interface NotificationInput {
     referenceId?: string | null
     /** 関連エンティティ種別（e.g. 'SCHEDULE', 'ANNOUNCEMENT'）（任意） */
     referenceType?: string | null
+    /** 構造化メタデータ（通知種別ごとに異なる JSON） */
+    metadata?: Record<string, unknown> | null
 }
 
 // ============================================================
@@ -58,6 +60,7 @@ interface PendingEmit {
         body: string | null
         referenceId: string | null
         referenceType: string | null
+        metadata: Record<string, unknown> | null
         isRead: boolean
         createdAt: string
     }
@@ -97,6 +100,7 @@ export class NotificationService {
             body: input.body ?? null,
             referenceId: input.referenceId ?? null,
             referenceType: input.referenceType ?? null,
+            metadata: input.metadata ?? null,
         })
 
         // ② OutboxEvent INSERT（FCM 送信用）
@@ -115,6 +119,7 @@ export class NotificationService {
                 body: input.body ?? null,
                 referenceId: input.referenceId ?? null,
                 referenceType: input.referenceType ?? null,
+                metadata: input.metadata ?? null,
             },
             occurredAt: now,
         })
@@ -130,6 +135,7 @@ export class NotificationService {
                 body: input.body ?? null,
                 referenceId: input.referenceId ?? null,
                 referenceType: input.referenceType ?? null,
+                metadata: input.metadata ?? null,
                 isRead: false,
                 createdAt: now.toISOString(),
             },

@@ -1,10 +1,22 @@
-import { useUpdateUserProfile, useUserProfile } from '@/features/user/hooks/useUserQueries'
+import type { WithdrawalReason } from '@/features/user/api/userApi'
+import { useDeleteAccount, useUpdateUserProfile, useUserProfile } from '@/features/user/hooks/useUserQueries'
 import { UnsavedChangesDialog } from '@/shared/components/UnsavedChangesDialog'
+import { CharacterCounter } from '@/shared/components/ui/CharacterCounter'
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/components/ui/avatar'
 import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card'
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/shared/components/ui/dialog'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
+import { Separator } from '@/shared/components/ui/separator'
 import { uploadFile } from '@/shared/lib/uploadClient'
 import { useUnsavedChangesWarning } from '@/shared/lib/useUnsavedChangesWarning'
 import { Camera, Save } from 'lucide-react'
@@ -20,12 +32,16 @@ import { toast } from 'sonner'
 export function MyPage() {
     const { data: profile, isLoading } = useUserProfile()
     const updateProfile = useUpdateUserProfile()
+    const deleteAccount = useDeleteAccount()
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const [displayName, setDisplayName] = useState<string | null>(null)
     const [biography, setBiography] = useState<string | null>(null)
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
     const [uploading, setUploading] = useState(false)
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+    const [withdrawalReason, setWithdrawalReason] = useState<WithdrawalReason | null>(null)
+    const [withdrawalFreeText, setWithdrawalFreeText] = useState('')
 
     // Initialize form from profile data
     const currentDisplayName = displayName ?? profile?.displayName ?? ''
@@ -56,8 +72,9 @@ export function MyPage() {
             setUploading(true)
             const result = await uploadFile(file)
             setAvatarPreview(result.url)
-        } catch {
-            // upload error — silently ignore for now
+        } catch (err) {
+            console.error('Avatar upload failed:', err)
+            toast.error('アバター画像のアップロードに失敗しました')
         } finally {
             setUploading(false)
         }
@@ -124,6 +141,7 @@ export function MyPage() {
                         value={currentDisplayName}
                         onChange={(e) => setDisplayName(e.target.value)}
                         placeholder="表示名を入力"
+                        maxLength={50}
                     />
                 </div>
 
@@ -146,13 +164,23 @@ export function MyPage() {
                         onChange={(e) => setBiography(e.target.value)}
                         placeholder="自己紹介を入力"
                         rows={3}
+                        maxLength={200}
                         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
+                    <CharacterCounter current={currentBiography.length} max={200} />
                 </div>
 
                 <div className="space-y-2">
                     <Label>プラン</Label>
-                    <p className="text-sm font-medium text-gray-700">{profile.plan}</p>
+                    <div className="flex items-center gap-3">
+                        <p className="text-sm font-medium text-gray-700">{profile.plan}</p>
+                        <a
+                            href="/paywall"
+                            className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                        >
+                            {profile.plan === 'FREE' ? 'アップグレード →' : 'プラン管理 →'}
+                        </a>
+                    </div>
                 </div>
             </Card>
 
@@ -165,6 +193,98 @@ export function MyPage() {
                 <Save className="w-4 h-4 mr-2" />
                 {updateProfile.isPending ? '保存中...' : '保存'}
             </Button>
+
+            {/* ===== 退会セクション ===== */}
+            <Separator />
+            <div className="pt-2 flex justify-center">
+                <button
+                    type="button"
+                    className="text-xs text-muted-foreground hover:underline"
+                    onClick={() => setShowDeleteDialog(true)}
+                >
+                    退会する
+                </button>
+            </div>
+
+            {/* 退会確認ダイアログ */}
+            <Dialog open={showDeleteDialog} onOpenChange={(open) => {
+                setShowDeleteDialog(open)
+                if (!open) {
+                    setWithdrawalReason(null)
+                    setWithdrawalFreeText('')
+                }
+            }}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>アカウントを退会</DialogTitle>
+                        <DialogDescription>
+                            本当に退会しますか？この操作は取り消せません。すべてのコミュニティから退出し、ログイン情報も削除されます。
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {/* 退会理由選択 */}
+                    <div className="space-y-3 py-2">
+                        <p className="text-sm font-medium text-gray-700">退会理由を教えてください（任意）</p>
+                        {([
+                            ['NOT_USING', 'あまり使っていない'],
+                            ['FOUND_ALTERNATIVE', '他のサービスを使い始めた'],
+                            ['HARD_TO_USE', '使いにくい'],
+                            ['FEE_TOO_HIGH', '料金が高い'],
+                            ['OTHER', 'その他'],
+                        ] as const).map(([value, label]) => (
+                            <label key={value} className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="withdrawalReason"
+                                    value={value}
+                                    checked={withdrawalReason === value}
+                                    onChange={() => setWithdrawalReason(value)}
+                                    className="h-4 w-4 text-blue-600"
+                                />
+                                <span className="text-sm text-gray-700">{label}</span>
+                            </label>
+                        ))}
+
+                        {/* フリーテキスト（OTHERが選ばれた場合、または任意で表示） */}
+                        {withdrawalReason && (
+                            <textarea
+                                value={withdrawalFreeText}
+                                onChange={(e) => setWithdrawalFreeText(e.target.value)}
+                                placeholder="ご意見があればお聞かせください"
+                                rows={3}
+                                maxLength={500}
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button variant="outline">キャンセル</Button>
+                        </DialogClose>
+                        <Button
+                            variant="destructive"
+                            disabled={deleteAccount.isPending}
+                            onClick={() => {
+                                deleteAccount.mutate(
+                                    withdrawalReason
+                                        ? { reason: withdrawalReason, freeText: withdrawalFreeText || undefined }
+                                        : undefined,
+                                    {
+                                        onSuccess: () => {
+                                            setShowDeleteDialog(false)
+                                            toast.success('退会しました')
+                                            window.location.href = '/login'
+                                        },
+                                    },
+                                )
+                            }}
+                        >
+                            {deleteAccount.isPending ? '退会処理中...' : '退会する'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

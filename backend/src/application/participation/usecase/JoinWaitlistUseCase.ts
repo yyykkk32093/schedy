@@ -2,6 +2,7 @@ import { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnit
 import { ScheduleNotFoundError } from '@/application/schedule/error/ScheduleNotFoundError.js'
 import { IIdGenerator } from '@/domains/_sharedDomains/domain/service/IIdGenerator.js'
 import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
+import type { IActivityRepository } from '@/domains/activity/domain/repository/IActivityRepository.js'
 import { ScheduleId } from '@/domains/activity/schedule/domain/model/valueObject/ScheduleId.js'
 import type { IScheduleRepository } from '@/domains/activity/schedule/domain/repository/IScheduleRepository.js'
 import type { IParticipationRepository } from '@/domains/activity/schedule/participation/domain/repository/IParticipationRepository.js'
@@ -13,6 +14,7 @@ import { WaitlistError } from '../error/WaitlistError.js'
 
 export type JoinWaitlistTxRepositories = {
     schedule: IScheduleRepository
+    activity: IActivityRepository
     participation: IParticipationRepository
     waitlist: IWaitlistEntryRepository
     waitlistAuditLog: IWaitlistAuditLogRepository
@@ -23,6 +25,7 @@ export type JoinWaitlistTxRepositories = {
  * - Schedule が定員に達している場合のみ登録可
  * - 既に参加レコードがある場合は拒否（レコード存在 = 参加中）
  * - 既にキャンセル待ちレコードがある場合は拒否（レコード存在 = 待ち中）
+ * - isVisitor の場合、Activity.allowVisitorWaitlist が false ならば拒否
  * - 新規 WaitlistEntry を作成し、AuditLog に JOINED を記録
  */
 export class JoinWaitlistUseCase {
@@ -34,8 +37,10 @@ export class JoinWaitlistUseCase {
     async execute(input: {
         scheduleId: string
         userId: string
+        isVisitor?: boolean
     }): Promise<{ waitlistEntryId: string }> {
         let waitlistEntryId = ''
+        const isVisitor = input.isVisitor ?? false
 
         await this.unitOfWork.run(async (repos) => {
             const schedule = await repos.schedule.findById(input.scheduleId)
@@ -43,6 +48,17 @@ export class JoinWaitlistUseCase {
 
             if (schedule.isCancelled()) {
                 throw new WaitlistError('キャンセルされたスケジュールにはキャンセル待ち登録できません', 'SCHEDULE_CANCELLED')
+            }
+
+            // ビジターの場合、Activity の allowVisitorWaitlist を確認
+            if (isVisitor) {
+                const activity = await repos.activity.findById(schedule.getActivityId().getValue())
+                if (!activity || !activity.getAllowVisitorWaitlist()) {
+                    throw new WaitlistError(
+                        'このアクティビティではビジターのキャンセル待ちは許可されていません',
+                        'VISITOR_WAITLIST_NOT_ALLOWED',
+                    )
+                }
             }
 
             // 既に参加している場合は拒否（レコード存在 = 参加中）
@@ -67,6 +83,7 @@ export class JoinWaitlistUseCase {
                 id,
                 scheduleId: ScheduleId.create(input.scheduleId),
                 userId: UserId.create(input.userId),
+                isVisitor,
             })
             await repos.waitlist.add(entry)
 

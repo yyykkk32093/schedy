@@ -1,391 +1,181 @@
+import {
+    defaultSettingsData,
+    SettingsStep2,
+    SettingsStep3,
+    type CommunitySettingsData
+} from '@/features/community/components/CommunitySettingsForm'
 import { useCommunityMasters, useCreateCommunity } from '@/features/community/hooks/useCommunityQueries'
-import { Badge } from '@/shared/components/ui/badge'
+import { CharacterCounter } from '@/shared/components/ui/CharacterCounter'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/shared/components/ui/select'
 import type { CreateCommunityRequest } from '@/shared/types/api'
-import { useState } from 'react'
+import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-const JOIN_METHOD_OPTIONS = [
-    { value: 'FREE_JOIN', label: '自由参加' },
-    { value: 'APPROVAL', label: '承認制' },
-    { value: 'INVITATION', label: '招待制' },
-] as const
+// ── 定数（共通化したので re-export 不要。Step2/Step3 で使うのは共通コンポーネント側） ──
 
-const DAY_OPTIONS = [
-    { value: 'MON', label: '月' },
-    { value: 'TUE', label: '火' },
-    { value: 'WED', label: '水' },
-    { value: 'THU', label: '木' },
-    { value: 'FRI', label: '金' },
-    { value: 'SAT', label: '土' },
-    { value: 'SUN', label: '日' },
-] as const
+interface WizardFormData {
+    name: string
+    description: string
+    settings: CommunitySettingsData
+}
 
-const GENDER_OPTIONS = [
-    { value: 'MIXED', label: '男女混合' },
-    { value: 'MALE', label: '男性のみ' },
-    { value: 'FEMALE', label: '女性のみ' },
-] as const
+const defaultFormData: WizardFormData = {
+    name: '',
+    description: '',
+    settings: { ...defaultSettingsData },
+}
 
-/**
- * CommunityCreatePage — コミュニティ作成フォーム（フル実装）
- */
-export function CommunityCreatePage() {
+// ── Context ──
+
+interface WizardContextValue {
+    data: WizardFormData
+    update: (patch: Partial<WizardFormData>) => void
+    updateSettings: (patch: Partial<CommunitySettingsData>) => void
+    step: number
+    setStep: (s: number) => void
+    totalSteps: number
+}
+
+const WizardContext = createContext<WizardContextValue | null>(null)
+
+function useWizard() {
+    const ctx = useContext(WizardContext)
+    if (!ctx) throw new Error('useWizard must be used within WizardProvider')
+    return ctx
+}
+
+function WizardProvider({ children }: { children: ReactNode }) {
+    const [data, setData] = useState<WizardFormData>(defaultFormData)
+    const [step, setStep] = useState(1)
+    const update = useCallback((patch: Partial<WizardFormData>) => {
+        setData((prev) => ({ ...prev, ...patch }))
+    }, [])
+    const updateSettings = useCallback((patch: Partial<CommunitySettingsData>) => {
+        setData((prev) => ({ ...prev, settings: { ...prev.settings, ...patch } }))
+    }, [])
+    return (
+        <WizardContext.Provider value={{ data, update, updateSettings, step, setStep, totalSteps: 3 }}>
+            {children}
+        </WizardContext.Provider>
+    )
+}
+
+// ── Step 1: 基本情報 ──
+
+function Step1BasicInfo() {
+    const { data, update } = useWizard()
+
+    return (
+        <div className="space-y-4">
+            <h2 className="text-base font-semibold text-gray-800 border-b pb-2">Step 1: 基本情報</h2>
+            <div className="space-y-1.5">
+                <Label htmlFor="name">コミュニティ名 *</Label>
+                <Input id="name" value={data.name} onChange={(e) => update({ name: e.target.value })} placeholder="例: 渋谷フットサルクラブ" maxLength={50} required />
+            </div>
+            <div className="space-y-1.5">
+                <Label htmlFor="description">説明</Label>
+                <textarea id="description" value={data.description} onChange={(e) => update({ description: e.target.value })} placeholder="コミュニティの紹介文" rows={3} maxLength={500} className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <CharacterCounter current={data.description.length} max={500} />
+            </div>
+        </div>
+    )
+}
+
+// ── ステップインジケーター ──
+
+function StepIndicator() {
+    const { step } = useWizard()
+    const labels = ['基本情報', '参加・活動', 'カテゴリ・タグ']
+    return (
+        <div className="flex items-center justify-center gap-2 mb-6">
+            {labels.map((label, i) => {
+                const s = i + 1
+                const isActive = s === step
+                const isDone = s < step
+                return (
+                    <div key={s} className="flex items-center gap-1">
+                        {i > 0 && <div className={`w-8 h-0.5 ${isDone ? 'bg-blue-500' : 'bg-gray-200'}`} />}
+                        <div className={`flex items-center gap-1 text-xs font-medium ${isActive ? 'text-blue-600' : isDone ? 'text-blue-500' : 'text-gray-400'}`}>
+                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${isActive ? 'bg-blue-600 text-white' : isDone ? 'bg-blue-100 text-blue-600' : 'bg-gray-100'}`}>
+                                {isDone ? '✓' : s}
+                            </span>
+                            <span className="hidden sm:inline">{label}</span>
+                        </div>
+                    </div>
+                )
+            })}
+        </div>
+    )
+}
+
+// ── メインウィザード ──
+
+function WizardForm() {
     const navigate = useNavigate()
     const createMutation = useCreateCommunity()
-    const { data: masters, isLoading: mastersLoading } = useCommunityMasters()
+    const { data, updateSettings, step, setStep, totalSteps } = useWizard()
+    const { isLoading: mastersLoading } = useCommunityMasters()
+    const canProceed = step === 1 ? data.name.trim().length > 0 : true
+    const s = data.settings
 
-    // ── Form state ──
-    const [name, setName] = useState('')
-    const [description, setDescription] = useState('')
-    const [communityTypeId, setCommunityTypeId] = useState('')
-    const [joinMethod, setJoinMethod] = useState<'FREE_JOIN' | 'APPROVAL' | 'INVITATION'>('FREE_JOIN')
-    const [isPublic, setIsPublic] = useState(true)
-    const [maxMembers, setMaxMembers] = useState('')
-    const [mainActivityArea, setMainActivityArea] = useState('')
-    const [activityFrequency, setActivityFrequency] = useState('')
-    const [nearestStation, setNearestStation] = useState('')
-    const [targetGender, setTargetGender] = useState('')
-    const [ageRange, setAgeRange] = useState('')
-    const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
-    const [selectedLevelIds, setSelectedLevelIds] = useState<string[]>([])
-    const [selectedDays, setSelectedDays] = useState<string[]>([])
-    const [tagInput, setTagInput] = useState('')
-    const [tags, setTags] = useState<string[]>([])
-
-    // isPublic=false → 強制 INVITATION（バックエンドのビジネスルールと同期）
-    const handlePublicChange = (pub: boolean) => {
-        setIsPublic(pub)
-        if (!pub) setJoinMethod('INVITATION')
-    }
-
-    const toggleArrayItem = (arr: string[], item: string, setter: (v: string[]) => void) => {
-        setter(arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item])
-    }
-
-    const addTag = () => {
-        const trimmed = tagInput.trim()
-        if (trimmed && !tags.includes(trimmed)) {
-            setTags([...tags, trimmed])
-        }
-        setTagInput('')
-    }
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!name.trim()) return
-
+    const handleSubmit = async () => {
         const payload: CreateCommunityRequest = {
-            name: name.trim(),
-            description: description.trim() || undefined,
-            communityTypeId: communityTypeId || undefined,
-            joinMethod,
-            isPublic,
-            maxMembers: maxMembers ? Number(maxMembers) : undefined,
-            mainActivityArea: mainActivityArea.trim() || undefined,
-            activityFrequency: activityFrequency.trim() || undefined,
-            nearestStation: nearestStation.trim() || undefined,
-            targetGender: targetGender || undefined,
-            ageRange: ageRange.trim() || undefined,
-            categoryIds: selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined,
-            participationLevelIds: selectedLevelIds.length > 0 ? selectedLevelIds : undefined,
-            activityDays: selectedDays.length > 0 ? selectedDays : undefined,
-            tags: tags.length > 0 ? tags : undefined,
+            name: data.name.trim(),
+            description: data.description.trim() || undefined,
+            joinMethod: s.joinMethod,
+            isPublic: s.isPublic,
+            maxMembers: s.maxMembers ? Number(s.maxMembers) : undefined,
+            activityFrequency: s.freqUnit && s.freqCount ? `${s.freqUnit}${s.freqCount}回` : undefined,
+            targetGender: s.targetGender.length > 0 ? s.targetGender : undefined,
+            ageMin: s.ageMin ? Number(s.ageMin) : undefined,
+            ageMax: s.ageMax ? Number(s.ageMax) : undefined,
+            categoryId: s.selectedCategoryId || undefined,
+            recommendedLevelMin: s.recommendedLevelRange[0],
+            recommendedLevelMax: s.recommendedLevelRange[1],
+            activityDays: s.selectedDays.length > 0 ? s.selectedDays : undefined,
+            tags: s.tags.length > 0 ? s.tags : undefined,
         }
-
         const result = await createMutation.mutateAsync(payload)
         navigate(`/communities/${result.communityId}`)
     }
 
     if (mastersLoading) {
-        return (
-            <div className="flex items-center justify-center py-20">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-            </div>
-        )
+        return (<div className="flex items-center justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>)
     }
 
-    const communityTypes = masters?.communityTypes ?? []
-    const categories = masters?.categories ?? []
-    const participationLevels = masters?.participationLevels ?? []
-
     return (
-        <form onSubmit={handleSubmit} className="max-w-lg mx-auto px-4 py-6 space-y-6">
-            {/* ── 基本情報 ── */}
-            <section className="space-y-4">
-                <h2 className="text-base font-semibold text-gray-800 border-b pb-2">基本情報</h2>
-
-                <div className="space-y-1.5">
-                    <Label htmlFor="name">コミュニティ名 *</Label>
-                    <Input
-                        id="name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="例: 渋谷フットサルクラブ"
-                        required
-                    />
-                </div>
-
-                <div className="space-y-1.5">
-                    <Label htmlFor="description">説明</Label>
-                    <textarea
-                        id="description"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="コミュニティの紹介文"
-                        rows={3}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                </div>
-
-                <div className="space-y-1.5">
-                    <Label>コミュニティタイプ</Label>
-                    <Select value={communityTypeId} onValueChange={setCommunityTypeId}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="選択してください" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {communityTypes.map((t) => (
-                                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-            </section>
-
-            {/* ── 参加設定 ── */}
-            <section className="space-y-4">
-                <h2 className="text-base font-semibold text-gray-800 border-b pb-2">参加設定</h2>
-
-                <div className="space-y-1.5">
-                    <Label>公開設定</Label>
-                    <div className="flex gap-2">
-                        <Button
-                            type="button"
-                            variant={isPublic ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => handlePublicChange(true)}
-                        >
-                            公開
-                        </Button>
-                        <Button
-                            type="button"
-                            variant={!isPublic ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => handlePublicChange(false)}
-                        >
-                            非公開
-                        </Button>
-                    </div>
-                </div>
-
-                <div className="space-y-1.5">
-                    <Label>参加方式</Label>
-                    <Select
-                        value={joinMethod}
-                        onValueChange={(v) => setJoinMethod(v as typeof joinMethod)}
-                        disabled={!isPublic}
-                    >
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {JOIN_METHOD_OPTIONS.map((o) => (
-                                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    {!isPublic && (
-                        <p className="text-xs text-gray-500">非公開コミュニティは招待制になります</p>
-                    )}
-                </div>
-
-                <div className="space-y-1.5">
-                    <Label htmlFor="maxMembers">最大メンバー数</Label>
-                    <Input
-                        id="maxMembers"
-                        type="number"
-                        min={1}
-                        value={maxMembers}
-                        onChange={(e) => setMaxMembers(e.target.value)}
-                        placeholder="制限なし"
-                    />
-                </div>
-
-                <div className="space-y-1.5">
-                    <Label>対象性別</Label>
-                    <Select value={targetGender} onValueChange={setTargetGender}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="指定なし" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {GENDER_OPTIONS.map((g) => (
-                                <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                    <Label htmlFor="ageRange">年齢層</Label>
-                    <Input
-                        id="ageRange"
-                        value={ageRange}
-                        onChange={(e) => setAgeRange(e.target.value)}
-                        placeholder="例: 20代〜30代"
-                    />
-                </div>
-            </section>
-
-            {/* ── 活動情報 ── */}
-            <section className="space-y-4">
-                <h2 className="text-base font-semibold text-gray-800 border-b pb-2">活動情報</h2>
-
-                <div className="space-y-1.5">
-                    <Label htmlFor="mainActivityArea">主な活動エリア</Label>
-                    <Input
-                        id="mainActivityArea"
-                        value={mainActivityArea}
-                        onChange={(e) => setMainActivityArea(e.target.value)}
-                        placeholder="例: 渋谷区"
-                    />
-                </div>
-
-                <div className="space-y-1.5">
-                    <Label htmlFor="nearestStation">最寄り駅</Label>
-                    <Input
-                        id="nearestStation"
-                        value={nearestStation}
-                        onChange={(e) => setNearestStation(e.target.value)}
-                        placeholder="例: 渋谷駅"
-                    />
-                </div>
-
-                <div className="space-y-1.5">
-                    <Label htmlFor="activityFrequency">活動頻度</Label>
-                    <Input
-                        id="activityFrequency"
-                        value={activityFrequency}
-                        onChange={(e) => setActivityFrequency(e.target.value)}
-                        placeholder="例: 週1回"
-                    />
-                </div>
-
-                <div className="space-y-1.5">
-                    <Label>活動曜日</Label>
-                    <div className="flex flex-wrap gap-2">
-                        {DAY_OPTIONS.map((d) => (
-                            <Button
-                                key={d.value}
-                                type="button"
-                                variant={selectedDays.includes(d.value) ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => toggleArrayItem(selectedDays, d.value, setSelectedDays)}
-                            >
-                                {d.label}
-                            </Button>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="space-y-1.5">
-                    <Label>参加レベル</Label>
-                    <div className="flex flex-wrap gap-2">
-                        {participationLevels.map((level) => (
-                            <Button
-                                key={level.id}
-                                type="button"
-                                variant={selectedLevelIds.includes(level.id) ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => toggleArrayItem(selectedLevelIds, level.id, setSelectedLevelIds)}
-                            >
-                                {level.name}
-                            </Button>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* ── カテゴリ・タグ ── */}
-            <section className="space-y-4">
-                <h2 className="text-base font-semibold text-gray-800 border-b pb-2">カテゴリ・タグ</h2>
-
-                <div className="space-y-1.5">
-                    <Label>カテゴリ（複数選択可）</Label>
-                    <div className="flex flex-wrap gap-2">
-                        {categories.map((cat) => (
-                            <Button
-                                key={cat.id}
-                                type="button"
-                                variant={selectedCategoryIds.includes(cat.id) ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => toggleArrayItem(selectedCategoryIds, cat.id, setSelectedCategoryIds)}
-                            >
-                                {cat.name}
-                            </Button>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="space-y-1.5">
-                    <Label>タグ</Label>
-                    <div className="flex gap-2">
-                        <Input
-                            value={tagInput}
-                            onChange={(e) => setTagInput(e.target.value)}
-                            placeholder="タグを入力して追加"
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault()
-                                    addTag()
-                                }
-                            }}
-                        />
-                        <Button type="button" variant="outline" size="sm" onClick={addTag}>
-                            追加
-                        </Button>
-                    </div>
-                    {tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                            {tags.map((tag) => (
-                                <Badge
-                                    key={tag}
-                                    variant="secondary"
-                                    className="cursor-pointer hover:bg-red-100"
-                                    onClick={() => setTags(tags.filter((t) => t !== tag))}
-                                >
-                                    {tag} ✕
-                                </Badge>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </section>
-
-            {/* ── Submit ── */}
-            <div className="pt-4 border-t">
-                <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={!name.trim() || createMutation.isPending}
-                >
-                    {createMutation.isPending ? '作成中...' : 'コミュニティを作成'}
-                </Button>
-                {createMutation.isError && (
-                    <p className="text-red-500 text-sm mt-2 text-center">
-                        {(createMutation.error as Error).message}
-                    </p>
+        <div className="max-w-lg mx-auto px-4 py-6">
+            <StepIndicator />
+            {step === 1 && <Step1BasicInfo />}
+            {step === 2 && <SettingsStep2 data={s} update={updateSettings} />}
+            {step === 3 && <SettingsStep3 data={s} update={updateSettings} basicInfo={{ name: data.name, description: data.description }} />}
+            <div className="flex gap-3 mt-8 pt-4 border-t">
+                {step > 1 && (<Button type="button" variant="outline" className="flex-1" onClick={() => setStep(step - 1)}>戻る</Button>)}
+                {step < totalSteps ? (
+                    <Button type="button" className="flex-1" disabled={!canProceed} onClick={() => setStep(step + 1)}>次へ</Button>
+                ) : (
+                    <Button type="button" className="flex-1" disabled={!data.name.trim() || createMutation.isPending} onClick={handleSubmit}>
+                        {createMutation.isPending ? '作成中...' : 'コミュニティを作成'}
+                    </Button>
                 )}
             </div>
-        </form>
+            {createMutation.isError && (<p className="text-red-500 text-sm mt-2 text-center">{(createMutation.error as Error).message}</p>)}
+        </div>
+    )
+}
+
+/**
+ * CommunityCreatePage — 3ステップウィザード形式のコミュニティ作成
+ * Step 1: 基本情報（名前、説明、タイプ）
+ * Step 2: 参加・活動設定（公開設定、参加方式、性別、年齢、頻度、曜日、レベル）
+ * Step 3: カテゴリ・タグ + 確認
+ */
+export function CommunityCreatePage() {
+    return (
+        <WizardProvider>
+            <WizardForm />
+        </WizardProvider>
     )
 }

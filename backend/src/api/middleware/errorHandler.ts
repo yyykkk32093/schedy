@@ -2,6 +2,7 @@ import { logger } from '@/_sharedTech/logger/logger.js'
 import { HttpError } from '@/application/_sharedApplication/error/HttpError.js'
 import { DomainValidationError } from '@/domains/_sharedDomains/error/DomainValidationError.js'
 import type { NextFunction, Request, Response } from 'express'
+import { ZodError } from 'zod/v4'
 
 const isProduction = process.env.NODE_ENV === 'production'
 
@@ -9,6 +10,7 @@ const isProduction = process.env.NODE_ENV === 'production'
  * グローバル例外ハンドラ
  *
  * - HttpError（とそのサブクラス: AuthenticationFailedError 等）→ 各 statusCode で返却
+ * - ZodError → 400（バリデーションエラー）
  * - DomainValidationError → 400
  * - それ以外 → 500（本番では詳細メッセージを隠蔽）
  */
@@ -17,6 +19,17 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
         return res.status(err.statusCode).json({
             code: err.code,
             message: err.message,
+        })
+    }
+
+    if (err instanceof ZodError) {
+        return res.status(400).json({
+            code: 'VALIDATION_ERROR',
+            message: 'バリデーションエラー',
+            errors: err.issues.map((issue) => ({
+                path: issue.path.join('.'),
+                message: issue.message,
+            })),
         })
     }
 

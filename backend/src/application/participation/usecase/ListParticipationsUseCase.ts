@@ -17,7 +17,6 @@ export class ListParticipationsUseCase {
             visitorName: string | null
             addedBy: string | null
             isVisitor: boolean
-            isGuestVisitor: boolean
             respondedAt: Date
             paymentMethod: string | null
             paymentStatus: string | null
@@ -70,7 +69,6 @@ export class ListParticipationsUseCase {
                     visitorName: p.getVisitorName(),
                     addedBy: p.getAddedBy(),
                     isVisitor: p.getIsVisitor(),
-                    isGuestVisitor: p.isGuestVisitor(),
                     respondedAt: p.getRespondedAt(),
                     paymentMethod: pay?.method ?? null,
                     paymentStatus: pay?.status ?? null,

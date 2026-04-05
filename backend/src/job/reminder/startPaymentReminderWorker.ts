@@ -17,7 +17,7 @@ loadEnv({ envDir: path.resolve(process.cwd(), 'env') })
 
 import { prisma } from '@/_sharedTech/db/client.js'
 import { logger } from '@/_sharedTech/logger/logger.js'
-import { randomUUID } from 'crypto'
+import { sendWorkerNotification } from './workerNotificationHelper.js'
 
 const REMINDER_INTERVAL_MS = 24 * 60 * 60 * 1000 // 24時間
 const DAYS_AHEAD = 3 // 3日先までのスケジュールが対象
@@ -112,61 +112,25 @@ async function runOnce(): Promise<void> {
 
         const fee = p.schedule.participationFee ?? 0
         const dateStr = p.schedule.date.toLocaleDateString('ja-JP')
-        const notificationId = randomUUID()
         const title = '参加費の支払いリマインダー'
         const body = `${p.schedule.activity.title}（${dateStr}）の参加費 ¥${fee.toLocaleString()} が未払いです。`
-        const isPremium = p.schedule.activity.community.grade === 'PREMIUM'
 
-        if (isPremium) {
-            // PREMIUM: Notification + OutboxEvent を同一 TX で作成 → FCM プッシュ送信
-            await prisma.$transaction(async (tx) => {
-                await tx.notification.create({
-                    data: {
-                        id: notificationId,
-                        userId: p.userId,
-                        type: 'PAYMENT_REMINDER',
-                        title,
-                        body,
-                        referenceId: p.scheduleId,
-                        referenceType: 'SCHEDULE',
-                    },
-                })
-                await tx.outboxEvent.create({
-                    data: {
-                        id: randomUUID(),
-                        idempotencyKey: `notification:${notificationId}`,
-                        aggregateId: p.userId,
-                        eventName: 'NotificationCreated',
-                        eventType: 'notification.payment_reminder',
-                        routingKey: 'notification.push',
-                        payload: {
-                            notificationId,
-                            targetUserId: p.userId,
-                            type: 'PAYMENT_REMINDER',
-                            title,
-                            body,
-                            referenceId: p.scheduleId,
-                            referenceType: 'SCHEDULE',
-                        },
-                        occurredAt: new Date(),
-                        status: 'PENDING',
-                    },
-                })
-            })
-        } else {
-            // FREE: DB 通知のみ（プッシュなし）
-            await prisma.notification.create({
-                data: {
-                    id: notificationId,
-                    userId: p.userId,
-                    type: 'PAYMENT_REMINDER',
-                    title,
-                    body,
-                    referenceId: p.scheduleId,
-                    referenceType: 'SCHEDULE',
-                },
-            })
-        }
+        // NotificationService 経由で統一（Notification + OutboxEvent を同一TX）
+        await sendWorkerNotification(prisma, {
+            userId: p.userId,
+            type: 'PAYMENT_REMINDER',
+            title,
+            body,
+            referenceId: p.scheduleId,
+            referenceType: 'SCHEDULE',
+            metadata: {
+                communityId: p.schedule.activity.community.id,
+                activityId: p.schedule.activity.id,
+                activityTitle: p.schedule.activity.title,
+                scheduleDate: p.schedule.date.toISOString(),
+                amount: fee,
+            },
+        })
 
         sentCount++
     }

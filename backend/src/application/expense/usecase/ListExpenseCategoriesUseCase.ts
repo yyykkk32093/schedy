@@ -10,6 +10,7 @@ export class ListExpenseCategoriesUseCase {
             id: string
             name: string
             isSystem: boolean
+            isActive: boolean
             sortOrder: number
         }>
     }> {
@@ -20,6 +21,7 @@ export class ListExpenseCategoriesUseCase {
                 id: c.getId(),
                 name: c.getName(),
                 isSystem: c.getIsSystem(),
+                isActive: c.getIsActive(),
                 sortOrder: c.getSortOrder(),
             })),
         }

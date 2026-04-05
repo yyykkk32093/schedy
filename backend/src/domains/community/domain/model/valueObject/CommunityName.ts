@@ -3,7 +3,7 @@ import { ValueObject } from '@/domains/_sharedDomains/model/valueObject/ValueObj
 
 export class CommunityName extends ValueObject<string> {
     private static readonly MIN_LENGTH = 1
-    private static readonly MAX_LENGTH = 100
+    private static readonly MAX_LENGTH = 50
 
     private constructor(value: string) {
         super(value)

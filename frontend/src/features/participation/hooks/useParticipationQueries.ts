@@ -1,6 +1,6 @@
 import { participationApi } from '@/features/participation/api/participationApi'
 import { participationHistoryKeys, participationListKeys, paymentHistoryKeys, refundPendingKeys, scheduleKeys, waitlistKeys } from '@/shared/lib/queryKeys'
-import type { AddGuestVisitorRequest, AttendScheduleRequest, UpdateVisitorPaymentRequest } from '@/shared/types/api'
+import type { AddVisitorRequest, AttendScheduleRequest, UpdateVisitorPaymentRequest } from '@/shared/types/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 export function useParticipants(scheduleId: string) {
@@ -101,6 +101,19 @@ export function useBulkConfirmPayment(scheduleId: string) {
     })
 }
 
+/** W3-09: ビジター支払い方法一括設定（管理者） */
+export function useBulkUpdatePayment(scheduleId: string) {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: (updates: Array<{ participationId: string; paymentMethod: string }>) =>
+            participationApi.bulkUpdatePayment(scheduleId, updates),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: participationListKeys.bySchedule(scheduleId) })
+            qc.invalidateQueries({ queryKey: scheduleKeys.detail(scheduleId) })
+        },
+    })
+}
+
 /** 管理者による参加者除外 */
 export function useRemoveParticipant(scheduleId: string) {
     const qc = useQueryClient()
@@ -110,6 +123,20 @@ export function useRemoveParticipant(scheduleId: string) {
             qc.invalidateQueries({ queryKey: scheduleKeys.detail(scheduleId) })
             qc.invalidateQueries({ queryKey: participationListKeys.bySchedule(scheduleId) })
             qc.invalidateQueries({ queryKey: refundPendingKeys.bySchedule(scheduleId) })
+        },
+    })
+}
+
+/** 参加者削除（participationId ベース・権限制御付き） */
+export function useRemoveParticipation(scheduleId: string) {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: (participationId: string) => participationApi.removeParticipation(participationId),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: scheduleKeys.detail(scheduleId) })
+            qc.invalidateQueries({ queryKey: participationListKeys.bySchedule(scheduleId) })
+            qc.invalidateQueries({ queryKey: refundPendingKeys.bySchedule(scheduleId) })
+            qc.invalidateQueries({ queryKey: waitlistKeys.bySchedule(scheduleId) })
         },
     })
 }
@@ -201,14 +228,15 @@ export function useRevertRefundStatus() {
 
 // ---- ビジター管理 ----
 
-/** ゲストビジター追加 */
-export function useAddGuestVisitor(scheduleId: string) {
+/** ビジター追加 */
+export function useAddVisitor(scheduleId: string) {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: (data: AddGuestVisitorRequest) => participationApi.addGuestVisitor(scheduleId, data),
+        mutationFn: (data: AddVisitorRequest) => participationApi.addVisitor(scheduleId, data),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: participationListKeys.bySchedule(scheduleId) })
             qc.invalidateQueries({ queryKey: scheduleKeys.detail(scheduleId) })
+            qc.invalidateQueries({ queryKey: waitlistKeys.bySchedule(scheduleId) })
         },
     })
 }
@@ -222,5 +250,28 @@ export function useUpdateVisitorPayment(scheduleId: string) {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: participationListKeys.bySchedule(scheduleId) })
         },
+    })
+}
+
+/** 繰り上げ参加者の支払い方法選択 */
+export function useSelectPaymentMethod(scheduleId: string) {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: ({ participationId, paymentMethod }: { participationId: string; paymentMethod: string }) =>
+            participationApi.selectPaymentMethod(participationId, paymentMethod),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: scheduleKeys.detail(scheduleId) })
+            qc.invalidateQueries({ queryKey: participationListKeys.bySchedule(scheduleId) })
+        },
+    })
+}
+
+/** W3-13b: ビジター名サジェスト */
+export function useVisitorNameSuggestions(communityId: string) {
+    return useQuery({
+        queryKey: ['visitor-names', communityId],
+        queryFn: () => participationApi.suggestVisitorNames(communityId),
+        enabled: !!communityId,
+        staleTime: 60_000,
     })
 }

@@ -1,6 +1,8 @@
 import { prisma } from '@/_sharedTech/db/client.js';
 import { authMiddleware } from '@/api/middleware/authMiddleware.js';
 import { requireFeature, requireLimit } from '@/api/middleware/featureGateMiddleware.js';
+import { validateBody } from '@/api/middleware/validateBody.js';
+import { addReactionSchema, createStampSchema } from '@/api/schemas/index.js';
 import { UserFeature, UserLimitKey } from '@/domains/_sharedDomains/featureGate/UserFeature.js';
 import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
@@ -18,6 +20,7 @@ router.post(
     requireLimit(UserLimitKey.MAX_CUSTOM_STAMPS, async (req) => {
         return prisma.stamp.count({ where: { createdByUserId: req.user!.userId } });
     }),
+    validateBody(createStampSchema),
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const userId = req.user!.userId;
@@ -101,7 +104,7 @@ router.delete('/v1/stamps/:stampId', authMiddleware, async (req: Request, res: R
  * メッセージへのリアクション追加（REST版）
  * stampId または emoji のいずれかを指定（排他）
  */
-router.post('/v1/messages/:messageId/reactions', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/v1/messages/:messageId/reactions', authMiddleware, validateBody(addReactionSchema), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = req.user!.userId;
         const { messageId } = req.params;

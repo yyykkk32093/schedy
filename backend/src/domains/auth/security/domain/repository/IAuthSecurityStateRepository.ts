@@ -16,4 +16,6 @@ export interface IAuthSecurityStateRepository {
         maxFailures: number
         lockDurationMs: number
     }): Promise<void>
+
+    deleteByUserId(userId: string): Promise<void>
 }

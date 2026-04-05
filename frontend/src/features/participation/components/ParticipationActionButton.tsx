@@ -6,6 +6,7 @@ import {
     useJoinWaitlist,
     useParticipationHistory,
     useReportPayment,
+    useSelectPaymentMethod,
 } from '@/features/participation/hooks/useParticipationQueries'
 import { Alert, AlertDescription } from '@/shared/components/ui/alert'
 import {
@@ -91,6 +92,7 @@ export function ParticipationActionButton({
     const cancelWaitlistMutation = useCancelWaitlist(scheduleId)
     const stripePaymentIntentMutation = useCreateStripePaymentIntent(scheduleId)
     const reportPaymentMutation = useReportPayment(scheduleId)
+    const selectPaymentMethodMutation = useSelectPaymentMethod(scheduleId)
 
     // 4-2: Stripe 決済モーダル用ステート
     const [stripePaymentData, setStripePaymentData] = useState<CreateStripePaymentIntentResponse | null>(null)
@@ -174,6 +176,31 @@ export function ParticipationActionButton({
 
     const handleStripePaymentCancel = () => {
         setStripePaymentData(null)
+    }
+
+    /**
+     * 繰り上げ参加者の支払い方法選択ハンドラ。
+     * 参加済みだが paymentMethod 未設定の場合に使用。
+     * 通常の参加フローと同じ後続処理（PayPay案内 / Stripe決済）を行う。
+     */
+    const handleSelectPaymentMethod = async () => {
+        if (!myParticipationId) return
+        try {
+            await selectPaymentMethodMutation.mutateAsync({
+                participationId: myParticipationId,
+                paymentMethod,
+            })
+            if (hasFee && paymentMethod === 'STRIPE') {
+                const paymentData = await stripePaymentIntentMutation.mutateAsync()
+                setStripePaymentData(paymentData)
+            } else if (hasFee && paymentMethod === 'PAYPAY') {
+                setShowPayPayGuide(true)
+            } else {
+                toast.success('支払い方法を設定しました')
+            }
+        } catch {
+            // エラーは global toast で表示される
+        }
     }
 
     // 成功メッセージを3秒後にリセット
@@ -277,6 +304,34 @@ export function ParticipationActionButton({
                 {/* ── 参加済み → キャンセル ── */}
                 {myStatus === 'attending' && (
                     <>
+                        {/* 支払い方法未選択（繰り上げ時）→ 支払い方法選択UI */}
+                        {hasFee && !myPaymentMethod && (
+                            <>
+                                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                                    <SelectTrigger className="w-36 h-9 text-sm">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {paymentMethodOptions.map((opt) => (
+                                            <SelectItem key={opt.value} value={opt.value} disabled={opt.disabled}>
+                                                <span>{opt.label}</span>
+                                                {opt.disabled && opt.reason && (
+                                                    <span className="text-[10px] text-gray-400 block leading-tight">{opt.reason}</span>
+                                                )}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <button
+                                    onClick={handleSelectPaymentMethod}
+                                    disabled={selectPaymentMethodMutation.isPending || stripePaymentIntentMutation.isPending}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                    {(selectPaymentMethodMutation.isPending || stripePaymentIntentMutation.isPending) && <Loader2 className="h-4 w-4 animate-spin inline mr-1" />}
+                                    支払い方法を選択
+                                </button>
+                            </>
+                        )}
                         <button
                             onClick={() => setShowCancelConfirm(true)}
                             disabled={cancelAttendanceMutation.isPending}

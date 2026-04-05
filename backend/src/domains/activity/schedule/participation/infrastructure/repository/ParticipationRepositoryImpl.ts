@@ -36,6 +36,20 @@ export class ParticipationRepositoryImpl implements IParticipationRepository {
         })
     }
 
+    async countByScheduleIds(scheduleIds: string[]): Promise<Map<string, number>> {
+        if (scheduleIds.length === 0) return new Map()
+        const rows = await this.prisma.participation.groupBy({
+            by: ['scheduleId'],
+            where: { scheduleId: { in: scheduleIds } },
+            _count: { id: true },
+        })
+        const map = new Map<string, number>()
+        for (const row of rows) {
+            map.set(row.scheduleId, row._count.id)
+        }
+        return map
+    }
+
     async add(participation: Participation): Promise<void> {
         await this.prisma.participation.create({
             data: {
@@ -70,6 +84,23 @@ export class ParticipationRepositoryImpl implements IParticipationRepository {
 
     async deleteById(id: string): Promise<void> {
         await this.prisma.participation.delete({ where: { id } })
+    }
+
+    /** W3-13b: コミュニティ内で過去使われたビジター名を重複なしで取得 */
+    async findDistinctVisitorNamesByCommunityId(communityId: string): Promise<string[]> {
+        const rows = await this.prisma.participation.findMany({
+            where: {
+                isVisitor: true,
+                visitorName: { not: null },
+                schedule: { activity: { communityId } },
+            },
+            select: { visitorName: true },
+            distinct: ['visitorName'],
+            orderBy: { respondedAt: 'desc' },
+        })
+        return rows
+            .map((r) => r.visitorName)
+            .filter((name): name is string => name !== null)
     }
 
     private toDomain(row: PrismaParticipation): Participation {

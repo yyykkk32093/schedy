@@ -89,7 +89,7 @@ export class ListPaymentHistoryUseCase {
                     paymentId: p.getId(),
                     scheduleId: sid,
                     userId: uid,
-                    displayName: uid ? (userMap.get(uid) ?? null) : null,
+                    displayName: p.getDisplayName() ?? (uid ? (userMap.get(uid) ?? null) : null),
                     paymentMethod: p.getPaymentMethod()?.getValue() ?? null,
                     amount: p.getAmount(),
                     feeAmount: p.getFeeAmount(),

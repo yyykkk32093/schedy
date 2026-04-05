@@ -1,4 +1,14 @@
 import { authMiddleware } from '@/api/middleware/authMiddleware.js'
+import { validateBody } from '@/api/middleware/validateBody.js'
+import {
+    addGuestVisitorSchema,
+    addRegisteredVisitorSchema,
+    attendScheduleSchema,
+    bulkConfirmPaymentsSchema,
+    bulkUpdatePaymentsSchema,
+    joinWaitlistSchema,
+    updateVisitorPaymentSchema,
+} from '@/api/schemas/index.js'
 import { Router } from 'express'
 import { participationController } from '../controllers/participationController.js'
 
@@ -8,7 +18,7 @@ const router = Router()
 router.get('/v1/schedules/:id/participations', authMiddleware, participationController.list)
 
 // 参加表明 / キャンセル
-router.post('/v1/schedules/:id/participations', authMiddleware, participationController.attend)
+router.post('/v1/schedules/:id/participations', authMiddleware, validateBody(attendScheduleSchema), participationController.attend)
 router.delete('/v1/schedules/:id/participations/me', authMiddleware, participationController.cancel)
 
 // 4-4: 参加履歴（直近キャンセル情報）
@@ -16,7 +26,7 @@ router.get('/v1/schedules/:id/participations/me/history', authMiddleware, partic
 
 // キャンセル待ち一覧 / 登録 / 辞退
 router.get('/v1/schedules/:id/waitlist-entries', authMiddleware, participationController.listWaitlist)
-router.post('/v1/schedules/:id/waitlist-entries', authMiddleware, participationController.joinWaitlist)
+router.post('/v1/schedules/:id/waitlist-entries', authMiddleware, validateBody(joinWaitlistSchema), participationController.joinWaitlist)
 router.delete('/v1/schedules/:id/waitlist-entries/me', authMiddleware, participationController.cancelWaitlist)
 
 // UBL-8: 支払報告 / 確認
@@ -24,13 +34,19 @@ router.patch('/v1/participations/:participationId/report-payment', authMiddlewar
 router.patch('/v1/participations/:participationId/confirm-payment', authMiddleware, participationController.confirmPayment)
 
 // #40: 現金支払い一括確認
-router.patch('/v1/schedules/:id/payments/bulk-confirm', authMiddleware, participationController.bulkConfirmPayment)
+router.patch('/v1/schedules/:id/payments/bulk-confirm', authMiddleware, validateBody(bulkConfirmPaymentsSchema), participationController.bulkConfirmPayment)
+
+// D-P2-5: 一括支払い更新（All-or-Nothing）
+router.patch('/v1/schedules/:id/payments/bulk', authMiddleware, validateBody(bulkUpdatePaymentsSchema), participationController.bulkUpdatePayment)
 
 // 4-2: Stripe PaymentIntent 作成
 router.post('/v1/schedules/:id/participations/me/stripe-payment-intent', authMiddleware, participationController.createStripePaymentIntent)
 
 // 管理者による参加者除外
 router.delete('/v1/schedules/:id/participations/:userId', authMiddleware, participationController.removeParticipant)
+
+// participationId ベースの参加者削除（ロールベース権限制御）
+router.delete('/v1/participations/:participationId', authMiddleware, participationController.removeParticipation)
 
 // 返金管理
 router.get('/v1/schedules/:id/payments/refund-pending', authMiddleware, participationController.listRefundPendingBySchedule)
@@ -41,7 +57,10 @@ router.patch('/v1/payments/:paymentId/mark-no-refund', authMiddleware, participa
 router.patch('/v1/payments/:paymentId/revert-refund', authMiddleware, participationController.revertRefundStatus)
 
 // ビジター管理
-router.post('/v1/schedules/:id/guest-visitors', authMiddleware, participationController.addGuestVisitor)
-router.patch('/v1/participations/:participationId/visitor-payment', authMiddleware, participationController.updateVisitorPayment)
+router.post('/v1/schedules/:id/guest-visitors', authMiddleware, validateBody(addGuestVisitorSchema), participationController.addGuestVisitor)
+router.post('/v1/schedules/:id/registered-visitors', authMiddleware, validateBody(addRegisteredVisitorSchema), participationController.addRegisteredVisitor)
+router.get('/v1/communities/:communityId/visitor-names', authMiddleware, participationController.suggestVisitorNames)
+router.patch('/v1/participations/:participationId/visitor-payment', authMiddleware, validateBody(updateVisitorPaymentSchema), participationController.updateVisitorPayment)
+router.patch('/v1/participations/:participationId/select-payment-method', authMiddleware, participationController.selectPaymentMethod)
 
 export default router

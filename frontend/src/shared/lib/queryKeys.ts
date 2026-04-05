@@ -38,6 +38,11 @@ export const userKeys = {
 
 export const communityKeys = makeResourceKeys('communities')
 
+export const subCommunityKeys = {
+    all: ['sub-communities'] as const,
+    list: (parentId: string) => ['sub-communities', 'list', parentId] as const,
+}
+
 export const communityBookmarkKeys = {
     all: ['community-bookmarks'] as const,
 }
@@ -205,9 +210,23 @@ export const expenseCategoryKeys = {
 }
 
 export const expenseKeys = {
-    byCommunity: (communityId: string) => ['expenses', 'list', communityId] as const,
+    byCommunity: (communityId: string, from?: string, to?: string) =>
+        from || to
+            ? (['expenses', 'list', communityId, from ?? '', to ?? ''] as const)
+            : (['expenses', 'list', communityId] as const),
 }
 
 export const financeSummaryKeys = {
-    byCommunity: (communityId: string) => ['finance', 'summary', communityId] as const,
+    byCommunity: (communityId: string, from?: string, to?: string) =>
+        ['finance', 'summary', communityId, from ?? '', to ?? ''] as const,
+}
+
+export const incomeKeys = {
+    byCommunity: (communityId: string, from?: string, to?: string) =>
+        ['finance', 'income', communityId, from ?? '', to ?? ''] as const,
+}
+
+export const activityIncomeDetailKeys = {
+    byActivity: (communityId: string, activityId: string, from?: string, to?: string) =>
+        ['finance', 'income', 'detail', communityId, activityId, from ?? '', to ?? ''] as const,
 }

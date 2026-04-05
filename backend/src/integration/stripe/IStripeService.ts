@@ -54,9 +54,6 @@ export interface IStripeService {
 
     /**
      * Destination Charges で PaymentIntent を作成
-     *
-     * transfer_data.amount でコミュニティ入金額を直接指定。
-     * 残りはプラットフォーム（アプリ）受取。
      */
     createPaymentIntent(params: {
         amount: number
@@ -68,7 +65,6 @@ export interface IStripeService {
 
     /**
      * 返金（全額または部分）
-     * @param amount 返金額（指定なしで全額返金）
      */
     refundPaymentIntent(paymentIntentId: string, amount?: number): Promise<void>
 

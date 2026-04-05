@@ -2,6 +2,7 @@ import type { Community } from '../model/entity/Community.js'
 
 export type CommunityListItem = {
     id: string
+    parentId: string | null
     name: string
     description: string | null
     logoUrl: string | null
@@ -13,13 +14,13 @@ export type CommunityListItem = {
     joinMethod: string
     isPublic: boolean
     maxMembers: number | null
-    mainActivityArea: string | null
     latestAnnouncementTitle: string | null
     latestAnnouncementAt: Date | null
 }
 
 export type CommunityDetail = {
     id: string
+    parentId: string | null
     name: string
     description: string | null
     logoUrl: string | null
@@ -30,11 +31,12 @@ export type CommunityDetail = {
     joinMethod: string
     isPublic: boolean
     maxMembers: number | null
-    mainActivityArea: string | null
     activityFrequency: string | null
-    nearestStation: string | null
-    targetGender: string | null
-    ageRange: string | null
+    targetGender: string[]
+    ageMin: number | null
+    ageMax: number | null
+    recommendedLevelMin: number | null
+    recommendedLevelMax: number | null
     payPayId: string | null
     enabledPaymentMethods: string[]
     stripeAccountId: string | null
@@ -43,6 +45,14 @@ export type CommunityDetail = {
     activityDays: string[]
     tags: string[]
     memberCount: number
+    /** 活動拠点（MAIN/SUB） */
+    locations: Array<{
+        id: string
+        type: 'MAIN' | 'SUB'
+        area: string
+        station: string | null
+        sortOrder: number
+    }>
 }
 
 /** 公開コミュニティ検索結果の1行 */
@@ -51,11 +61,16 @@ export type PublicCommunitySearchItem = {
     name: string
     description: string | null
     logoUrl: string | null
-    mainActivityArea: string | null
     joinMethod: string
     memberCount: number
     categories: Array<{ id: string; name: string }>
     participationLevels: Array<{ id: string; name: string }>
+    // W4-03: 追加表示フィールド
+    targetGender: string[]
+    ageMin: number | null
+    ageMax: number | null
+    activityFrequency: string | null
+    communityTypeName: string | null
 }
 
 /** 公開コミュニティ検索の条件 */
@@ -65,8 +80,20 @@ export type SearchCommunitiesParams = {
     levelIds?: string[]
     area?: string
     days?: string[]
+    // W4-03: 追加フィルタ
+    targetGender?: string[]
+    communityTypeId?: string
+    joinMethod?: string
     limit?: number
     offset?: number
+}
+
+/** サブコミュニティ一覧行（カルーセル表示用） */
+export type SubCommunityListItem = {
+    id: string
+    name: string
+    logoUrl: string | null
+    memberCount: number
 }
 
 export interface ICommunityRepository {
@@ -79,4 +106,8 @@ export interface ICommunityRepository {
     searchPublic(params: SearchCommunitiesParams): Promise<{ items: PublicCommunitySearchItem[]; total: number }>
     /** 公開コミュニティ詳細（未所属者向け） */
     findPublicDetailById(id: string): Promise<CommunityDetail | null>
+    /** W4-05: 子コミュニティIDリスト取得（active のみ） */
+    findChildrenIds(parentId: string): Promise<string[]>
+    /** 子コミュニティ一覧（詳細付き） */
+    findChildrenWithDetails(parentId: string): Promise<SubCommunityListItem[]>
 }

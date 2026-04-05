@@ -15,8 +15,8 @@ export class WaitlistEntryRepositoryImpl implements IWaitlistEntryRepository {
     }
 
     async findByScheduleAndUser(scheduleId: string, userId: string): Promise<WaitlistEntry | null> {
-        const row = await this.prisma.waitlistEntry.findUnique({
-            where: { scheduleId_userId: { scheduleId, userId } },
+        const row = await this.prisma.waitlistEntry.findFirst({
+            where: { scheduleId, userId },
         })
         return row ? this.toDomain(row) : null
     }
@@ -43,28 +43,57 @@ export class WaitlistEntryRepositoryImpl implements IWaitlistEntryRepository {
         })
     }
 
+    async countByScheduleIds(scheduleIds: string[]): Promise<Map<string, number>> {
+        if (scheduleIds.length === 0) return new Map()
+        const rows = await this.prisma.waitlistEntry.groupBy({
+            by: ['scheduleId'],
+            where: { scheduleId: { in: scheduleIds } },
+            _count: { id: true },
+        })
+        const map = new Map<string, number>()
+        for (const row of rows) {
+            map.set(row.scheduleId, row._count.id)
+        }
+        return map
+    }
+
     async add(entry: WaitlistEntry): Promise<void> {
         await this.prisma.waitlistEntry.create({
             data: {
                 id: entry.getId(),
                 scheduleId: entry.getScheduleId().getValue(),
-                userId: entry.getUserId().getValue(),
+                userId: entry.getUserId()?.getValue() ?? null,
+                isVisitor: entry.getIsVisitor(),
+                visitorName: entry.getVisitorName(),
+                addedBy: entry.getAddedBy(),
                 registeredAt: entry.getRegisteredAt(),
             },
         })
     }
 
-    async delete(scheduleId: string, userId: string): Promise<void> {
+    async deleteById(id: string): Promise<void> {
         await this.prisma.waitlistEntry.delete({
-            where: { scheduleId_userId: { scheduleId, userId } },
+            where: { id },
         })
+    }
+
+    async delete(scheduleId: string, userId: string): Promise<void> {
+        const row = await this.prisma.waitlistEntry.findFirst({
+            where: { scheduleId, userId },
+        })
+        if (row) {
+            await this.prisma.waitlistEntry.delete({ where: { id: row.id } })
+        }
     }
 
     private toDomain(row: PrismaWaitlistEntry): WaitlistEntry {
         return WaitlistEntry.reconstruct({
             id: row.id,
             scheduleId: ScheduleId.reconstruct(row.scheduleId),
-            userId: UserId.create(row.userId),
+            userId: row.userId ? UserId.create(row.userId) : null,
+            isVisitor: row.isVisitor,
+            visitorName: row.visitorName,
+            addedBy: row.addedBy ?? null,
             registeredAt: row.registeredAt,
         })
     }

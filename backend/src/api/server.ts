@@ -3,6 +3,7 @@
 import { ApplicationEventBootstrap } from '@/_bootstrap/ApplicationEventBootstrap.js';
 import { DomainEventBootstrap } from '@/_bootstrap/DomainEventBootstrap.js';
 import { RealtimeEmitterBootstrap } from '@/_bootstrap/RealtimeEmitterBootstrap.js';
+import { TransactionalDomainEventBootstrap } from '@/_bootstrap/TransactionalDomainEventBootstrap.js';
 import { AppSecretsLoader } from '@/_sharedTech/config/AppSecretsLoader.js';
 import { loadEnv } from '@/_sharedTech/config/loadEnv.js';
 import { errorHandler } from '@/api/middleware/errorHandler.js';
@@ -141,6 +142,7 @@ try {
     // ===========================================================
     ApplicationEventBootstrap.bootstrap()
     DomainEventBootstrap.bootstrap()
+    TransactionalDomainEventBootstrap.bootstrap()
 
 
     app.get('/health', (_req, res) => {

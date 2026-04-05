@@ -12,6 +12,8 @@ export interface NotificationCreateInput {
     body?: string | null
     referenceId?: string | null
     referenceType?: string | null
+    /** 構造化メタデータ（通知種別ごとに異なる JSON） */
+    metadata?: Record<string, unknown> | null
 }
 
 export interface INotificationRepository {

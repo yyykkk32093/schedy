@@ -1,5 +1,7 @@
 import { DomainValidationError } from '@/domains/_sharedDomains/error/DomainValidationError.js'
-import { RRule, rrulestr } from 'rrule'
+import type { RRule as RRuleType } from 'rrule'
+import pkg from 'rrule'
+const { rrulestr } = pkg
 
 /**
  * RecurrenceRule — RFC 5545 RRULE 文字列のバリューオブジェクト
@@ -9,7 +11,7 @@ import { RRule, rrulestr } from 'rrule'
 export class RecurrenceRule {
     private constructor(
         private readonly value: string,
-        private readonly rrule: RRule,
+        private readonly rrule: RRuleType,
     ) { }
 
     /**
@@ -55,9 +57,9 @@ export class RecurrenceRule {
      * 次の N 個のオカレンスを取得
      */
     nextOccurrences(count: number, after?: Date): Date[] {
-        const all = this.rrule.all((_date, i) => i < count)
+        const all = this.rrule.all((_date: Date, i: number) => i < count)
         if (after) {
-            return all.filter(d => d > after)
+            return all.filter((d: Date) => d > after)
         }
         return all
     }

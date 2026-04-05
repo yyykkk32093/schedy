@@ -12,6 +12,7 @@ export class InviteTokenRepositoryImpl implements IInviteTokenRepository {
         token: string
         createdBy: string
         expiresAt: Date
+        maxUses?: number | null
     }): Promise<void> {
         await this.prisma.inviteToken.create({
             data: {
@@ -20,6 +21,7 @@ export class InviteTokenRepositoryImpl implements IInviteTokenRepository {
                 token: token.token,
                 createdBy: token.createdBy,
                 expiresAt: token.expiresAt,
+                maxUses: token.maxUses ?? null,
             },
         })
     }
@@ -28,10 +30,13 @@ export class InviteTokenRepositoryImpl implements IInviteTokenRepository {
         return this.prisma.inviteToken.findUnique({ where: { token } })
     }
 
-    async markUsed(token: string, usedBy: string): Promise<void> {
+    async recordUsage(tokenId: string, userId: string): Promise<void> {
         await this.prisma.inviteToken.update({
-            where: { token },
-            data: { usedAt: new Date(), usedBy },
+            where: { id: tokenId },
+            data: { currentUses: { increment: 1 } },
+        })
+        await this.prisma.inviteTokenUsage.create({
+            data: { tokenId, userId },
         })
     }
 

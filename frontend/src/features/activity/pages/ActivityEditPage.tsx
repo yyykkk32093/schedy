@@ -6,20 +6,22 @@ import { useNavigate, useParams } from 'react-router-dom'
 /**
  * ActivityEditPage — アクティビティ更新画面
  *
- * /activities/:id/edit から遷移
+ * /communities/:communityId/activities/:id/edit から遷移
  */
 export function ActivityEditPage() {
-    const { id } = useParams<{ id: string }>()
+    const { communityId, id } = useParams<{ communityId: string; id: string }>()
     const navigate = useNavigate()
     const { data: activity, isLoading: isActivityLoading } = useActivity(id!)
     const { data: schedulesData, isLoading: isSchedulesLoading } = useSchedules(id!)
-    const updateMutation = useUpdateActivity(id!, activity?.communityId ?? '')
+    const updateMutation = useUpdateActivity()
     const firstSchedule = schedulesData?.schedules?.[0] ?? null
-    const updateScheduleMutation = useUpdateSchedule(firstSchedule?.id ?? '', id!)
+    const updateScheduleMutation = useUpdateSchedule()
 
     const handleSubmit = async (values: ActivityFormValues) => {
         // Activity 本体の更新
         await updateMutation.mutateAsync({
+            activityId: id!,
+            communityId: activity?.communityId ?? '',
             title: values.title,
             description: values.description || undefined,
             defaultLocation: values.defaultLocation || undefined,
@@ -28,10 +30,17 @@ export function ActivityEditPage() {
             defaultEndTime: values.defaultEndTime || undefined,
             recurrenceRule: values.recurrenceRule,
             organizerUserId: values.organizerUserId || null,
+            defaultParticipationFee: values.defaultParticipationFee,
+            defaultVisitorFee: values.defaultVisitorFee,
+            defaultCapacity: values.defaultCapacity,
+            allowVisitorWaitlist: values.allowVisitorWaitlist,
+            recurrenceGenerationMonths: values.recurrenceGenerationMonths,
         })
         // Schedule の更新（日付・定員・参加費・オンライン設定・会議URL）
         if (firstSchedule) {
             await updateScheduleMutation.mutateAsync({
+                scheduleId: firstSchedule.id,
+                activityId: id!,
                 date: values.date || undefined,
                 startTime: values.defaultStartTime || undefined,
                 endTime: values.defaultEndTime || undefined,
@@ -42,7 +51,8 @@ export function ActivityEditPage() {
                 meetingUrl: values.meetingUrl,
             })
         }
-        navigate(`/activities/${id}`, { replace: true })
+        const scheduleParam = firstSchedule ? `?schedule=${firstSchedule.id}` : ''
+        navigate(`/communities/${communityId}/activities/${id}${scheduleParam}`, { replace: true })
     }
 
     if (isActivityLoading || isSchedulesLoading) {
@@ -64,6 +74,7 @@ export function ActivityEditPage() {
     return (
         <ActivityForm
             communityId={activity.communityId}
+            isEditMode
             initialValues={{
                 title: activity.title,
                 description: activity.description ?? '',
@@ -79,6 +90,10 @@ export function ActivityEditPage() {
                 visitorFee: firstSchedule?.visitorFee ?? null,
                 isOnline: firstSchedule?.isOnline ?? false,
                 meetingUrl: firstSchedule?.meetingUrl ?? null,
+                defaultParticipationFee: activity.defaultParticipationFee ?? null,
+                defaultVisitorFee: activity.defaultVisitorFee ?? null,
+                defaultCapacity: activity.defaultCapacity ?? null,
+                allowVisitorWaitlist: activity.allowVisitorWaitlist ?? false,
             }}
             submitLabel="保存"
             onSubmit={handleSubmit}

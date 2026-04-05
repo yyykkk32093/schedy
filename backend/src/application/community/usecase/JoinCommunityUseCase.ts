@@ -9,6 +9,7 @@ import { MembershipId } from '@/domains/community/membership/domain/model/valueO
 import { MembershipRole } from '@/domains/community/membership/domain/model/valueObject/MembershipRole.js'
 import type { ICommunityMembershipRepository } from '@/domains/community/membership/domain/repository/ICommunityMembershipRepository.js'
 import { CommunityNotFoundError } from '../error/CommunityNotFoundError.js'
+import { propagateJoinToChildren } from '../helper/membershipPropagation.js'
 
 export type JoinCommunityTxRepositories = {
     community: ICommunityRepository
@@ -67,6 +68,12 @@ export class JoinCommunityUseCase {
                 role: MembershipRole.member(),
             })
             await repos.membership.save(membership)
+
+            // W4-05: 子コミュニティにもメンバーシップを自動作成
+            await propagateJoinToChildren(
+                repos, this.idGenerator,
+                input.communityId, input.userId, MembershipRole.member(),
+            )
 
             membershipIdStr = membershipId.getValue()
         })

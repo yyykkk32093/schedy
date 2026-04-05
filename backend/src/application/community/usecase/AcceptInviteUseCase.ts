@@ -15,6 +15,7 @@ import { MembershipRole } from '@/domains/community/membership/domain/model/valu
 import type { ICommunityMembershipRepository } from '@/domains/community/membership/domain/repository/ICommunityMembershipRepository.js'
 import type { IOutboxRepository } from '@/integration/outbox/repository/IOutboxRepository.js'
 import { CommunityNotFoundError } from '../error/CommunityNotFoundError.js'
+import { propagateJoinToChildren } from '../helper/membershipPropagation.js'
 
 export type AcceptInviteTxRepositories = {
     community: ICommunityRepository
@@ -48,8 +49,8 @@ export class AcceptInviteUseCase {
             if (!invite) {
                 throw new HttpError({ statusCode: 404, code: 'INVITE_NOT_FOUND', message: '招待リンクが見つかりません' })
             }
-            if (invite.usedAt) {
-                throw new HttpError({ statusCode: 409, code: 'INVITE_ALREADY_USED', message: 'この招待リンクは既に使用されています' })
+            if (invite.maxUses !== null && invite.currentUses >= invite.maxUses) {
+                throw new HttpError({ statusCode: 409, code: 'INVITE_LIMIT_REACHED', message: 'この招待リンクの使用回数上限に達しています' })
             }
             if (invite.expiresAt < new Date()) {
                 throw new HttpError({ statusCode: 410, code: 'INVITE_EXPIRED', message: '招待リンクの有効期限が切れています' })
@@ -89,8 +90,14 @@ export class AcceptInviteUseCase {
             })
             await repos.membership.save(membership)
 
-            // トークンを使用済みにマーク
-            await repos.inviteToken.markUsed(input.token, input.userId)
+            // W4-05: 子コミュニティにもメンバーシップを自動作成
+            await propagateJoinToChildren(
+                repos, this.idGenerator,
+                communityId, input.userId, MembershipRole.member(),
+            )
+
+            // トークン使用を記録
+            await repos.inviteToken.recordUsage(invite.id, input.userId)
 
             // 監査ログ
             await repos.auditLog.save(new CommunityAuditLog({
@@ -114,6 +121,10 @@ export class AcceptInviteUseCase {
                     body: `${communityName} に新しいメンバーが参加しました`,
                     referenceId: communityId,
                     referenceType: 'COMMUNITY',
+                    metadata: {
+                        communityId,
+                        communityName,
+                    },
                 })
             }
 

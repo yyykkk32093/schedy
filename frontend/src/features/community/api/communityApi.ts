@@ -15,6 +15,7 @@ import type {
     ListAuditLogsResponse,
     ListCommunitiesResponse,
     ListMembersResponse,
+    ListSubCommunitiesResponse,
     SearchCommunitiesParams,
     SearchCommunitiesResponse,
     UpdateCommunityRequest,
@@ -39,6 +40,9 @@ export const communityApi = {
     createChild: (parentId: string, data: CreateSubCommunityRequest) =>
         http<CreateCommunityResponse>(`/v1/communities/${parentId}/children`, { method: 'POST', json: data }),
 
+    listChildren: (communityId: string) =>
+        http<ListSubCommunitiesResponse>(`/v1/communities/${communityId}/children`),
+
     // ---- Members ----
     listMembers: (communityId: string) =>
         http<ListMembersResponse>(`/v1/communities/${communityId}/members`),
@@ -49,8 +53,11 @@ export const communityApi = {
     changeMemberRole: (communityId: string, userId: string, data: ChangeMemberRoleRequest) =>
         http<void>(`/v1/communities/${communityId}/members/${userId}`, { method: 'PATCH', json: data }),
 
-    leave: (communityId: string) =>
-        http<void>(`/v1/communities/${communityId}/members/me`, { method: 'DELETE' }),
+    leave: (communityId: string, opts?: { cascadeToChildren?: boolean }) =>
+        http<void>(`/v1/communities/${communityId}/members/me`, {
+            method: 'DELETE',
+            json: opts?.cascadeToChildren != null ? { cascadeToChildren: opts.cascadeToChildren } : undefined,
+        }),
 
     removeMember: (communityId: string, userId: string) =>
         http<void>(`/v1/communities/${communityId}/members/${userId}`, { method: 'DELETE' }),
@@ -73,6 +80,10 @@ export const communityApi = {
         params.categoryIds?.forEach((id) => searchParams.append('categoryIds', id))
         params.levelIds?.forEach((id) => searchParams.append('levelIds', id))
         params.days?.forEach((d) => searchParams.append('days', d))
+        // W4-03: 追加フィルタ
+        params.targetGender?.forEach((g) => searchParams.append('targetGender', g))
+        if (params.communityTypeId) searchParams.set('communityTypeId', params.communityTypeId)
+        if (params.joinMethod) searchParams.set('joinMethod', params.joinMethod)
         if (params.limit) searchParams.set('limit', String(params.limit))
         if (params.offset) searchParams.set('offset', String(params.offset))
         const qs = searchParams.toString()
@@ -103,5 +114,16 @@ export const communityApi = {
         http<{ bookmarked: boolean }>(`/v1/communities/${communityId}/bookmark`, { method: 'DELETE' }),
 
     listBookmarked: () =>
-        http<{ communities: Array<{ id: string; name: string; description: string | null; logoUrl: string | null; coverUrl: string | null; joinMethod: string; isPublic: boolean; mainActivityArea: string | null }> }>('/v1/bookmarks/communities'),
+        http<{ communities: Array<{ id: string; name: string; description: string | null; logoUrl: string | null; coverUrl: string | null; joinMethod: string; isPublic: boolean }> }>('/v1/bookmarks/communities'),
+
+    // ---- Locations ----
+    getLocations: (communityId: string) =>
+        http<{ locations: Array<{ id: string; type: 'MAIN' | 'SUB'; area: string; station: string | null; sortOrder: number }> }>(`/v1/communities/${communityId}/locations`),
+
+    saveLocations: (communityId: string, locations: Array<{ type: 'MAIN' | 'SUB'; area: string; station?: string }>) =>
+        http<{ locations: Array<{ id: string; type: 'MAIN' | 'SUB'; area: string; station: string | null; sortOrder: number }> }>(`/v1/communities/${communityId}/locations`, { method: 'PUT', json: { locations } }),
+
+    // ---- Tags ----
+    saveTags: (communityId: string, tags: string[]) =>
+        http<{ tags: string[] }>(`/v1/communities/${communityId}/tags`, { method: 'PUT', json: { tags } }),
 }

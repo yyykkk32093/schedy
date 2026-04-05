@@ -8,7 +8,7 @@ import { FeedCard } from './FeedCard'
  * SearchBar — お知らせ検索バー（UBL-4）
  * デバウンス付き入力で検索結果をインラインに表示
  */
-export function SearchBar() {
+export function SearchBar({ onSearchActiveChange }: { onSearchActiveChange?: (active: boolean) => void }) {
     const [input, setInput] = useState('')
     const [debouncedKeyword, setDebouncedKeyword] = useState('')
 
@@ -23,6 +23,11 @@ export function SearchBar() {
     const showResults = debouncedKeyword.length >= 2
     const items = data?.items ?? []
 
+    // 検索がアクティブかどうかを親に通知
+    useEffect(() => {
+        onSearchActiveChange?.(showResults)
+    }, [showResults, onSearchActiveChange])
+
     return (
         <div className="px-4 pt-3 pb-1">
             {/* 入力フィールド */}
@@ -32,7 +37,7 @@ export function SearchBar() {
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="お知らせを検索…"
+                    placeholder="題名・本文・コミュニティ名で検索…"
                     className="w-full rounded-full border border-gray-200 bg-gray-50 py-2 pl-9 pr-9 text-sm outline-none focus:border-blue-400 focus:bg-white"
                 />
                 {input && (

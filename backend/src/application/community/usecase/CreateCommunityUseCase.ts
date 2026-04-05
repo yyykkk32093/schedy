@@ -2,6 +2,8 @@ import { DomainEventFlusher } from '@/application/_sharedApplication/event/Domai
 import { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnitOfWork.js'
 import { BaseDomainEvent } from '@/domains/_sharedDomains/domain/event/BaseDomainEvent.js'
 import { IIdGenerator } from '@/domains/_sharedDomains/domain/service/IIdGenerator.js'
+import { CommunityLimitKey } from '@/domains/_sharedDomains/featureGate/CommunityFeature.js'
+import type { FeatureGateService } from '@/domains/_sharedDomains/featureGate/FeatureGateService.js'
 import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
 import { Community } from '@/domains/community/domain/model/entity/Community.js'
 import { CommunityDescription } from '@/domains/community/domain/model/valueObject/CommunityDescription.js'
@@ -29,23 +31,23 @@ export class CreateCommunityUseCase {
         private readonly idGenerator: IIdGenerator,
         private readonly unitOfWork: IUnitOfWorkWithRepos<CreateCommunityTxRepositories>,
         private readonly domainEventFlusher: DomainEventFlusher,
+        private readonly featureGateService: FeatureGateService,
     ) { }
 
     async execute(input: {
         name: string
         description?: string | null
         userId: string
-        communityTypeId?: string | null
         joinMethod?: string
         isPublic?: boolean
         maxMembers?: number | null
-        mainActivityArea?: string | null
         activityFrequency?: string | null
-        nearestStation?: string | null
-        targetGender?: string | null
-        ageRange?: string | null
-        categoryIds?: string[]
-        participationLevelIds?: string[]
+        targetGender?: string[]
+        ageMin?: number | null
+        ageMax?: number | null
+        categoryId?: string | null
+        recommendedLevelMin?: number | null
+        recommendedLevelMax?: number | null
         activityDays?: string[]
         tags?: string[]
     }): Promise<{ communityId: string }> {
@@ -63,6 +65,18 @@ export class CreateCommunityUseCase {
             if (!user) throw new Error('User not found')
             const grade = CommunityGradePolicy.gradeFromPlan(user.getPlan())
 
+            // Wave5: categoryId → communityTypeId 自動解決
+            let resolvedCommunityTypeId: string | null = null
+            if (input.categoryId) {
+                const category = await repos.tx.categoryMaster.findUnique({
+                    where: { id: input.categoryId },
+                    select: { communityTypeId: true },
+                })
+                if (category?.communityTypeId) {
+                    resolvedCommunityTypeId = category.communityTypeId
+                }
+            }
+
             // Community 作成
             const community = Community.create({
                 id: communityId,
@@ -70,15 +84,17 @@ export class CreateCommunityUseCase {
                 description,
                 grade,
                 createdBy,
-                communityTypeId: input.communityTypeId,
+                communityTypeId: resolvedCommunityTypeId,
                 joinMethod,
                 isPublic: input.isPublic,
                 maxMembers: input.maxMembers,
-                mainActivityArea: input.mainActivityArea,
                 activityFrequency: input.activityFrequency,
-                nearestStation: input.nearestStation,
                 targetGender: input.targetGender,
-                ageRange: input.ageRange,
+                ageMin: input.ageMin,
+                ageMax: input.ageMax,
+                categoryId: input.categoryId,
+                recommendedLevelMin: input.recommendedLevelMin,
+                recommendedLevelMax: input.recommendedLevelMax,
             })
             await repos.community.save(community)
 
@@ -86,23 +102,15 @@ export class CreateCommunityUseCase {
             const communityIdValue = communityId.getValue()
             const { tx } = repos
 
-            if (input.categoryIds && input.categoryIds.length > 0) {
+            // Wave5: categoryId は Community に直接保存されるが、
+            // 旧 CommunityCategory テーブルにも互換性のため挿入
+            if (input.categoryId) {
                 await tx.communityCategory.createMany({
-                    data: input.categoryIds.map((categoryId) => ({
+                    data: [{
                         id: this.idGenerator.generate(),
                         communityId: communityIdValue,
-                        categoryId,
-                    })),
-                })
-            }
-
-            if (input.participationLevelIds && input.participationLevelIds.length > 0) {
-                await tx.communityParticipationLevel.createMany({
-                    data: input.participationLevelIds.map((levelId) => ({
-                        id: this.idGenerator.generate(),
-                        communityId: communityIdValue,
-                        levelId,
-                    })),
+                        categoryId: input.categoryId,
+                    }],
                 })
             }
 
@@ -117,6 +125,17 @@ export class CreateCommunityUseCase {
             }
 
             if (input.tags && input.tags.length > 0) {
+                // タグ上限チェック
+                const maxTags = await this.featureGateService.getCommunityLimit(
+                    grade.getValue(),
+                    CommunityLimitKey.MAX_TAGS,
+                )
+                if (maxTags !== -1 && input.tags.length > maxTags) {
+                    throw new Error(
+                        `タグ数が上限を超えています（上限: ${maxTags}件、指定: ${input.tags.length}件）`,
+                    )
+                }
+
                 await tx.communityTag.createMany({
                     data: input.tags.map((tag) => ({
                         id: this.idGenerator.generate(),

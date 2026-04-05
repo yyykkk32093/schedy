@@ -14,11 +14,18 @@ interface ScheduleCardProps {
 /**
  * ScheduleCard — アクティビティのスケジュール1件を表示するカード
  *
- * タップで /activities/:activityId へ遷移
+ * タップで /communities/:communityId/activities/:activityId へ遷移
  * カレンダータブ・タイムラインタブ・コミュニティ詳細のアクティビティタブで共通利用
  */
 export function ScheduleCard({ schedule, timeOnly, onRemove }: ScheduleCardProps) {
     const navigate = useNavigate()
+
+    // C-19: 過去スケジュール判定
+    const isExpired = (() => {
+        if (!schedule.date || !schedule.endTime) return false
+        const endDateTime = new Date(`${schedule.date}T${schedule.endTime}`)
+        return endDateTime.getTime() < Date.now()
+    })()
 
     const title = schedule.communityName
         ? `${schedule.communityName}：${schedule.activityTitle}`
@@ -26,7 +33,7 @@ export function ScheduleCard({ schedule, timeOnly, onRemove }: ScheduleCardProps
 
     return (
         <button
-            onClick={() => navigate(`/activities/${schedule.activityId}?schedule=${schedule.scheduleId}`)}
+            onClick={() => navigate(`/communities/${schedule.communityId}/activities/${schedule.activityId}?schedule=${schedule.scheduleId}`)}
             className="w-full text-left p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors"
         >
             <div className="flex items-start justify-between">
@@ -55,7 +62,7 @@ export function ScheduleCard({ schedule, timeOnly, onRemove }: ScheduleCardProps
                     {schedule.location && (
                         <div className="flex items-center gap-1.5 mt-0.5 text-sm text-gray-500">
                             <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                            <span>場所：{schedule.location}</span>
+                            <span>{schedule.location}</span>
                         </div>
                     )}
                     {schedule.isOnline && schedule.meetingUrl && (
@@ -90,7 +97,8 @@ export function ScheduleCard({ schedule, timeOnly, onRemove }: ScheduleCardProps
                     <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onRemove(schedule.scheduleId) }}
-                        className="p-1 text-gray-400 hover:text-red-500 transition-colors shrink-0 mt-1"
+                        disabled={isExpired}
+                        className={`p-1 transition-colors shrink-0 mt-1 ${isExpired ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-red-500'}`}
                         aria-label="参加取り消し"
                     >
                         <Trash2 className="w-4 h-4" />

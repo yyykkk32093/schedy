@@ -31,6 +31,7 @@ export class AttendScheduleUseCase {
         userId: string
         isVisitor?: boolean
         paymentMethod?: string | null
+        displayName?: string | null
     }): Promise<{ participationId: string }> {
         let participationId = ''
 
@@ -76,6 +77,7 @@ export class AttendScheduleUseCase {
                     participationId: id,
                     userId: UserId.create(input.userId),
                     paymentMethod: PaymentMethod.create(input.paymentMethod),
+                    displayName: input.displayName ?? null,
                     amount: fee,
                 })
                 await repos.payment.add(payment)

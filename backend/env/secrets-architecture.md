@@ -138,7 +138,7 @@
 
 ## AWS Secrets Manager のシークレット構造
 
-Secret Name: `schedy/secrets`
+Secret Name: `tsudocan/secrets`
 
 ```json
 {
@@ -202,7 +202,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/dbname?schema=public
 ```bash
 # Secrets Manager から取得
 USE_SECRETS_MANAGER=true
-SECRETS_MANAGER_SECRET_NAME=schedy/secrets
+SECRETS_MANAGER_SECRET_NAME=tsudocan/secrets
 SECRETS_MANAGER_REGION=ap-northeast-1
 ```
 

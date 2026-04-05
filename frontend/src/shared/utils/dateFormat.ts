@@ -8,7 +8,9 @@
  * 相対時刻表示
  * - 0〜60分: `○分前`
  * - 60分〜24時間: `○時間前`
- * - 24時間以降: `yyyy/mm/dd` 形式
+ * - 1〜30日: `○日前`
+ * - 31〜364日: `yyyy/mm/dd` 形式
+ * - 365日以上: `○年前`
  */
 export function formatRelativeTime(date: Date | string): string {
     const then = typeof date === 'string' ? new Date(date) : date
@@ -22,10 +24,32 @@ export function formatRelativeTime(date: Date | string): string {
     const diffHr = Math.floor(diffMin / 60)
     if (diffHr < 24) return `${diffHr}時間前`
 
+    const diffDay = Math.floor(diffHr / 24)
+    if (diffDay <= 30) return `${diffDay}日前`
+
+    if (diffDay >= 365) {
+        const years = Math.floor(diffDay / 365)
+        return `${years}年前`
+    }
+
     const y = then.getFullYear()
     const m = String(then.getMonth() + 1).padStart(2, '0')
     const d = String(then.getDate()).padStart(2, '0')
     return `${y}/${m}/${d}`
+}
+
+/**
+ * 日本語日時形式
+ * @returns `yyyy年MM月dd日 HH:mm` 形式
+ */
+export function formatJapaneseDateTime(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date
+    const y = d.getFullYear()
+    const mo = d.getMonth() + 1
+    const day = d.getDate()
+    const h = String(d.getHours()).padStart(2, '0')
+    const min = String(d.getMinutes()).padStart(2, '0')
+    return `${y}年${mo}月${day}日 ${h}:${min}`
 }
 
 /**

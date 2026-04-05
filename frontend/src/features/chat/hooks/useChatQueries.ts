@@ -1,6 +1,6 @@
 import { useSocket } from '@/app/providers/SocketProvider'
 import { chatApi } from '@/features/chat/api/chatApi'
-import { chatChannelKeys, messageListKeys } from '@/shared/lib/queryKeys'
+import { chatChannelKeys, dmListKeys, messageListKeys } from '@/shared/lib/queryKeys'
 import type { SendMessageRequest } from '@/shared/types/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
@@ -77,7 +77,11 @@ export function useDeleteMessage(channelId: string) {
     const qc = useQueryClient()
     return useMutation({
         mutationFn: chatApi.deleteMessage,
-        onSuccess: () => qc.invalidateQueries({ queryKey: messageListKeys.byChannel(channelId) }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: messageListKeys.byChannel(channelId) })
+            // スレッド返信の削除も即時反映
+            qc.invalidateQueries({ queryKey: ['messages', 'replies'] })
+        },
     })
 }
 
@@ -87,6 +91,22 @@ export function useUploadAttachment(channelId: string) {
     return useMutation({
         mutationFn: ({ messageId, file }: { messageId: string; file: File }) =>
             chatApi.uploadAttachment(channelId, messageId, file),
-        onSuccess: () => qc.invalidateQueries({ queryKey: messageListKeys.byChannel(channelId) }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: messageListKeys.byChannel(channelId) })
+            // スレッド返信の添付画像も即時反映
+            qc.invalidateQueries({ queryKey: ['messages', 'replies'] })
+        },
+    })
+}
+
+/** DM チャンネルから退出 */
+export function useLeaveDmChannel() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: (channelId: string) => chatApi.leaveDmChannel(channelId),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: chatChannelKeys.myChannels() })
+            qc.invalidateQueries({ queryKey: dmListKeys.myChannels() })
+        },
     })
 }

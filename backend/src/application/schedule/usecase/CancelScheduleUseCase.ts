@@ -59,6 +59,12 @@ export class CancelScheduleUseCase {
                     body: `${activity.getTitle()} のスケジュールが取り消されました`,
                     referenceId: input.scheduleId,
                     referenceType: 'SCHEDULE',
+                    metadata: {
+                        communityId: activity.getCommunityId().getValue(),
+                        activityId: activity.getId(),
+                        activityTitle: activity.getTitle().getValue(),
+                        scheduleDate: schedule.getDate()?.toISOString() ?? undefined,
+                    },
                 })
             }
         })

@@ -26,13 +26,16 @@ export function useCreateSchedule(activityId: string) {
     })
 }
 
-export function useUpdateSchedule(id: string, activityId: string) {
+export function useUpdateSchedule() {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: (data: Parameters<typeof scheduleApi.update>[1]) => scheduleApi.update(id, data),
-        onSuccess: () => {
-            qc.invalidateQueries({ queryKey: scheduleListKeys.byActivity(activityId) })
-            qc.invalidateQueries({ queryKey: scheduleKeys.detail(id) })
+        mutationFn: (input: { scheduleId: string; activityId: string } & Parameters<typeof scheduleApi.update>[1]) => {
+            const { scheduleId, activityId, ...data } = input
+            return scheduleApi.update(scheduleId, data)
+        },
+        onSuccess: (_data, variables) => {
+            qc.invalidateQueries({ queryKey: scheduleListKeys.byActivity(variables.activityId) })
+            qc.invalidateQueries({ queryKey: scheduleKeys.detail(variables.scheduleId) })
         },
     })
 }

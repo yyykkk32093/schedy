@@ -43,7 +43,7 @@ export function SignupPage() {
             <Card className="w-full max-w-md">
                 <CardHeader className="text-center">
                     <CardTitle className="text-2xl">アカウント作成</CardTitle>
-                    <CardDescription>Schedyに新規登録してサークルの予定を管理しよう</CardDescription>
+                    <CardDescription>TsudoCanに新規登録してサークルの予定を管理しよう</CardDescription>
                 </CardHeader>
 
                 <CardContent className="space-y-6">

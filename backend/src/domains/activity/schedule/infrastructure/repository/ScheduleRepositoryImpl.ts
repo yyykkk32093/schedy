@@ -49,6 +49,20 @@ export class ScheduleRepositoryImpl implements IScheduleRepository {
         return map
     }
 
+    async findFutureByCommunityId(communityId: string): Promise<Schedule[]> {
+        const now = new Date()
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const rows = await this.prisma.schedule.findMany({
+            where: {
+                activity: { communityId, deletedAt: null },
+                date: { gte: today },
+                status: 'SCHEDULED',
+            },
+            orderBy: { date: 'asc' },
+        })
+        return rows.map((r) => this.toDomain(r))
+    }
+
     async save(schedule: Schedule): Promise<void> {
         await this.prisma.schedule.upsert({
             where: { id: schedule.getId().getValue() },
@@ -80,6 +94,34 @@ export class ScheduleRepositoryImpl implements IScheduleRepository {
                 isOnline: schedule.getIsOnline(),
                 meetingUrl: schedule.getMeetingUrl(),
             },
+        })
+    }
+
+    async saveMany(schedules: Schedule[]): Promise<void> {
+        if (schedules.length === 0) return
+        await this.prisma.schedule.createMany({
+            data: schedules.map((s) => ({
+                id: s.getId().getValue(),
+                activityId: s.getActivityId().getValue(),
+                date: s.getDate(),
+                startTime: s.getStartTime().getValue(),
+                endTime: s.getEndTime().getValue(),
+                location: s.getLocation(),
+                note: s.getNote(),
+                status: s.getStatus().getValue(),
+                capacity: s.getCapacity().getValue(),
+                participationFee: s.getParticipationFee(),
+                visitorFee: s.getVisitorFee(),
+                isOnline: s.getIsOnline(),
+                meetingUrl: s.getMeetingUrl(),
+            })),
+        })
+    }
+
+    async deleteMany(ids: string[]): Promise<void> {
+        if (ids.length === 0) return
+        await this.prisma.schedule.deleteMany({
+            where: { id: { in: ids } },
         })
     }
 

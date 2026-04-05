@@ -13,6 +13,7 @@ import { ParticipationAuditLog } from '@/domains/activity/schedule/participation
 import type { IParticipationAuditLogRepository } from '@/domains/activity/schedule/participation/domain/repository/IParticipationAuditLogRepository.js'
 import type { IParticipationRepository } from '@/domains/activity/schedule/participation/domain/repository/IParticipationRepository.js'
 import type { IPaymentRepository } from '@/domains/activity/schedule/participation/domain/repository/IPaymentRepository.js'
+import { WaitlistPromotedEvent } from '@/domains/activity/schedule/waitlist/domain/event/WaitlistPromotedEvent.js'
 import { WaitlistAuditLog } from '@/domains/activity/schedule/waitlist/domain/model/entity/WaitlistAuditLog.js'
 import type { IWaitlistAuditLogRepository } from '@/domains/activity/schedule/waitlist/domain/repository/IWaitlistAuditLogRepository.js'
 import type { IWaitlistEntryRepository } from '@/domains/activity/schedule/waitlist/domain/repository/IWaitlistEntryRepository.js'
@@ -52,7 +53,7 @@ export class RemoveParticipantByAdminUseCase {
         targetUserId: string
         adminUserId: string
     }): Promise<void> {
-        await this.unitOfWork.run(async (repos) => {
+        await this.unitOfWork.run(async (repos, txEventPublisher) => {
             // スケジュール存在チェック
             const schedule = await repos.schedule.findById(input.scheduleId)
             if (!schedule) throw new ScheduleNotFoundError()
@@ -77,12 +78,27 @@ export class RemoveParticipantByAdminUseCase {
                 throw new ParticipationError('対象の参加者が見つかりません', 'PARTICIPATION_NOT_FOUND')
             }
 
-            // Payment テーブルから支払スナップショットを取得
-            const payment = await repos.payment.findLatestByScheduleAndUser(
-                input.scheduleId, input.targetUserId
-            )
+            // Payment テーブルから支払スナップショットを取得（ビジターは participationId 経由）
+            let payment
+            if (input.targetUserId) {
+                payment = await repos.payment.findLatestByScheduleAndUser(
+                    input.scheduleId, input.targetUserId
+                )
+            } else {
+                // 未登録ビジター: participationId で検索
+                payment = await repos.payment.findByParticipationId(participation.getId())
+            }
             const paymentMethodSnapshot = payment?.getPaymentMethod()?.getValue() ?? null
             const paymentStatusSnapshot = payment?.getPaymentStatus().getValue() ?? null
+
+            // 支払済みの場合は返金待ちに遷移
+            if (payment) {
+                const ps = payment.getPaymentStatus()
+                if (ps.isConfirmed() || ps.isReported()) {
+                    payment.markRefundPending()
+                    await repos.payment.update(payment)
+                }
+            }
 
             // 物理削除
             await repos.participation.delete(input.scheduleId, input.targetUserId)
@@ -102,28 +118,51 @@ export class RemoveParticipantByAdminUseCase {
             if (!schedule.isFull(attendingCount)) {
                 const nextEntry = await repos.waitlist.findNext(input.scheduleId)
                 if (nextEntry) {
-                    const promotedUserId = nextEntry.getUserId().getValue()
+                    const promotedUserId = nextEntry.getUserId()?.getValue() ?? `guest:${nextEntry.getId()}`
 
                     // WaitlistEntry 物理削除 + WaitlistAuditLog PROMOTED
-                    await repos.waitlist.delete(input.scheduleId, promotedUserId)
+                    await repos.waitlist.deleteById(nextEntry.getId())
                     await repos.waitlistAuditLog.save(new WaitlistAuditLog({
                         scheduleId: input.scheduleId,
                         userId: promotedUserId,
                         action: 'PROMOTED',
                     }))
 
-                    // Participation 新規作成 + ParticipationAuditLog JOINED
-                    const promotedParticipation = Participation.create({
-                        id: this.idGenerator.generate(),
-                        scheduleId: ScheduleId.create(input.scheduleId),
-                        userId: nextEntry.getUserId(),
-                    })
+                    // ビジター判定: 未登録ビジターなら createUnregisteredVisitor を使用
+                    let promotedParticipation: Participation
+                    if (nextEntry.getIsVisitor() && !nextEntry.getUserId()) {
+                        promotedParticipation = Participation.createUnregisteredVisitor({
+                            id: this.idGenerator.generate(),
+                            scheduleId: ScheduleId.create(input.scheduleId),
+                            visitorName: nextEntry.getVisitorName()!,
+                            addedBy: nextEntry.getAddedBy()!,
+                        })
+                    } else {
+                        promotedParticipation = Participation.create({
+                            id: this.idGenerator.generate(),
+                            scheduleId: ScheduleId.create(input.scheduleId),
+                            userId: nextEntry.getUserId()!,
+                            isVisitor: nextEntry.getIsVisitor(),
+                        })
+                    }
                     await repos.participation.add(promotedParticipation)
                     await repos.participationAuditLog.save(new ParticipationAuditLog({
                         scheduleId: input.scheduleId,
                         userId: promotedUserId,
                         action: 'JOINED',
                     }))
+
+                    // D-P2-7: 繰り上げ時に Payment を自動作成（TX内ドメインイベント）
+                    const promotedDisplayName = nextEntry.getVisitorName() ?? null
+                    await txEventPublisher?.publishAll([
+                        new WaitlistPromotedEvent(
+                            input.scheduleId,
+                            promotedUserId,
+                            promotedParticipation.getId(),
+                            nextEntry.getIsVisitor(),
+                            promotedDisplayName,
+                        ),
+                    ])
 
                     // 繰り上げ通知
                     await this.notificationService.prepareNotification(repos, {
@@ -133,6 +172,12 @@ export class RemoveParticipantByAdminUseCase {
                         body: `スケジュールに参加確定しました`,
                         referenceId: input.scheduleId,
                         referenceType: 'SCHEDULE',
+                        metadata: {
+                            communityId: activity.getCommunityId().getValue(),
+                            activityId: activity.getId(),
+                            activityTitle: activity.getTitle().getValue(),
+                            scheduleDate: schedule.getDate()?.toISOString() ?? undefined,
+                        },
                     })
                 }
             }
@@ -145,6 +190,12 @@ export class RemoveParticipantByAdminUseCase {
                 body: `${activity.getTitle().getValue()} のスケジュールから管理者により参加が取り消されました`,
                 referenceId: input.scheduleId,
                 referenceType: 'SCHEDULE',
+                metadata: {
+                    communityId: activity.getCommunityId().getValue(),
+                    activityId: activity.getId(),
+                    activityTitle: activity.getTitle().getValue(),
+                    scheduleDate: schedule.getDate()?.toISOString() ?? undefined,
+                },
             })
         })
 

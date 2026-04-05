@@ -6,14 +6,12 @@ import {
 } from '@/features/announcement/hooks/useAnnouncementSocialQueries'
 import { CommentSection } from '@/features/home/components/CommentSection'
 import { ImagePreviewGallery } from '@/shared/components/ui/ImagePreviewModal'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip'
 import { announcementFeedKeys } from '@/shared/lib/queryKeys'
-import { formatAbsoluteDateTime, formatRelativeTime } from '@/shared/utils/dateFormat'
+import { formatJapaneseDateTime } from '@/shared/utils/dateFormat'
 import { useQueryClient } from '@tanstack/react-query'
-import { Bookmark, Eye, Heart, MessageCircle } from 'lucide-react'
+import { Eye, MessageCircle, Paperclip } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
-
 export function AnnouncementDetailPage() {
     const { id } = useParams<{ id: string }>()
     const qc = useQueryClient()
@@ -40,19 +38,24 @@ export function AnnouncementDetailPage() {
         <div className="max-w-2xl mx-auto p-6">
             <h1 className="text-2xl font-bold mb-2">{announcement.title}</h1>
 
-            {/* #3: 相対時刻 + ツールチップ */}
-            <TooltipProvider>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <p className="text-xs text-gray-400 mb-4 cursor-default inline-block">
-                            {formatRelativeTime(announcement.createdAt)}
-                        </p>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>{formatAbsoluteDateTime(announcement.createdAt)}</p>
-                    </TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
+            {/* C-09: 投稿者名 · コミュニティ名 */}
+            <p className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+                {announcement.authorName && <span>{announcement.authorName}</span>}
+                {announcement.authorName && announcement.communityName && <span>·</span>}
+                {announcement.communityName && announcement.communityId && (
+                    <Link
+                        to={`/communities/${announcement.communityId}`}
+                        className="text-blue-600 hover:underline"
+                    >
+                        {announcement.communityName}
+                    </Link>
+                )}
+            </p>
+
+            {/* C-06: 日本語日時形式で表示 */}
+            <p className="text-xs text-gray-400 mb-4">
+                {formatJapaneseDateTime(announcement.createdAt)}
+            </p>
 
             <div className="prose prose-sm max-w-none whitespace-pre-wrap text-gray-700">
                 {announcement.content}
@@ -63,7 +66,7 @@ export function AnnouncementDetailPage() {
                 <div className="mt-3 flex items-center gap-1 text-sm">
                     <span className="text-gray-600">開催日時：</span>
                     <Link
-                        to={`/activities/${announcement.activityId}?schedule=${announcement.scheduleInfo.scheduleId}`}
+                        to={`/communities/${announcement.communityId}/activities/${announcement.activityId}?schedule=${announcement.scheduleInfo.scheduleId}`}
                         className="text-blue-600 hover:text-blue-700 hover:underline"
                     >
                         {announcement.scheduleInfo.date} {announcement.scheduleInfo.startTime}〜{announcement.scheduleInfo.endTime}
@@ -87,11 +90,11 @@ export function AnnouncementDetailPage() {
                     type="button"
                     onClick={() => likeMutation.mutate(id!)}
                     disabled={likeMutation.isPending}
-                    className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-500 transition-colors"
+                    className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                    <Heart className={`h-4 w-4 ${'isLiked' in announcement && announcement.isLiked ? 'fill-red-500 text-red-500' : ''}`} />
+                    <span className={`text-base leading-none ${'isLiked' in announcement && announcement.isLiked ? '' : 'grayscale opacity-40'}`}>👍</span>
                     {'likeCount' in announcement && (announcement as { likeCount: number }).likeCount > 0 && (
-                        <span>{(announcement as { likeCount: number }).likeCount}</span>
+                        <span className={'isLiked' in announcement && announcement.isLiked ? 'text-blue-500' : ''}>{(announcement as { likeCount: number }).likeCount}</span>
                     )}
                 </button>
 
@@ -113,9 +116,9 @@ export function AnnouncementDetailPage() {
                     type="button"
                     onClick={() => bookmarkMutation.mutate(id!)}
                     disabled={bookmarkMutation.isPending}
-                    className="flex items-center gap-1 text-sm text-gray-500 hover:text-yellow-500 transition-colors ml-auto"
+                    className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-500 transition-colors ml-auto"
                 >
-                    <Bookmark className={`h-4 w-4 ${'isBookmarked' in announcement && announcement.isBookmarked ? 'fill-yellow-500 text-yellow-500' : ''}`} />
+                    <Paperclip className={`h-4 w-4 ${'isBookmarked' in announcement && announcement.isBookmarked ? 'text-blue-500' : ''}`} />
                 </button>
             </div>
 

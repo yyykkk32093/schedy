@@ -51,6 +51,7 @@ router.get('/v1/notifications', authMiddleware, async (req: Request, res: Respon
                 body: n.body,
                 referenceId: n.referenceId,
                 referenceType: n.referenceType,
+                metadata: n.metadata ?? null,
                 isRead: n.isRead,
                 createdAt: n.createdAt.toISOString(),
             })),

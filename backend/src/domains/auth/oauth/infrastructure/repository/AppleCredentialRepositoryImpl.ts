@@ -32,4 +32,8 @@ export class AppleCredentialRepositoryImpl implements IAppleCredentialRepository
             } satisfies Prisma.AppleCredentialUncheckedCreateInput,
         })
     }
+
+    async deleteByUserId(userId: string): Promise<void> {
+        await this.db.appleCredential.deleteMany({ where: { userId } })
+    }
 }

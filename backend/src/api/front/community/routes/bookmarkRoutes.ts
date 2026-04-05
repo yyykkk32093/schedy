@@ -55,7 +55,6 @@ router.get('/v1/bookmarks/communities', authMiddleware, async (req, res, next) =
                         coverUrl: true,
                         joinMethod: true,
                         isPublic: true,
-                        mainActivityArea: true,
                     },
                 },
             },

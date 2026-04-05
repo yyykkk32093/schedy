@@ -1,7 +1,7 @@
 import { useAuth } from '@/app/providers/AuthProvider'
 import { communityApi } from '@/features/community/api/communityApi'
-import { activityKeys, communityBookmarkKeys, communityKeys, communitySearchKeys, masterKeys, memberKeys } from '@/shared/lib/queryKeys'
-import type { SearchCommunitiesParams } from '@/shared/types/api'
+import { activityKeys, communityBookmarkKeys, communityKeys, communitySearchKeys, masterKeys, memberKeys, subCommunityKeys } from '@/shared/lib/queryKeys'
+import type { CreateSubCommunityRequest, SearchCommunitiesParams } from '@/shared/types/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
@@ -90,7 +90,8 @@ export function useAddMember(communityId: string) {
 export function useLeaveCommunity() {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: communityApi.leave,
+        mutationFn: ({ communityId, cascadeToChildren }: { communityId: string; cascadeToChildren?: boolean }) =>
+            communityApi.leave(communityId, { cascadeToChildren }),
         onSuccess: () => qc.invalidateQueries({ queryKey: communityKeys.all }),
     })
 }
@@ -144,6 +145,27 @@ export function useJoinRequest() {
 }
 
 // ---- Phase 3 #53: Bookmarks ----
+
+export function useSubCommunities(communityId: string, enabled = true) {
+    return useQuery({
+        queryKey: subCommunityKeys.list(communityId),
+        queryFn: () => communityApi.listChildren(communityId),
+        enabled: !!communityId && enabled,
+    })
+}
+
+export function useCreateSubCommunity(parentId: string) {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: (data: CreateSubCommunityRequest) =>
+            communityApi.createChild(parentId, data),
+        onSuccess: async () => {
+            await qc.invalidateQueries({ queryKey: subCommunityKeys.list(parentId) })
+            await qc.invalidateQueries({ queryKey: communityKeys.detail(parentId) })
+            qc.invalidateQueries({ queryKey: communityKeys.all })
+        },
+    })
+}
 
 export function useBookmarkedCommunities() {
     return useQuery({

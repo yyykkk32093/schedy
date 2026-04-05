@@ -1,5 +1,19 @@
-import { useAuth } from '@/app/providers/AuthProvider'
+/**
+ * PaywallPage — RevenueCat Web SDK 版
+ *
+ * RevenueCat の Offerings を取得してプラン一覧を表示し、
+ * Web Billing 経由でサブスクリプション購入・管理を行う。
+ *
+ * Stripe との連携は RevenueCat 内部で自動的に処理される。
+ */
 
+import { useAuth } from '@/app/providers/AuthProvider'
+import { Button } from '@/shared/components/ui/button'
+import { getOrConfigurePurchases, isRevenueCatConfigured } from '@/shared/lib/revenuecat'
+import type { Offering, Purchases, Package as RCPackage } from '@revenuecat/purchases-js'
+import { useCallback, useEffect, useRef, useState } from 'react'
+
+/** 静的なプラン定義（UI 表示用） */
 const plans = [
     {
         id: 'FREE',
@@ -51,6 +65,64 @@ const plans = [
 export function PaywallPage() {
     const { user } = useAuth()
     const currentPlan = user?.plan ?? 'FREE'
+    const [purchasing, setPurchasing] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+    const [offering, setOffering] = useState<Offering | null>(null)
+    const purchasesRef = useRef<Purchases | null>(null)
+    const purchaseTargetRef = useRef<HTMLDivElement>(null)
+
+    // RevenueCat SDK を初期化して Offerings を取得
+    useEffect(() => {
+        if (!user?.userId || !isRevenueCatConfigured()) return
+
+        const init = async () => {
+            try {
+                const purchases = getOrConfigurePurchases(user.userId)
+                purchasesRef.current = purchases
+                const offerings = await purchases.getOfferings()
+                setOffering(offerings.current ?? null)
+            } catch (err) {
+                console.error('[RevenueCat] Failed to load offerings:', err)
+            }
+        }
+        init()
+    }, [user?.userId])
+
+    /**
+     * SUBSCRIBER プランの購入
+     * RevenueCat の purchase() が Stripe の決済UIを自動でマウントする
+     */
+    const handleSubscribe = useCallback(async () => {
+        if (!purchasesRef.current || !offering) return
+
+        // offering から月額パッケージを探す
+        const subscriberPkg: RCPackage | undefined =
+            offering.monthly ?? offering.availablePackages[0]
+
+        if (!subscriberPkg) {
+            setError('購入可能なパッケージが見つかりません')
+            return
+        }
+
+        setPurchasing(true)
+        setError(null)
+
+        try {
+            await purchasesRef.current.purchase({
+                rcPackage: subscriberPkg,
+                customerEmail: user?.email,
+                htmlTarget: purchaseTargetRef.current ?? undefined,
+            })
+            // 購入成功 → ページリロードで AuthProvider が新しい plan を取得
+            window.location.reload()
+        } catch (err) {
+            // ユーザーがキャンセルした場合も含む
+            const message = err instanceof Error ? err.message : '購入処理に失敗しました'
+            setError(message)
+        } finally {
+            setPurchasing(false)
+        }
+    }, [offering, user?.email])
 
     return (
         <div className="max-w-4xl mx-auto p-6">
@@ -100,24 +172,43 @@ export function PaywallPage() {
                                     <span className="block text-center px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm font-medium">
                                         現在のプラン
                                     </span>
-                                ) : plan.id === 'FREE' ? null : (
-                                    <span className="block text-center px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium">
-                                        📱 アプリからアップグレード
+                                ) : plan.id === 'SUBSCRIBER' && currentPlan === 'FREE' ? (
+                                    <Button
+                                        className="w-full"
+                                        onClick={handleSubscribe}
+                                        disabled={purchasing || !offering}
+                                    >
+                                        {purchasing ? '処理中...' : 'アップグレード'}
+                                    </Button>
+                                ) : plan.id === 'FREE' && currentPlan !== 'FREE' ? (
+                                    <span className="block text-center px-4 py-2 bg-gray-100 text-gray-400 rounded-lg text-sm">
+                                        RevenueCat 管理画面から解約
                                     </span>
-                                )}
+                                ) : plan.id === 'LIFETIME' ? (
+                                    <span className="block text-center px-4 py-2 bg-gray-100 text-gray-400 rounded-lg text-sm">
+                                        📱 アプリから購入
+                                    </span>
+                                ) : null}
                             </div>
                         </div>
                     )
                 })}
             </div>
 
+            {/* RevenueCat 決済 UI のマウント先 */}
+            <div ref={purchaseTargetRef} />
+
+            {error && (
+                <p className="text-red-500 text-sm text-center mb-4">{error}</p>
+            )}
+
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <h3 className="font-semibold text-yellow-800 mb-1">
-                    💡 Web 版でのアップグレードについて
+                    💡 Lifetime プランについて
                 </h3>
                 <p className="text-sm text-yellow-700">
-                    サブスクリプションの購入・変更は iOS / Android アプリからお願いします。
-                    アプリ内の「設定」→「プラン」からアップグレードできます。
+                    Lifetime プランの購入は iOS / Android アプリからお願いします。
+                    アプリ内の「設定」→「プラン」から購入できます。
                 </p>
             </div>
         </div>

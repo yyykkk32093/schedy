@@ -12,17 +12,31 @@ export class ExpenseRepositoryImpl implements IExpenseRepository {
         return row ? this.toDomain(row) : null
     }
 
-    async findsByCommunityId(communityId: string): Promise<Expense[]> {
+    async findsByCommunityId(communityId: string, dateRange?: { from?: Date; to?: Date }): Promise<Expense[]> {
+        const dateFilter: Record<string, Date> = {}
+        if (dateRange?.from) dateFilter.gte = dateRange.from
+        if (dateRange?.to) dateFilter.lte = dateRange.to
+
         const rows = await this.prisma.expense.findMany({
-            where: { communityId },
+            where: {
+                communityId,
+                ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
+            },
             orderBy: { date: 'desc' },
         })
         return rows.map((r) => this.toDomain(r))
     }
 
-    async sumByCommunityId(communityId: string): Promise<number> {
+    async sumByCommunityId(communityId: string, dateRange?: { from?: Date; to?: Date }): Promise<number> {
+        const dateFilter: Record<string, Date> = {}
+        if (dateRange?.from) dateFilter.gte = dateRange.from
+        if (dateRange?.to) dateFilter.lte = dateRange.to
+
         const result = await this.prisma.expense.aggregate({
-            where: { communityId },
+            where: {
+                communityId,
+                ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
+            },
             _sum: { amount: true },
         })
         return result._sum.amount ?? 0
@@ -56,6 +70,13 @@ export class ExpenseRepositoryImpl implements IExpenseRepository {
 
     async delete(id: string): Promise<void> {
         await this.prisma.expense.delete({ where: { id } })
+    }
+
+    async reassignCategory(fromCategoryId: string, toCategoryId: string): Promise<void> {
+        await this.prisma.expense.updateMany({
+            where: { categoryId: fromCategoryId },
+            data: { categoryId: toCategoryId },
+        })
     }
 
     private toDomain(row: PrismaExpense): Expense {

@@ -5,12 +5,15 @@ import { DateSeparator } from '@/features/chat/components/DateSeparator'
 import { EmojiPickerModal } from '@/features/chat/components/EmojiPickerModal'
 import { MessageBubble } from '@/features/chat/components/MessageBubble'
 import { MessageInput } from '@/features/chat/components/MessageInput'
+import { ThreadView } from '@/features/chat/components/ThreadView'
 import { useDeleteMessage, useMessages, useSendMessage, useUploadAttachment } from '@/features/chat/hooks/useChatQueries'
 import { useSocketChat } from '@/features/chat/hooks/useSocketChat'
 import { StampPickerModal } from '@/features/stamp/components/StampPickerModal'
 import { useAddReaction, useRemoveReaction } from '@/features/stamp/hooks/useStampQueries'
+import type { MessageItem } from '@/shared/types/api'
 import { Loader2 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 
 interface ChatViewProps {
     /** チャンネルID */
@@ -19,6 +22,10 @@ interface ChatViewProps {
     showHeader?: boolean
     /** ヘッダーに表示するチャンネル名 */
     headerName?: string
+    /** ヘッダータイトルタップ時のコールバック */
+    onTitlePress?: () => void
+    /** チャンネル退出コールバック（指定時のみヘッダーにメニュー表示） */
+    onLeave?: () => void
 }
 
 /**
@@ -27,7 +34,7 @@ interface ChatViewProps {
  * ChannelPage（フルスクリーン）とコミュニティ詳細のチャットタブ（埋め込み）
  * の両方から利用される。
  */
-export function ChatView({ channelId, showHeader = true, headerName = 'チャット' }: ChatViewProps) {
+export function ChatView({ channelId, showHeader = true, headerName = 'チャット', onTitlePress, onLeave }: ChatViewProps) {
     const { user } = useAuth()
     const currentUserId = user?.userId ?? ''
 
@@ -41,6 +48,35 @@ export function ChatView({ channelId, showHeader = true, headerName = 'チャッ
     const [emojiPickerMessageId, setEmojiPickerMessageId] = useState<string | null>(null)
     const [showSearch, setShowSearch] = useState(false)
     const scrollRef = useRef<HTMLDivElement>(null)
+
+    // スレッド表示（URL searchParams 連動）
+    const [searchParams, setSearchParams] = useSearchParams()
+    const threadMessageId = searchParams.get('thread')
+
+    const openThread = useCallback(
+        (messageId: string) => {
+            setSearchParams((prev) => {
+                const next = new URLSearchParams(prev)
+                next.set('thread', messageId)
+                return next
+            }, { replace: true })
+        },
+        [setSearchParams],
+    )
+
+    const closeThread = useCallback(() => {
+        setSearchParams((prev) => {
+            const next = new URLSearchParams(prev)
+            next.delete('thread')
+            return next
+        }, { replace: true })
+    }, [setSearchParams])
+
+    // スレッドの親メッセージを取得
+    const threadParentMessage: MessageItem | undefined = useMemo(() => {
+        if (!threadMessageId || !data?.messages) return undefined
+        return data.messages.find((m) => m.id === threadMessageId)
+    }, [threadMessageId, data?.messages])
 
     // WebSocket リアルタイムフック（channel:join/leave 自動管理 + message:new キャッシュ更新）
     const { typingUsers: _typingUsers } = useSocketChat({ channelId })
@@ -91,7 +127,9 @@ export function ChatView({ channelId, showHeader = true, headerName = 'チャッ
                 <ChatHeader
                     name={headerName}
                     subtitle="Active"
+                    onTitlePress={onTitlePress}
                     onSearchToggle={() => setShowSearch((v) => !v)}
+                    onLeave={onLeave}
                 />
             )}
 
@@ -129,6 +167,7 @@ export function ChatView({ channelId, showHeader = true, headerName = 'チャッ
                                     attachments={msg.attachments}
                                     reactions={msg.reactions}
                                     replyCount={msg.replyCount}
+                                    latestReply={msg.latestReply}
                                     createdAt={msg.createdAt}
                                     isMine={msg.senderId === currentUserId}
                                     isContinuation={isContinuation}
@@ -138,6 +177,7 @@ export function ChatView({ channelId, showHeader = true, headerName = 'チャッ
                                     onOpenStampPicker={(mid) => setPickerMessageId(mid)}
                                     onOpenEmojiPicker={(mid) => setEmojiPickerMessageId(mid)}
                                     onDelete={(mid) => deleteMessage.mutate(mid)}
+                                    onOpenThread={openThread}
                                 />
                             </div>
                         )
@@ -161,6 +201,15 @@ export function ChatView({ channelId, showHeader = true, headerName = 'チャッ
                 <EmojiPickerModal
                     onSelect={(emoji) => addReaction.mutate({ messageId: emojiPickerMessageId, emoji })}
                     onClose={() => setEmojiPickerMessageId(null)}
+                />
+            )}
+
+            {/* スレッドオーバーレイ */}
+            {threadParentMessage && (
+                <ThreadView
+                    channelId={channelId}
+                    parentMessage={threadParentMessage}
+                    onClose={closeThread}
                 />
             )}
         </div>

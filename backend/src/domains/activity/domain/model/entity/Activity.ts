@@ -24,6 +24,10 @@ export class Activity extends AggregateRoot {
         private defaultAddress: string | null,
         private defaultStartTime: TimeOfDay | null,
         private defaultEndTime: TimeOfDay | null,
+        private defaultParticipationFee: number | null,
+        private defaultVisitorFee: number | null,
+        private defaultCapacity: number | null,
+        private allowVisitorWaitlist: boolean,
         private recurrenceRule: string | null,
         private organizerUserId: UserId | null,
         private readonly createdBy: UserId,
@@ -41,6 +45,10 @@ export class Activity extends AggregateRoot {
         defaultAddress?: string | null
         defaultStartTime?: TimeOfDay | null
         defaultEndTime?: TimeOfDay | null
+        defaultParticipationFee?: number | null
+        defaultVisitorFee?: number | null
+        defaultCapacity?: number | null
+        allowVisitorWaitlist?: boolean
         recurrenceRule?: string | null
         organizerUserId?: UserId | null
         createdBy: UserId
@@ -64,6 +72,10 @@ export class Activity extends AggregateRoot {
             params.defaultAddress ?? null,
             params.defaultStartTime ?? null,
             params.defaultEndTime ?? null,
+            params.defaultParticipationFee ?? null,
+            params.defaultVisitorFee ?? null,
+            params.defaultCapacity ?? null,
+            params.allowVisitorWaitlist ?? false,
             params.recurrenceRule ?? null,
             params.organizerUserId ?? null,
             params.createdBy,
@@ -80,6 +92,10 @@ export class Activity extends AggregateRoot {
         defaultAddress: string | null
         defaultStartTime: TimeOfDay | null
         defaultEndTime: TimeOfDay | null
+        defaultParticipationFee: number | null
+        defaultVisitorFee: number | null
+        defaultCapacity: number | null
+        allowVisitorWaitlist: boolean
         recurrenceRule: string | null
         organizerUserId: UserId | null
         createdBy: UserId
@@ -94,6 +110,10 @@ export class Activity extends AggregateRoot {
             params.defaultAddress,
             params.defaultStartTime,
             params.defaultEndTime,
+            params.defaultParticipationFee,
+            params.defaultVisitorFee,
+            params.defaultCapacity,
+            params.allowVisitorWaitlist,
             params.recurrenceRule,
             params.organizerUserId,
             params.createdBy,
@@ -110,6 +130,10 @@ export class Activity extends AggregateRoot {
         defaultAddress?: string | null
         defaultStartTime?: TimeOfDay | null
         defaultEndTime?: TimeOfDay | null
+        defaultParticipationFee?: number | null
+        defaultVisitorFee?: number | null
+        defaultCapacity?: number | null
+        allowVisitorWaitlist?: boolean
         recurrenceRule?: string | null
         organizerUserId?: UserId | null
     }): void {
@@ -122,6 +146,10 @@ export class Activity extends AggregateRoot {
         if (params.defaultAddress !== undefined) this.defaultAddress = params.defaultAddress
         if (params.defaultStartTime !== undefined) this.defaultStartTime = params.defaultStartTime
         if (params.defaultEndTime !== undefined) this.defaultEndTime = params.defaultEndTime
+        if (params.defaultParticipationFee !== undefined) this.defaultParticipationFee = params.defaultParticipationFee
+        if (params.defaultVisitorFee !== undefined) this.defaultVisitorFee = params.defaultVisitorFee
+        if (params.defaultCapacity !== undefined) this.defaultCapacity = params.defaultCapacity
+        if (params.allowVisitorWaitlist !== undefined) this.allowVisitorWaitlist = params.allowVisitorWaitlist
         if (params.recurrenceRule !== undefined) this.recurrenceRule = params.recurrenceRule
         if (params.organizerUserId !== undefined) this.organizerUserId = params.organizerUserId
 
@@ -164,6 +192,10 @@ export class Activity extends AggregateRoot {
     getDefaultAddress(): string | null { return this.defaultAddress }
     getDefaultStartTime(): TimeOfDay | null { return this.defaultStartTime }
     getDefaultEndTime(): TimeOfDay | null { return this.defaultEndTime }
+    getDefaultParticipationFee(): number | null { return this.defaultParticipationFee }
+    getDefaultVisitorFee(): number | null { return this.defaultVisitorFee }
+    getDefaultCapacity(): number | null { return this.defaultCapacity }
+    getAllowVisitorWaitlist(): boolean { return this.allowVisitorWaitlist }
     getRecurrenceRule(): string | null { return this.recurrenceRule }
     getOrganizerUserId(): UserId | null { return this.organizerUserId }
     getCreatedBy(): UserId { return this.createdBy }

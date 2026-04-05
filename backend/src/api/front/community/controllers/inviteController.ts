@@ -6,7 +6,7 @@ export const inviteController = {
         try {
             const { id: communityId } = req.params
             const userId = req.user!.userId
-            const { expiresInDays } = req.body
+            const { expiresInDays } = req.body ?? {}
 
             const useCase = usecaseFactory.createGenerateInviteTokenUseCase()
             const result = await useCase.execute({ communityId, userId, expiresInDays })

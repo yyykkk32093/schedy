@@ -57,5 +57,5 @@ export const announcementApi = {
 
     // ── UBL-4: 検索 ──
     search: (keyword: string) =>
-        http<SearchAnnouncementsResponse>('/v1/announcements/search', { query: { keyword } }),
+        http<SearchAnnouncementsResponse>('/v1/announcements/search', { query: { q: keyword } }),
 }

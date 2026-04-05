@@ -1,5 +1,5 @@
-import type { IExpenseCategoryRepository } from '@/domains/expense/domain/repository/IExpenseCategoryRepository.js'
-import type { IExpenseRepository } from '@/domains/expense/domain/repository/IExpenseRepository.js'
+import type { IExpenseCategoryRepository } from '@/domains/expense/domain/repository/IExpenseCategoryRepository.js';
+import type { IExpenseRepository } from '@/domains/expense/domain/repository/IExpenseRepository.js';
 
 /**
  * コミュニティの支出サマリーを取得
@@ -15,7 +15,7 @@ export class GetFinanceSummaryUseCase {
         private readonly categoryRepository: IExpenseCategoryRepository,
     ) { }
 
-    async execute(input: { communityId: string }): Promise<{
+    async execute(input: { communityId: string; from?: string; to?: string }): Promise<{
         totalExpense: number
         expensesByCategory: Array<{
             categoryId: string
@@ -23,10 +23,17 @@ export class GetFinanceSummaryUseCase {
             total: number
         }>
     }> {
+        const dateRange = (input.from || input.to)
+            ? {
+                from: input.from ? new Date(input.from) : undefined,
+                to: input.to ? new Date(input.to) : undefined,
+            }
+            : undefined
+
         const [expenses, categories, totalExpense] = await Promise.all([
-            this.expenseRepository.findsByCommunityId(input.communityId),
+            this.expenseRepository.findsByCommunityId(input.communityId, dateRange),
             this.categoryRepository.findsByCommunityId(input.communityId),
-            this.expenseRepository.sumByCommunityId(input.communityId),
+            this.expenseRepository.sumByCommunityId(input.communityId, dateRange),
         ])
 
         const categoryMap = new Map(categories.map((c) => [c.getId(), c.getName()]))

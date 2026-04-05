@@ -1,4 +1,4 @@
-import { userApi } from '@/features/user/api/userApi'
+import { userApi, type WithdrawalReason } from '@/features/user/api/userApi'
 import {
     announcementFeedKeys,
     announcementListKeys,
@@ -30,6 +30,18 @@ export function useUpdateUserProfile() {
             qc.invalidateQueries({ queryKey: announcementFeedKeys.all })
             qc.invalidateQueries({ queryKey: ['announcements', 'comments'] })
             qc.invalidateQueries({ queryKey: memberKeys.all })
+        },
+    })
+}
+
+/** 退会 mutation */
+export function useDeleteAccount() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: (data?: { reason?: WithdrawalReason; freeText?: string }) =>
+            userApi.deleteAccount(data),
+        onSuccess: () => {
+            qc.clear()
         },
     })
 }

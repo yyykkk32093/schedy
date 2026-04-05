@@ -1,12 +1,15 @@
 import { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnitOfWork.js'
 import { CommunityAuditLog } from '@/domains/community/auditLog/domain/model/entity/CommunityAuditLog.js'
 import type { ICommunityAuditLogRepository } from '@/domains/community/auditLog/domain/repository/ICommunityAuditLogRepository.js'
+import type { ICommunityRepository } from '@/domains/community/domain/repository/ICommunityRepository.js'
 import type { ICommunityMembershipRepository } from '@/domains/community/membership/domain/repository/ICommunityMembershipRepository.js'
 import { CommunityPermissionError } from '../error/CommunityPermissionError.js'
 import { MembershipNotFoundError } from '../error/MembershipNotFoundError.js'
+import { propagateLeaveToChildren } from '../helper/membershipPropagation.js'
 
 export type RemoveMemberTxRepositories = {
     membership: ICommunityMembershipRepository
+    community: ICommunityRepository
     auditLog: ICommunityAuditLogRepository
 }
 
@@ -49,6 +52,9 @@ export class RemoveMemberUseCase {
 
             target.leave()
             await repos.membership.save(target)
+
+            // W4-05: 子コミュニティからも自動退室
+            await propagateLeaveToChildren(repos, input.communityId, input.targetUserId)
 
             // 監査ログ
             await repos.auditLog.save(new CommunityAuditLog({

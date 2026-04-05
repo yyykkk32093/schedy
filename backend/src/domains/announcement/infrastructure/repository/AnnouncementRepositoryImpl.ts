@@ -60,15 +60,28 @@ export class AnnouncementRepositoryImpl implements IAnnouncementRepository {
                     select: { id: true, fileUrl: true, mimeType: true },
                     orderBy: { sortOrder: 'asc' },
                 },
+                community: {
+                    select: { name: true },
+                },
             },
         })
         if (!row) return null
+
+        // authorId → User を別クエリで取得（Announcementにリレーション未定義のため）
+        const author = await this.prisma.user.findUnique({
+            where: { id: row.authorId },
+            select: { displayName: true, avatarUrl: true },
+        })
+
         const scheduleMap = row.activityId ? await this.resolveScheduleInfos([row.activityId]) : new Map()
         return {
             id: row.id,
             communityId: row.communityId,
             activityId: row.activityId,
             authorId: row.authorId,
+            authorName: author?.displayName ?? null,
+            authorAvatarUrl: author?.avatarUrl ?? null,
+            communityName: row.community?.name ?? '',
             title: row.title,
             content: row.content,
             createdAt: row.createdAt,

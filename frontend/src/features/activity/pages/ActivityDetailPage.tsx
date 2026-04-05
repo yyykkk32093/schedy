@@ -1,11 +1,12 @@
-import { useActivity, useChangeOrganizer, useDeleteActivity } from '@/features/activity/hooks/useActivityQueries'
+import { useAuth } from '@/app/providers/AuthProvider'
+import { useActivity, useChangeOrganizer, useDeleteActivity, type NotifyOption } from '@/features/activity/hooks/useActivityQueries'
 import { chatApi } from '@/features/chat/api/chatApi'
 import { useMyRole } from '@/features/community/hooks/useCommunityQueries'
 import { useMembers } from '@/features/community/hooks/useMemberQueries'
 import { BulkConfirmDialog } from '@/features/participation/components/BulkConfirmDialog'
 import { ParticipationActionButton } from '@/features/participation/components/ParticipationActionButton'
 import { RefundPendingSection } from '@/features/participation/components/RefundPendingSection'
-import { useAddGuestVisitor, useConfirmPayment, useParticipants, useUpdateVisitorPayment, useWaitlistEntries } from '@/features/participation/hooks/useParticipationQueries'
+import { useAddVisitor, useBulkUpdatePayment, useConfirmPayment, useParticipants, useRemoveParticipation, useUpdateVisitorPayment, useVisitorNameSuggestions, useWaitlistEntries } from '@/features/participation/hooks/useParticipationQueries'
 import { useSchedule, useSchedules } from '@/features/schedule/hooks/useScheduleQueries'
 import { useSetHeaderActions } from '@/shared/components/HeaderActionsContext'
 import {
@@ -18,8 +19,8 @@ import { Input } from '@/shared/components/ui/input'
 import { Separator } from '@/shared/components/ui/separator'
 import type { Member, ParticipantItem, ScheduleListItem } from '@/shared/types/api'
 import { formatDateLabel } from '@/shared/utils/dateGroup'
-import { ArrowLeftRight, Banknote, Calendar, ClipboardCheck, Edit, ExternalLink, MapPin, Repeat, Trash2, User, UserPlus } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { ArrowLeftRight, Banknote, Calendar, ClipboardCheck, Edit, ExternalLink, MapPin, Repeat, Settings, Trash2, User, UserMinus, UserPlus } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 /**
@@ -34,7 +35,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
  *  - スケジュール一覧（参加費・参加者数・参加ボタン付き）
  */
 export function ActivityDetailPage() {
-    const { id } = useParams<{ id: string }>()
+    const { communityId, id } = useParams<{ communityId: string; id: string }>()
     const navigate = useNavigate()
     const [searchParams, setSearchParams] = useSearchParams()
     const scheduleIdParam = searchParams.get('schedule')
@@ -44,13 +45,18 @@ export function ActivityDetailPage() {
     deleteMutationRef.current = deleteMutation
     const { data: schedulesData, isLoading: isSchedulesLoading, isError: isSchedulesError, error: schedulesError, refetch: refetchSchedules } = useSchedules(id!)
     const schedules = schedulesData?.schedules ?? []
-    const { isAdminOrAbove } = useMyRole(activity?.communityId ?? '')
+    const { role: currentUserRole, isAdminOrAbove } = useMyRole(activity?.communityId ?? '')
     const [showOrganizerDialog, setShowOrganizerDialog] = useState(false)
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+    const [deleteNotifyOption, setDeleteNotifyOption] = useState<NotifyOption>('push_only')
 
-    // 表示対象のスケジュールを決定（scheduleIdParam 必須 — フォールバックなし）
+    // 表示対象のスケジュールを決定（param があれば優先、なければ先頭にフォールバック）
     const activeSchedule = useMemo(() => {
-        if (!scheduleIdParam || schedules.length === 0) return null
-        return schedules.find((s) => s.id === scheduleIdParam) ?? null
+        if (schedules.length === 0) return null
+        if (scheduleIdParam) {
+            return schedules.find((s) => s.id === scheduleIdParam) ?? schedules[0]
+        }
+        return schedules[0]
     }, [schedules, scheduleIdParam])
 
     const activeIndex = activeSchedule ? schedules.findIndex((s) => s.id === activeSchedule.id) : -1
@@ -60,13 +66,23 @@ export function ActivityDetailPage() {
         if (s) setSearchParams({ schedule: s.id }, { replace: true })
     }
 
-    // ヘッダーに編集・削除アイコンを設定（useMemo で参照安定化 — 0-2 fix）
+    // C-16: 全スケジュールが過去かどうか判定（過去なら編集/削除ボタン非表示）
+    const isPastActivity = useMemo(() => {
+        if (schedules.length === 0) return false
+        return schedules.every((s) => {
+            if (!s.date || !s.endTime) return false
+            const endDateTime = new Date(`${s.date}T${s.endTime}`)
+            return endDateTime.getTime() < Date.now()
+        })
+    }, [schedules])
+
+    // ヘッダーに編集・削除アイコンを設定（C-16: 過去禁止 + C-17: 権限チェック）
     const headerActions = useMemo(
         () =>
-            activity ? (
+            activity && isAdminOrAbove && !isPastActivity ? (
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={() => navigate(`/activities/${id}/edit`)}
+                        onClick={() => navigate(`/communities/${communityId}/activities/${id}/edit`)}
                         className="p-1.5 hover:bg-gray-100 rounded-md"
                         aria-label="編集"
                     >
@@ -74,10 +90,7 @@ export function ActivityDetailPage() {
                     </button>
                     <button
                         onClick={async () => {
-                            if (confirm('このアクティビティを削除しますか？')) {
-                                await deleteMutationRef.current.mutateAsync(id!)
-                                navigate(-1)
-                            }
+                            setShowDeleteDialog(true)
                         }}
                         className="p-1.5 hover:bg-gray-100 rounded-md"
                         aria-label="削除"
@@ -86,7 +99,7 @@ export function ActivityDetailPage() {
                     </button>
                 </div>
             ) : null,
-        [activity, id, navigate]
+        [activity, id, navigate, isAdminOrAbove, isPastActivity]
     )
     useSetHeaderActions(headerActions)
 
@@ -124,7 +137,14 @@ export function ActivityDetailPage() {
                 {activity.communityName && (
                     <div className="flex items-center gap-2">
                         <User className="w-4 h-4 text-gray-400 shrink-0" />
-                        <span>コミュニティ：{activity.communityName}</span>
+                        <span>コミュニティ名：</span>
+                        <button
+                            type="button"
+                            onClick={() => navigate(`/communities/${activity.communityId}`)}
+                            className="text-blue-600 hover:underline"
+                        >
+                            {activity.communityName}
+                        </button>
                     </div>
                 )}
                 {activity.defaultLocation && activity.defaultLocation !== 'オンライン' && (
@@ -211,8 +231,8 @@ export function ActivityDetailPage() {
                         チャットを始める
                     </button>
                 </div>
-                {/* 繰り返し予定ナビ（recurrenceRule あり かつ 複数スケジュール時のみ） */}
-                {activity.recurrenceRule && schedules.length > 1 && activeSchedule && (
+                {/* 繰り返し予定ナビ（recurrenceRule あり時） */}
+                {activity.recurrenceRule && activeSchedule && (
                     <div className="flex items-center gap-2">
                         <Repeat className="w-4 h-4 text-gray-400 shrink-0" />
                         <span className="text-sm text-gray-700">繰り返し予定：</span>
@@ -265,9 +285,11 @@ export function ActivityDetailPage() {
                 ) : (
                     <ScheduleSection
                         schedule={activeSchedule}
+                        communityId={activity.communityId}
                         enabledPaymentMethods={activity.communityPaymentSettings?.enabledPaymentMethods}
                         paypayId={activity.communityPaymentSettings?.paypayId}
                         isAdminOrAbove={isAdminOrAbove}
+                        currentUserRole={currentUserRole ?? undefined}
                     />
                 )}
             </div>
@@ -281,18 +303,80 @@ export function ActivityDetailPage() {
                     onOpenChange={setShowOrganizerDialog}
                 />
             )}
+
+            {/* ── 削除確認ダイアログ ── */}
+            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>アクティビティを削除</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-gray-600">
+                        「{activity?.title}」を削除しますか？この操作は取り消せません。
+                    </p>
+                    <div className="space-y-2 py-2">
+                        <p className="text-xs font-medium text-gray-500">参加者への通知</p>
+                        {([
+                            { value: 'announcement' as NotifyOption, label: 'お知らせとして投稿する', desc: 'お知らせ一覧に表示 + プッシュ通知' },
+                            { value: 'push_only' as NotifyOption, label: 'プッシュ通知のみ', desc: 'プッシュ通知のみ送信' },
+                            { value: 'none' as NotifyOption, label: '通知なし', desc: '通知せずに削除' },
+                        ]).map(({ value, label, desc }) => (
+                            <label key={value} className="flex items-start gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="deleteNotify"
+                                    value={value}
+                                    checked={deleteNotifyOption === value}
+                                    onChange={() => setDeleteNotifyOption(value)}
+                                    className="mt-0.5"
+                                />
+                                <div>
+                                    <span className="text-sm text-gray-700">{label}</span>
+                                    <p className="text-xs text-gray-400">{desc}</p>
+                                </div>
+                            </label>
+                        ))}
+                    </div>
+                    <div className="flex justify-end gap-2 pt-1">
+                        <button
+                            type="button"
+                            onClick={() => setShowDeleteDialog(false)}
+                            className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-md"
+                        >
+                            キャンセル
+                        </button>
+                        <button
+                            type="button"
+                            onClick={async () => {
+                                await deleteMutationRef.current.mutateAsync({
+                                    activityId: id!,
+                                    notifyOption: deleteNotifyOption,
+                                })
+                                setShowDeleteDialog(false)
+                                navigate(-1)
+                            }}
+                            disabled={deleteMutation.isPending}
+                            className="px-3 py-1.5 text-sm text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50"
+                        >
+                            {deleteMutation.isPending ? '削除中...' : '削除する'}
+                        </button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
 
 // ─── スケジュール単位の参加セクション ────────────────────
 
-function ScheduleSection({ schedule, enabledPaymentMethods, paypayId, isAdminOrAbove }: { schedule: ScheduleListItem; enabledPaymentMethods?: string[]; paypayId?: string | null; isAdminOrAbove?: boolean }) {
+function ScheduleSection({ schedule, communityId, enabledPaymentMethods, paypayId, isAdminOrAbove, currentUserRole }: { schedule: ScheduleListItem; communityId: string; enabledPaymentMethods?: string[]; paypayId?: string | null; isAdminOrAbove?: boolean; currentUserRole?: string }) {
+    const { user } = useAuth()
+    const currentUserId = user?.userId
     const { data: participantsData } = useParticipants(schedule.id)
     const { data: waitlistData } = useWaitlistEntries(schedule.id)
     const confirmPaymentMutation = useConfirmPayment(schedule.id)
-    const addGuestVisitorMutation = useAddGuestVisitor(schedule.id)
+    const addVisitorMutation = useAddVisitor(schedule.id)
     const updateVisitorPaymentMutation = useUpdateVisitorPayment(schedule.id)
+    const removeParticipationMutation = useRemoveParticipation(schedule.id)
     // 個別スケジュールAPIで myStatus / attendingCount / waitlistCount を取得
     const { data: scheduleDetail, isLoading: isDetailLoading } = useSchedule(schedule.id)
     const participants = participantsData?.participants ?? []
@@ -303,6 +387,21 @@ function ScheduleSection({ schedule, enabledPaymentMethods, paypayId, isAdminOrA
     const [showBulkConfirm, setShowBulkConfirm] = useState(false)
     const [showAddVisitor, setShowAddVisitor] = useState(false)
     const hasReportedPayments = participants.some((p) => p.paymentStatus === 'REPORTED')
+
+    // 一括支払い方法設定
+    const bulkUpdatePaymentMutation = useBulkUpdatePayment(schedule.id)
+    const [showBulkPaymentMethodDialog, setShowBulkPaymentMethodDialog] = useState(false)
+    const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set())
+    const [bulkPaymentMethod, setBulkPaymentMethod] = useState<string>('')
+    const resolvedPaymentMethods = enabledPaymentMethods ?? ['CASH']
+    const bulkTargetParticipants = participants.filter((p) => p.isVisitor && !p.userId)
+
+    useEffect(() => {
+        if (showBulkPaymentMethodDialog) {
+            setBulkSelectedIds(new Set(bulkTargetParticipants.map((p) => p.id)))
+            setBulkPaymentMethod(resolvedPaymentMethods[0] ?? 'CASH')
+        }
+    }, [showBulkPaymentMethodDialog])
 
     // #34: 過去アクティビティ判定（endTime を過ぎたらボタン非活性）
     const isExpired = (() => {
@@ -316,11 +415,47 @@ function ScheduleSection({ schedule, enabledPaymentMethods, paypayId, isAdminOrA
     const isFull = schedule.capacity != null
         && (scheduleDetail?.attendingCount ?? participants.length) >= schedule.capacity
 
+    // ── 参加者削除: 権限判定 ──
+    const canDeleteParticipant = (p: ParticipantItem): boolean => {
+        if (isCancelled) return false
+        // ビジター: 追加者本人 OR ADMIN+
+        if (p.isVisitor) {
+            return (p.addedBy === currentUserId) || !!isAdminOrAbove
+        }
+        // 自分自身は削除ボタンで消さない（キャンセルフローを使う）
+        if (p.userId === currentUserId) return false
+        // ADMIN は MEMBER のみ削除可、OWNER は ADMIN/MEMBER 削除可（OWNER は削除不可）
+        // → フロントは isAdminOrAbove でざっくり表示し、バックエンドが厳密に権限チェック
+        return !!isAdminOrAbove
+    }
+    const handleDeleteParticipant = (p: ParticipantItem) => {
+        const name = p.visitorName ?? p.displayName ?? p.userId?.slice(0, 8) ?? '参加者'
+        if (window.confirm(`${name} を参加者から削除しますか？`)) {
+            removeParticipationMutation.mutate(p.id)
+        }
+    }
+
     return (
         <div className="border rounded-lg p-4 space-y-3">
             {isCancelled && (
                 <div className="flex items-center">
                     <span className="text-xs text-red-500 font-normal bg-red-50 px-1.5 py-0.5 rounded">キャンセル済</span>
+                </div>
+            )}
+
+            {/* C-18: オンライン時に会議URL表示 */}
+            {schedule.isOnline && schedule.meetingUrl && (
+                <div className="flex items-center gap-1.5 text-sm text-blue-600">
+                    <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                    <a
+                        href={schedule.meetingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline truncate"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        会議URLを開く
+                    </a>
                 </div>
             )}
 
@@ -337,21 +472,36 @@ function ScheduleSection({ schedule, enabledPaymentMethods, paypayId, isAdminOrA
                             className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
                         >
                             <UserPlus className="w-3.5 h-3.5" />
-                            ゲスト追加
+                            ビジター追加
                         </button>
                     )}
                 </div>
                 <div className="border rounded overflow-hidden">
-                    <div className="max-h-64 overflow-auto">
+                    <div className="max-h-[331px] overflow-auto">
                         <table className="w-full text-xs">
                             <thead className="sticky top-0 z-10">
                                 <tr className="bg-gray-50 border-b">
                                     <th className="px-2 py-1 text-left font-medium text-gray-600 w-8">No.</th>
                                     <th className="px-2 py-1 text-left font-medium text-gray-600">参加者</th>
-                                    <th className="px-2 py-1 text-center font-medium text-gray-600 w-16">ビジター</th>
-                                    {isAdminOrAbove && hasFee && <th className="px-2 py-1 text-center font-medium text-gray-600 w-20">支払い方法</th>}
+                                    <th className="px-2 py-1 text-left font-medium text-gray-600 w-16">ビジター</th>
                                     {isAdminOrAbove && hasFee && (
-                                        <th className="px-2 py-1 text-center font-medium text-gray-600 w-20">
+                                        <th className="px-2 py-1 text-left font-medium text-gray-600 w-20">
+                                            <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                                支払い方法
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowBulkPaymentMethodDialog(true)}
+                                                    className="p-0.5 hover:bg-gray-200 rounded transition-colors"
+                                                    aria-label="支払い方法を一括設定"
+                                                    title="支払い方法を一括設定"
+                                                >
+                                                    <Settings className="w-3.5 h-3.5 text-blue-600" />
+                                                </button>
+                                            </span>
+                                        </th>
+                                    )}
+                                    {isAdminOrAbove && hasFee && (
+                                        <th className="px-2 py-1 text-left font-medium text-gray-600 w-20">
                                             <span className="inline-flex items-center gap-1 whitespace-nowrap">
                                                 支払い
                                                 <button
@@ -378,13 +528,36 @@ function ScheduleSection({ schedule, enabledPaymentMethods, paypayId, isAdminOrA
                                                 <td className="px-2 py-1 text-gray-600">{i + 1}</td>
                                                 <td className="px-2 py-1 text-gray-900">
                                                     {p ? (
-                                                        p.isGuestVisitor
-                                                            ? <span>{p.visitorName ?? '—'} <span className="text-gray-400 text-[10px]">（ゲスト）</span></span>
-                                                            : (p.displayName ?? (p.userId ? p.userId.slice(0, 8) : '—'))
+                                                        <span className="flex items-center justify-between">
+                                                            <span className="truncate">
+                                                                {p.visitorName
+                                                                    ? p.visitorName
+                                                                    : (p.displayName ?? (p.userId ? p.userId.slice(0, 8) : '—'))}
+                                                            </span>
+                                                            {canDeleteParticipant(p) && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDeleteParticipant(p)}
+                                                                    disabled={removeParticipationMutation.isPending}
+                                                                    className="p-0.5 hover:bg-red-50 rounded transition-colors flex-shrink-0 ml-1"
+                                                                    aria-label="参加を取り消す"
+                                                                    title="参加を取り消す"
+                                                                >
+                                                                    <UserMinus className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
+                                                                </button>
+                                                            )}
+                                                        </span>
                                                     ) : <span className="text-gray-300">—</span>}
                                                 </td>
-                                                <td className="px-2 py-1 text-center">
-                                                    {p ? (p.isVisitor ? '✓' : '—') : <span className="text-gray-300">—</span>}
+                                                <td className="px-2 py-1 text-center align-middle">
+                                                    {p ? (
+                                                        p.isVisitor
+                                                            ? <div className="flex flex-col items-center justify-center leading-none h-[21px]">
+                                                                <span className="text-sm">✓</span>
+                                                                {!p.userId && <span className="text-[7px] text-gray-400 -mt-px">（ゲスト）</span>}
+                                                            </div>
+                                                            : <div className="flex items-center justify-center h-[21px]">—</div>
+                                                    ) : <div className="flex items-center justify-center h-[21px]"><span className="text-gray-300">—</span></div>}
                                                 </td>
                                                 {isAdminOrAbove && hasFee && (
                                                     <td className="px-2 py-1 text-center">
@@ -451,7 +624,12 @@ function ScheduleSection({ schedule, enabledPaymentMethods, paypayId, isAdminOrA
                                         {waitlistEntries.map((w, i) => (
                                             <tr key={w.id} className="border-b last:border-0">
                                                 <td className="px-2 py-1 text-gray-600">{i + 1}</td>
-                                                <td className="px-2 py-1 text-gray-900">{w.displayName ?? '—'}</td>
+                                                <td className="px-2 py-1 text-gray-900">
+                                                    {w.displayName ?? '—'}
+                                                    {w.isVisitor && (
+                                                        <span className="ml-1 text-[10px] bg-gray-100 text-gray-500 px-1 py-0.5 rounded">ゲスト</span>
+                                                    )}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -502,38 +680,178 @@ function ScheduleSection({ schedule, enabledPaymentMethods, paypayId, isAdminOrA
                 onClose={() => setShowBulkConfirm(false)}
             />
 
-            {/* ゲストビジター追加ダイアログ */}
-            <AddGuestVisitorDialog
+            {/* 一括支払い方法設定ダイアログ */}
+            {showBulkPaymentMethodDialog && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+                    onClick={() => setShowBulkPaymentMethodDialog(false)}
+                >
+                    <div
+                        className="bg-white rounded-2xl w-full max-w-md mx-4 p-5 animate-slide-up max-h-[80vh] flex flex-col"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 className="text-base font-semibold text-gray-800 mb-1">支払い方法の一括設定</h3>
+                        <p className="text-xs text-gray-500 mb-4">
+                            ビジター（ゲスト）の支払い方法をまとめて設定します。
+                        </p>
+
+                        {bulkTargetParticipants.length === 0 ? (
+                            <p className="text-sm text-gray-400 text-center py-8">対象のビジターはいません</p>
+                        ) : (
+                            <>
+                                {/* 全選択 / 全解除 */}
+                                <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
+                                    <input
+                                        type="checkbox"
+                                        checked={bulkSelectedIds.size === bulkTargetParticipants.length}
+                                        onChange={() => {
+                                            if (bulkSelectedIds.size === bulkTargetParticipants.length) {
+                                                setBulkSelectedIds(new Set())
+                                            } else {
+                                                setBulkSelectedIds(new Set(bulkTargetParticipants.map((p) => p.id)))
+                                            }
+                                        }}
+                                        className="w-4 h-4 rounded accent-blue-500"
+                                    />
+                                    <span className="text-xs text-gray-600 font-medium">
+                                        全て選択（{bulkSelectedIds.size}/{bulkTargetParticipants.length}）
+                                    </span>
+                                </div>
+
+                                {/* 対象者リスト */}
+                                <div className="flex-1 overflow-y-auto space-y-1 min-h-0 mb-4">
+                                    {bulkTargetParticipants.map((p) => (
+                                        <label
+                                            key={p.id}
+                                            className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={bulkSelectedIds.has(p.id)}
+                                                onChange={() => {
+                                                    setBulkSelectedIds((prev) => {
+                                                        const next = new Set(prev)
+                                                        if (next.has(p.id)) next.delete(p.id)
+                                                        else next.add(p.id)
+                                                        return next
+                                                    })
+                                                }}
+                                                className="w-4 h-4 rounded accent-blue-500"
+                                            />
+                                            <p className="flex-1 min-w-0 text-sm text-gray-800 truncate">
+                                                {p.visitorName ?? p.displayName ?? '—'}
+                                                <span className="text-[10px] text-gray-400 ml-1">
+                                                    （{p.paymentMethod === 'CASH' ? '現金' : p.paymentMethod === 'PAYPAY' ? 'PayPay' : p.paymentMethod === 'STRIPE' ? 'カード' : '未指定'}）
+                                                </span>
+                                            </p>
+                                        </label>
+                                    ))}
+                                </div>
+
+                                {/* 支払い方法選択 */}
+                                <div className="mb-4">
+                                    <label className="block text-xs text-gray-600 font-medium mb-1">支払い方法</label>
+                                    <select
+                                        value={bulkPaymentMethod}
+                                        onChange={(e) => setBulkPaymentMethod(e.target.value)}
+                                        className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white"
+                                    >
+                                        {(['CASH', 'PAYPAY', 'STRIPE'] as const).map((method) => {
+                                            const enabled = resolvedPaymentMethods.includes(method)
+                                            const label = method === 'CASH' ? '現金' : method === 'PAYPAY' ? 'PayPay' : 'カード決済'
+                                            return (
+                                                <option key={method} value={method} disabled={!enabled}>
+                                                    {label}{!enabled ? '（有効にする場合はコミュニティ設定→支払い方法の設定を行なってください）' : ''}
+                                                </option>
+                                            )
+                                        })}
+                                    </select>
+                                </div>
+
+                                <p className="text-[10px] text-gray-400 mb-2">
+                                    ※ビジター（ゲスト）は、アプリ登録を行っていないビジターです。
+                                </p>
+                            </>
+                        )}
+
+                        {/* アクションボタン */}
+                        <div className="flex gap-3 justify-end pt-3 border-t border-gray-100">
+                            <button
+                                type="button"
+                                onClick={() => setShowBulkPaymentMethodDialog(false)}
+                                className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                キャンセル
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const updates = Array.from(bulkSelectedIds).map((pId) => ({
+                                        participationId: pId,
+                                        paymentMethod: bulkPaymentMethod,
+                                    }))
+                                    bulkUpdatePaymentMutation.mutate(updates, {
+                                        onSuccess: () => {
+                                            setShowBulkPaymentMethodDialog(false)
+                                            setBulkSelectedIds(new Set())
+                                        },
+                                    })
+                                }}
+                                disabled={bulkSelectedIds.size === 0 || bulkUpdatePaymentMutation.isPending}
+                                className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 rounded-lg transition-colors"
+                            >
+                                {bulkUpdatePaymentMutation.isPending ? '処理中...' : `${bulkSelectedIds.size}件に設定`}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ビジター追加ダイアログ */}
+            <AddVisitorDialog
                 open={showAddVisitor}
                 onOpenChange={setShowAddVisitor}
+                communityId={communityId}
                 onSubmit={async (visitorName) => {
-                    await addGuestVisitorMutation.mutateAsync({ visitorName })
+                    await addVisitorMutation.mutateAsync({ visitorName })
                     setShowAddVisitor(false)
                 }}
-                isPending={addGuestVisitorMutation.isPending}
+                isPending={addVisitorMutation.isPending}
             />
         </div>
     )
 }
 
-// ─── ゲストビジター追加ダイアログ ──────────────────────
+// ─── ビジター追加ダイアログ ──────────────────────────
 
-function AddGuestVisitorDialog({
+function AddVisitorDialog({
     open,
     onOpenChange,
+    communityId,
     onSubmit,
     isPending,
 }: {
     open: boolean
     onOpenChange: (open: boolean) => void
+    communityId: string
     onSubmit: (visitorName: string) => Promise<void>
     isPending: boolean
 }) {
     const [name, setName] = useState('')
+    const [showSuggestions, setShowSuggestions] = useState(false)
+    const { data: suggestionsData } = useVisitorNameSuggestions(communityId)
+    const suggestions = suggestionsData?.names ?? []
+
+    const filteredSuggestions = useMemo(() => {
+        if (!name.trim()) return suggestions.slice(0, 8)
+        const q = name.trim().toLowerCase()
+        return suggestions.filter((s) => s.toLowerCase().includes(q)).slice(0, 8)
+    }, [suggestions, name])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!name.trim()) return
+        setShowSuggestions(false)
         await onSubmit(name.trim())
         setName('')
     }
@@ -542,24 +860,48 @@ function AddGuestVisitorDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-sm">
                 <DialogHeader>
-                    <DialogTitle>ゲストビジター追加</DialogTitle>
+                    <DialogTitle>ビジター追加</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-3">
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 relative">
                         <label htmlFor="visitorName" className="text-sm font-medium text-gray-700">
                             ビジター名
                         </label>
                         <Input
                             id="visitorName"
                             value={name}
-                            onChange={(e) => setName(e.target.value)}
+                            onChange={(e) => {
+                                setName(e.target.value)
+                                setShowSuggestions(true)
+                            }}
+                            onFocus={() => setShowSuggestions(true)}
                             placeholder="名前を入力（最大50文字）"
                             maxLength={50}
+                            autoComplete="off"
                             autoFocus
                         />
+                        {showSuggestions && filteredSuggestions.length > 0 && (
+                            <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                                {filteredSuggestions.map((suggestion) => (
+                                    <li key={suggestion}>
+                                        <button
+                                            type="button"
+                                            className="w-full text-left px-3 py-1.5 text-sm hover:bg-blue-50 cursor-pointer"
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            onClick={() => {
+                                                setName(suggestion)
+                                                setShowSuggestions(false)
+                                            }}
+                                        >
+                                            {suggestion}
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
                     <p className="text-xs text-gray-500">
-                        アプリ未登録のゲスト参加者を追加します。支払い管理はあなたが行います。
+                        ビジター参加者を追加します。支払い管理はあなたが行います。
                     </p>
                     <div className="flex justify-end gap-2 pt-1">
                         <button

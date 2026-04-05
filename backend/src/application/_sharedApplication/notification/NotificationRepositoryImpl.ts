@@ -25,6 +25,7 @@ export class NotificationRepositoryImpl implements INotificationRepository {
                 body: input.body ?? null,
                 referenceId: input.referenceId ?? null,
                 referenceType: input.referenceType ?? null,
+                metadata: input.metadata ? (input.metadata as Prisma.InputJsonValue) : undefined,
                 isRead: false,
             },
         })

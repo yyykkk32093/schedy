@@ -32,4 +32,8 @@ export class GoogleCredentialRepositoryImpl implements IGoogleCredentialReposito
             } satisfies Prisma.GoogleCredentialUncheckedCreateInput,
         })
     }
+
+    async deleteByUserId(userId: string): Promise<void> {
+        await this.db.googleCredential.deleteMany({ where: { userId } })
+    }
 }

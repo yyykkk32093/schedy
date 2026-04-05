@@ -1,5 +1,6 @@
 import { JwtTokenService } from '@/_sharedTech/security/JwtTokenService.js'
 import type { NextFunction, Request, Response } from 'express'
+import { isUserBlacklisted } from './userBlacklist.js'
 
 /**
  * 認証ミドルウェア（ハイブリッド方式）
@@ -36,6 +37,16 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
 
     try {
         const payload = jwtService.verify(token)
+
+        // D-P2-10: 退会済みユーザーのJWT無効化
+        if (isUserBlacklisted(payload.sub)) {
+            res.status(401).json({
+                code: 'USER_DELETED',
+                message: 'このアカウントは退会済みです',
+            })
+            return
+        }
+
         // req.user にペイロードを設定
         req.user = {
             userId: payload.sub,

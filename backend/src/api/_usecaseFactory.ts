@@ -2,8 +2,11 @@
 import { ApplicationEventBootstrap } from '@/_bootstrap/ApplicationEventBootstrap.js'
 import { DomainEventBootstrap } from '@/_bootstrap/DomainEventBootstrap.js'
 import { RealtimeEmitterBootstrap } from '@/_bootstrap/RealtimeEmitterBootstrap.js'
+import { TransactionalDomainEventBootstrap } from '@/_bootstrap/TransactionalDomainEventBootstrap.js'
 import { prisma } from '@/_sharedTech/db/client.js'
+import { featureGateService } from '@/_sharedTech/featureGate/featureGateServiceInstance.js'
 import { JwtTokenService } from '@/_sharedTech/security/JwtTokenService.js'
+import { addUserToBlacklist } from '@/api/middleware/userBlacklist.js'
 import { DomainEventFlusher } from '@/application/_sharedApplication/event/DomainEventFlusher.js'
 import { NotificationRepositoryImpl } from '@/application/_sharedApplication/notification/NotificationRepositoryImpl.js'
 import { NotificationService } from '@/application/_sharedApplication/notification/NotificationService.js'
@@ -49,13 +52,16 @@ import { LeaveCommunityTxRepositories, LeaveCommunityUseCase } from '@/applicati
 import { ListCommunitiesUseCase } from '@/application/community/usecase/ListCommunitiesUseCase.js'
 import { ListCommunityAuditLogsUseCase } from '@/application/community/usecase/ListCommunityAuditLogsUseCase.js'
 import { ListMembersUseCase } from '@/application/community/usecase/ListMembersUseCase.js'
+import { ListSubCommunitiesUseCase } from '@/application/community/usecase/ListSubCommunitiesUseCase.js'
 import { RemoveMemberTxRepositories, RemoveMemberUseCase } from '@/application/community/usecase/RemoveMemberUseCase.js'
 import { RequestJoinCommunityTxRepositories, RequestJoinCommunityUseCase } from '@/application/community/usecase/RequestJoinCommunityUseCase.js'
 import { SearchCommunitiesUseCase } from '@/application/community/usecase/SearchCommunitiesUseCase.js'
 import { SoftDeleteCommunityTxRepositories, SoftDeleteCommunityUseCase } from '@/application/community/usecase/SoftDeleteCommunityUseCase.js'
 import { UpdateCommunityTxRepositories, UpdateCommunityUseCase } from '@/application/community/usecase/UpdateCommunityUseCase.js'
 import { AddGuestVisitorTxRepositories, AddGuestVisitorUseCase } from '@/application/participation/usecase/AddGuestVisitorUseCase.js'
+import { AddRegisteredVisitorTxRepositories, AddRegisteredVisitorUseCase } from '@/application/participation/usecase/AddRegisteredVisitorUseCase.js'
 import { AttendScheduleTxRepositories, AttendScheduleUseCase } from '@/application/participation/usecase/AttendScheduleUseCase.js'
+import { BulkUpdatePaymentTxRepositories, BulkUpdatePaymentUseCase } from '@/application/participation/usecase/BulkUpdatePaymentUseCase.js'
 import { CancelParticipationTxRepositories, CancelParticipationUseCase } from '@/application/participation/usecase/CancelParticipationUseCase.js'
 import { CancelWaitlistTxRepositories, CancelWaitlistUseCase } from '@/application/participation/usecase/CancelWaitlistUseCase.js'
 import { ConfirmPaymentUseCase } from '@/application/participation/usecase/ConfirmPaymentUseCase.js'
@@ -63,6 +69,11 @@ import { CreateStripePaymentIntentUseCase } from '@/application/participation/us
 import { GetParticipationHistoryUseCase } from '@/application/participation/usecase/GetParticipationHistoryUseCase.js'
 import { HandleStripePaymentSucceededUseCase } from '@/application/participation/usecase/HandleStripePaymentSucceededUseCase.js'
 import { HandleStripeRefundCompletedUseCase } from '@/application/participation/usecase/HandleStripeRefundCompletedUseCase.js'
+// ---- Connect Onboarding ----
+import { CreateStripeDashboardLinkUseCase } from '@/application/connect/usecase/CreateStripeDashboardLinkUseCase.js'
+import { GetStripeConnectStatusUseCase } from '@/application/connect/usecase/GetStripeConnectStatusUseCase.js'
+import { HandleStripeAccountUpdatedUseCase } from '@/application/connect/usecase/HandleStripeAccountUpdatedUseCase.js'
+import { StartStripeConnectOnboardingUseCase } from '@/application/connect/usecase/StartStripeConnectOnboardingUseCase.js'
 import { JoinWaitlistTxRepositories, JoinWaitlistUseCase } from '@/application/participation/usecase/JoinWaitlistUseCase.js'
 import { ListParticipationsUseCase } from '@/application/participation/usecase/ListParticipationsUseCase.js'
 import { ListPaymentHistoryUseCase } from '@/application/participation/usecase/ListPaymentHistoryUseCase.js'
@@ -71,8 +82,11 @@ import { ListWaitlistEntriesUseCase } from '@/application/participation/usecase/
 import { MarkNoRefundUseCase } from '@/application/participation/usecase/MarkNoRefundUseCase.js'
 import { MarkRefundCompletedUseCase } from '@/application/participation/usecase/MarkRefundCompletedUseCase.js'
 import { RemoveParticipantByAdminTxRepositories, RemoveParticipantByAdminUseCase } from '@/application/participation/usecase/RemoveParticipantByAdminUseCase.js'
+import { RemoveParticipationTxRepositories, RemoveParticipationUseCase } from '@/application/participation/usecase/RemoveParticipationUseCase.js'
 import { ReportPaymentUseCase } from '@/application/participation/usecase/ReportPaymentUseCase.js'
 import { RevertRefundStatusUseCase } from '@/application/participation/usecase/RevertRefundStatusUseCase.js'
+import { SelectPaymentMethodTxRepositories, SelectPaymentMethodUseCase } from '@/application/participation/usecase/SelectPaymentMethodUseCase.js'
+import { SuggestVisitorNamesUseCase } from '@/application/participation/usecase/SuggestVisitorNamesUseCase.js'
 import { UpdateVisitorPaymentTxRepositories, UpdateVisitorPaymentUseCase } from '@/application/participation/usecase/UpdateVisitorPaymentUseCase.js'
 
 import { AddAlbumPhotoUseCase } from '@/application/album/usecase/AddAlbumPhotoUseCase.js'
@@ -103,6 +117,7 @@ import { ListSchedulesUseCase } from '@/application/schedule/usecase/ListSchedul
 import { ListUserSchedulesUseCase } from '@/application/schedule/usecase/ListUserSchedulesUseCase.js'
 import { UpdateScheduleTxRepositories, UpdateScheduleUseCase } from '@/application/schedule/usecase/UpdateScheduleUseCase.js'
 import { RegisterUserService } from '@/application/user/service/RegisterUserService.js'
+import { DeleteUserTxRepositories, DeleteUserUseCase } from '@/application/user/usecase/DeleteUserUseCase.js'
 import { GetUserProfileUseCase } from '@/application/user/usecase/GetUserProfileUseCase.js'
 import { SignUpUserTxRepositories, SignUpUserUseCase } from '@/application/user/usecase/SignUpUserUseCase.js'
 import { UpdateUserProfileUseCase } from '@/application/user/usecase/UpdateUserProfileUseCase.js'
@@ -137,6 +152,7 @@ import { ParticipationAuditLogRepositoryImpl } from '@/domains/activity/schedule
 import { WaitlistAuditLogRepositoryImpl } from '@/domains/activity/schedule/waitlist/infrastructure/repository/WaitlistAuditLogRepositoryImpl.js'
 import { AuthAuditLogRepositoryImpl } from '@/domains/audit/log/infrastructure/repository/AuthAuditLogRepositoryImpl.js'
 import { UserRepositoryImpl } from '@/domains/user/infrastructure/repository/UserRepositoryImpl.js'
+import { UserWithdrawalRepositoryImpl } from '@/domains/user/infrastructure/repository/UserWithdrawalRepositoryImpl.js'
 import { RevenueCatBillingService } from '@/integration/billing/RevenueCatBillingService.js'
 import { AppleOAuthProviderClient } from '@/integration/oauth/AppleOAuthProviderClient.js'
 import { GoogleOAuthProviderClient } from '@/integration/oauth/GoogleOAuthProviderClient.js'
@@ -145,13 +161,37 @@ import { LineOAuthProviderClient } from '@/integration/oauth/LineOAuthProviderCl
 import { OutboxRepository } from '@/integration/outbox/repository/OutboxRepository.js'
 import { StripeServiceImpl } from '@/integration/stripe/StripeServiceImpl.js'
 
+import { CreateExpenseCategoryTxRepositories, CreateExpenseCategoryUseCase } from '@/application/expense/usecase/CreateExpenseCategoryUseCase.js'
 import { CreateExpenseTxRepositories, CreateExpenseUseCase } from '@/application/expense/usecase/CreateExpenseUseCase.js'
+import { DeactivateExpenseCategoryTxRepositories, DeactivateExpenseCategoryUseCase } from '@/application/expense/usecase/DeactivateExpenseCategoryUseCase.js'
 import { DeleteExpenseTxRepositories, DeleteExpenseUseCase } from '@/application/expense/usecase/DeleteExpenseUseCase.js'
+import { GetActivityIncomeDetailUseCase } from '@/application/expense/usecase/GetActivityIncomeDetailUseCase.js'
+import { GetCommunityIncomeUseCase } from '@/application/expense/usecase/GetCommunityIncomeUseCase.js'
+import { GetFinanceSummaryTreeUseCase } from '@/application/expense/usecase/GetFinanceSummaryTreeUseCase.js'
 import { GetFinanceSummaryUseCase } from '@/application/expense/usecase/GetFinanceSummaryUseCase.js'
 import { ListExpenseCategoriesUseCase } from '@/application/expense/usecase/ListExpenseCategoriesUseCase.js'
 import { ListExpensesUseCase } from '@/application/expense/usecase/ListExpensesUseCase.js'
+import { UpdateExpenseCategoryTxRepositories, UpdateExpenseCategoryUseCase } from '@/application/expense/usecase/UpdateExpenseCategoryUseCase.js'
 import { ExpenseCategoryRepositoryImpl } from '@/domains/expense/infrastructure/repository/ExpenseCategoryRepositoryImpl.js'
 import { ExpenseRepositoryImpl } from '@/domains/expense/infrastructure/repository/ExpenseRepositoryImpl.js'
+
+import { AddReactionUseCase } from '@/application/chat/usecase/AddReactionUseCase.js'
+import { CreateDMChannelTxRepositories, CreateDMChannelUseCase } from '@/application/chat/usecase/CreateDMChannelUseCase.js'
+import { DeleteMessageUseCase } from '@/application/chat/usecase/DeleteMessageUseCase.js'
+import { GetOrCreateActivityChannelUseCase } from '@/application/chat/usecase/GetOrCreateActivityChannelUseCase.js'
+import { GetOrCreateCommunityChannelUseCase } from '@/application/chat/usecase/GetOrCreateCommunityChannelUseCase.js'
+import { GetThreadRepliesUseCase } from '@/application/chat/usecase/GetThreadRepliesUseCase.js'
+import { LeaveDMChannelUseCase } from '@/application/chat/usecase/LeaveDMChannelUseCase.js'
+import { ListChannelMessagesUseCase } from '@/application/chat/usecase/ListChannelMessagesUseCase.js'
+import { ListDMChannelsUseCase } from '@/application/chat/usecase/ListDMChannelsUseCase.js'
+import { ListMyChannelsUseCase } from '@/application/chat/usecase/ListMyChannelsUseCase.js'
+import { RemoveReactionUseCase } from '@/application/chat/usecase/RemoveReactionUseCase.js'
+import { SearchChannelMessagesUseCase } from '@/application/chat/usecase/SearchChannelMessagesUseCase.js'
+import { SendMessageUseCase } from '@/application/chat/usecase/SendMessageUseCase.js'
+import { ChatChannelRepositoryImpl } from '@/domains/chat/infrastructure/repository/ChatChannelRepositoryImpl.js'
+import { DMChannelRepositoryImpl } from '@/domains/chat/infrastructure/repository/DMChannelRepositoryImpl.js'
+import { MessageReactionRepositoryImpl } from '@/domains/chat/infrastructure/repository/MessageReactionRepositoryImpl.js'
+import { MessageRepositoryImpl } from '@/domains/chat/infrastructure/repository/MessageRepositoryImpl.js'
 
 
 /**
@@ -251,6 +291,7 @@ export const usecaseFactory = {
             new UuidGenerator(),
             unitOfWork,
             new DomainEventFlusher(DomainEventBootstrap.getEventBus()),
+            featureGateService,
         )
     },
 
@@ -276,6 +317,10 @@ export const usecaseFactory = {
         return new ListCommunitiesUseCase(
             new CommunityRepositoryImpl(prisma),
         )
+    },
+
+    createListSubCommunitiesUseCase() {
+        return new ListSubCommunitiesUseCase(new CommunityRepositoryImpl(prisma))
     },
 
     // ---- Phase 2.5: 検索・参加 ----
@@ -339,13 +384,20 @@ export const usecaseFactory = {
             user: new UserRepositoryImpl(tx),
             auditLog: new CommunityAuditLogRepositoryImpl(tx),
         }))
-        return new ChangeMemberRoleUseCase(unitOfWork)
+        return new ChangeMemberRoleUseCase(new UuidGenerator(), unitOfWork)
     },
 
     createLeaveCommunityUseCase() {
+        TransactionalDomainEventBootstrap.bootstrap()
+        const txEventBus = TransactionalDomainEventBootstrap.getEventBus()
         const unitOfWork = new PrismaUnitOfWork<LeaveCommunityTxRepositories>((tx) => ({
             membership: new CommunityMembershipRepositoryImpl(tx),
-        }))
+            community: new CommunityRepositoryImpl(tx),
+            schedule: new ScheduleRepositoryImpl(tx),
+            participation: new ParticipationRepositoryImpl(tx),
+            payment: new PaymentRepositoryImpl(tx),
+            waitlist: new WaitlistEntryRepositoryImpl(tx),
+        }), txEventBus)
         return new LeaveCommunityUseCase(unitOfWork)
     },
 
@@ -388,16 +440,27 @@ export const usecaseFactory = {
         const unitOfWork = new PrismaUnitOfWork<UpdateActivityTxRepositories>((tx) => ({
             activity: new ActivityRepositoryImpl(tx),
             membership: new CommunityMembershipRepositoryImpl(tx),
+            schedule: new ScheduleRepositoryImpl(tx),
+            participation: new ParticipationRepositoryImpl(tx),
+            waitlistEntry: new WaitlistEntryRepositoryImpl(tx),
         }))
-        return new UpdateActivityUseCase(unitOfWork)
+        return new UpdateActivityUseCase(new UuidGenerator(), unitOfWork)
     },
 
     createSoftDeleteActivityUseCase() {
         const unitOfWork = new PrismaUnitOfWork<SoftDeleteActivityTxRepositories>((tx) => ({
             activity: new ActivityRepositoryImpl(tx),
             membership: new CommunityMembershipRepositoryImpl(tx),
+            schedule: new ScheduleRepositoryImpl(tx),
+            participation: new ParticipationRepositoryImpl(tx),
+            notification: new NotificationRepositoryImpl(tx),
+            outbox: new OutboxRepository(tx),
+            announcement: new AnnouncementRepositoryImpl(tx),
         }))
-        return new SoftDeleteActivityUseCase(unitOfWork)
+        const notificationService = new NotificationService(
+            RealtimeEmitterBootstrap.getEmitter(),
+        )
+        return new SoftDeleteActivityUseCase(unitOfWork, notificationService, new UuidGenerator())
     },
 
     // ---- Schedule ----
@@ -418,6 +481,7 @@ export const usecaseFactory = {
             new ParticipationRepositoryImpl(prisma),
             new WaitlistEntryRepositoryImpl(prisma),
             new PaymentRepositoryImpl(prisma),
+            new CommunityRepositoryImpl(prisma),
         )
     },
 
@@ -463,6 +527,8 @@ export const usecaseFactory = {
     },
 
     createCancelParticipationUseCase() {
+        TransactionalDomainEventBootstrap.bootstrap()
+        const txEventBus = TransactionalDomainEventBootstrap.getEventBus()
         const unitOfWork = new PrismaUnitOfWork<CancelParticipationTxRepositories>((tx) => ({
             schedule: new ScheduleRepositoryImpl(tx),
             participation: new ParticipationRepositoryImpl(tx),
@@ -472,13 +538,15 @@ export const usecaseFactory = {
             waitlistAuditLog: new WaitlistAuditLogRepositoryImpl(tx),
             notification: new NotificationRepositoryImpl(tx),
             outbox: new OutboxRepository(tx),
-        }))
+        }), txEventBus)
         const notificationService = new NotificationService(RealtimeEmitterBootstrap.getEmitter())
         const stripeService = new StripeServiceImpl()
         return new CancelParticipationUseCase(new UuidGenerator(), unitOfWork, notificationService, prisma, stripeService)
     },
 
     createRemoveParticipantByAdminUseCase() {
+        TransactionalDomainEventBootstrap.bootstrap()
+        const txEventBus = TransactionalDomainEventBootstrap.getEventBus()
         const unitOfWork = new PrismaUnitOfWork<RemoveParticipantByAdminTxRepositories>((tx) => ({
             schedule: new ScheduleRepositoryImpl(tx),
             activity: new ActivityRepositoryImpl(tx),
@@ -490,14 +558,34 @@ export const usecaseFactory = {
             waitlistAuditLog: new WaitlistAuditLogRepositoryImpl(tx),
             notification: new NotificationRepositoryImpl(tx),
             outbox: new OutboxRepository(tx),
-        }))
+        }), txEventBus)
         const notificationService = new NotificationService(RealtimeEmitterBootstrap.getEmitter())
         return new RemoveParticipantByAdminUseCase(new UuidGenerator(), unitOfWork, notificationService)
+    },
+
+    createRemoveParticipationUseCase() {
+        TransactionalDomainEventBootstrap.bootstrap()
+        const txEventBus = TransactionalDomainEventBootstrap.getEventBus()
+        const unitOfWork = new PrismaUnitOfWork<RemoveParticipationTxRepositories>((tx) => ({
+            schedule: new ScheduleRepositoryImpl(tx),
+            activity: new ActivityRepositoryImpl(tx),
+            membership: new CommunityMembershipRepositoryImpl(tx),
+            participation: new ParticipationRepositoryImpl(tx),
+            participationAuditLog: new ParticipationAuditLogRepositoryImpl(tx),
+            payment: new PaymentRepositoryImpl(tx),
+            waitlist: new WaitlistEntryRepositoryImpl(tx),
+            waitlistAuditLog: new WaitlistAuditLogRepositoryImpl(tx),
+            notification: new NotificationRepositoryImpl(tx),
+            outbox: new OutboxRepository(tx),
+        }), txEventBus)
+        const notificationService = new NotificationService(RealtimeEmitterBootstrap.getEmitter())
+        return new RemoveParticipationUseCase(new UuidGenerator(), unitOfWork, notificationService)
     },
 
     createJoinWaitlistUseCase() {
         const unitOfWork = new PrismaUnitOfWork<JoinWaitlistTxRepositories>((tx) => ({
             schedule: new ScheduleRepositoryImpl(tx),
+            activity: new ActivityRepositoryImpl(tx),
             participation: new ParticipationRepositoryImpl(tx),
             waitlist: new WaitlistEntryRepositoryImpl(tx),
             waitlistAuditLog: new WaitlistAuditLogRepositoryImpl(tx),
@@ -660,6 +748,14 @@ export const usecaseFactory = {
         )
     },
 
+    createBulkUpdatePaymentUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<BulkUpdatePaymentTxRepositories>((tx) => ({
+            participation: new ParticipationRepositoryImpl(tx),
+            payment: new PaymentRepositoryImpl(tx),
+        }))
+        return new BulkUpdatePaymentUseCase(unitOfWork)
+    },
+
     createGetParticipationHistoryUseCase() {
         return new GetParticipationHistoryUseCase(new PaymentRepositoryImpl(prisma))
     },
@@ -686,6 +782,35 @@ export const usecaseFactory = {
     createHandleStripeRefundCompletedUseCase() {
         return new HandleStripeRefundCompletedUseCase(
             new PaymentRepositoryImpl(prisma),
+        )
+    },
+
+    // ---- Stripe Connect Onboarding ----
+
+    createStartStripeConnectOnboardingUseCase() {
+        return new StartStripeConnectOnboardingUseCase(
+            new CommunityRepositoryImpl(prisma),
+            new StripeServiceImpl(),
+        )
+    },
+
+    createGetStripeConnectStatusUseCase() {
+        return new GetStripeConnectStatusUseCase(
+            new CommunityRepositoryImpl(prisma),
+            new StripeServiceImpl(),
+        )
+    },
+
+    createCreateStripeDashboardLinkUseCase() {
+        return new CreateStripeDashboardLinkUseCase(
+            new CommunityRepositoryImpl(prisma),
+            new StripeServiceImpl(),
+        )
+    },
+
+    createHandleStripeAccountUpdatedUseCase() {
+        return new HandleStripeAccountUpdatedUseCase(
+            new CommunityRepositoryImpl(prisma),
         )
     },
 
@@ -724,11 +849,25 @@ export const usecaseFactory = {
         return new UpdateUserProfileUseCase(new UserRepositoryImpl(prisma))
     },
 
+    createDeleteUserUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<DeleteUserTxRepositories>((tx) => ({
+            user: new UserRepositoryImpl(tx),
+            passwordCredential: new PasswordCredentialRepositoryImpl(tx),
+            googleCredential: new GoogleCredentialRepositoryImpl(tx),
+            lineCredential: new LineCredentialRepositoryImpl(tx),
+            appleCredential: new AppleCredentialRepositoryImpl(tx),
+            authSecurityState: new AuthSecurityStateRepositoryImpl(tx),
+            userWithdrawal: new UserWithdrawalRepositoryImpl(tx),
+        }))
+        return new DeleteUserUseCase(unitOfWork, addUserToBlacklist)
+    },
+
     // ---- UBL-10: コミュニティ設定 ----
 
     createRemoveMemberUseCase() {
         const unitOfWork = new PrismaUnitOfWork<RemoveMemberTxRepositories>((tx) => ({
             membership: new CommunityMembershipRepositoryImpl(tx),
+            community: new CommunityRepositoryImpl(tx),
             auditLog: new CommunityAuditLogRepositoryImpl(tx),
         }))
         return new RemoveMemberUseCase(unitOfWork)
@@ -901,14 +1040,26 @@ export const usecaseFactory = {
         )
     },
 
-    // ---- Guest Visitor ----
+    // ---- ビジター管理 ----
     createAddGuestVisitorUseCase() {
         const unitOfWork = new PrismaUnitOfWork<AddGuestVisitorTxRepositories>((tx) => ({
+            schedule: new ScheduleRepositoryImpl(tx),
+            activity: new ActivityRepositoryImpl(tx),
+            participation: new ParticipationRepositoryImpl(tx),
+            payment: new PaymentRepositoryImpl(tx),
+            waitlist: new WaitlistEntryRepositoryImpl(tx),
+            waitlistAuditLog: new WaitlistAuditLogRepositoryImpl(tx),
+        }))
+        return new AddGuestVisitorUseCase(new UuidGenerator(), unitOfWork)
+    },
+
+    createAddRegisteredVisitorUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<AddRegisteredVisitorTxRepositories>((tx) => ({
             schedule: new ScheduleRepositoryImpl(tx),
             participation: new ParticipationRepositoryImpl(tx),
             payment: new PaymentRepositoryImpl(tx),
         }))
-        return new AddGuestVisitorUseCase(new UuidGenerator(), unitOfWork)
+        return new AddRegisteredVisitorUseCase(new UuidGenerator(), unitOfWork)
     },
 
     createUpdateVisitorPaymentUseCase() {
@@ -918,7 +1069,45 @@ export const usecaseFactory = {
         return new UpdateVisitorPaymentUseCase(unitOfWork)
     },
 
+    createSelectPaymentMethodUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<SelectPaymentMethodTxRepositories>((tx) => ({
+            participation: new ParticipationRepositoryImpl(tx),
+            payment: new PaymentRepositoryImpl(tx),
+        }))
+        return new SelectPaymentMethodUseCase(unitOfWork)
+    },
+
+    /** W3-13b: ビジター名サジェスト */
+    createSuggestVisitorNamesUseCase() {
+        return new SuggestVisitorNamesUseCase(new ParticipationRepositoryImpl(prisma))
+    },
+
     // ---- Expense ----
+    createCreateExpenseCategoryUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<CreateExpenseCategoryTxRepositories>((tx) => ({
+            category: new ExpenseCategoryRepositoryImpl(tx),
+            membership: new CommunityMembershipRepositoryImpl(tx),
+        }))
+        return new CreateExpenseCategoryUseCase(new UuidGenerator(), unitOfWork)
+    },
+
+    createUpdateExpenseCategoryUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<UpdateExpenseCategoryTxRepositories>((tx) => ({
+            category: new ExpenseCategoryRepositoryImpl(tx),
+            membership: new CommunityMembershipRepositoryImpl(tx),
+        }))
+        return new UpdateExpenseCategoryUseCase(unitOfWork)
+    },
+
+    createDeactivateExpenseCategoryUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<DeactivateExpenseCategoryTxRepositories>((tx) => ({
+            category: new ExpenseCategoryRepositoryImpl(tx),
+            expense: new ExpenseRepositoryImpl(tx),
+            membership: new CommunityMembershipRepositoryImpl(tx),
+        }))
+        return new DeactivateExpenseCategoryUseCase(unitOfWork)
+    },
+
     createCreateExpenseUseCase() {
         const unitOfWork = new PrismaUnitOfWork<CreateExpenseTxRepositories>((tx) => ({
             expense: new ExpenseRepositoryImpl(tx),
@@ -953,5 +1142,119 @@ export const usecaseFactory = {
             new ExpenseRepositoryImpl(prisma),
             new ExpenseCategoryRepositoryImpl(prisma),
         )
+    },
+
+    /** ルートコミュニティ用: サブコミュニティ含む収支ツリー */
+    createGetFinanceSummaryTreeUseCase() {
+        return new GetFinanceSummaryTreeUseCase(
+            new CommunityRepositoryImpl(prisma),
+            new ExpenseRepositoryImpl(prisma),
+            new PaymentRepositoryImpl(prisma),
+            new ActivityRepositoryImpl(prisma),
+        )
+    },
+
+    /** W3-11: 収入集計 */
+    createGetCommunityIncomeUseCase() {
+        return new GetCommunityIncomeUseCase(
+            new PaymentRepositoryImpl(prisma),
+            new ActivityRepositoryImpl(prisma),
+        )
+    },
+
+    /** 収入タブ詳細: Activity 別 Schedule 展開 */
+    createGetActivityIncomeDetailUseCase() {
+        return new GetActivityIncomeDetailUseCase(
+            new PaymentRepositoryImpl(prisma),
+        )
+    },
+
+    // ================================================================
+    // Chat — W3-15
+    // ================================================================
+
+    createGetOrCreateCommunityChannelUseCase() {
+        return new GetOrCreateCommunityChannelUseCase(
+            new ChatChannelRepositoryImpl(prisma),
+        )
+    },
+
+    createGetOrCreateActivityChannelUseCase() {
+        return new GetOrCreateActivityChannelUseCase(
+            new ChatChannelRepositoryImpl(prisma),
+        )
+    },
+
+    createListChannelMessagesUseCase() {
+        return new ListChannelMessagesUseCase(
+            new ChatChannelRepositoryImpl(prisma),
+            new MessageRepositoryImpl(prisma),
+        )
+    },
+
+    createSearchChannelMessagesUseCase() {
+        return new SearchChannelMessagesUseCase(
+            new ChatChannelRepositoryImpl(prisma),
+            new MessageRepositoryImpl(prisma),
+        )
+    },
+
+    createGetThreadRepliesUseCase() {
+        return new GetThreadRepliesUseCase(
+            new MessageRepositoryImpl(prisma),
+        )
+    },
+
+    createSendMessageUseCase() {
+        return new SendMessageUseCase(
+            new ChatChannelRepositoryImpl(prisma),
+            new MessageRepositoryImpl(prisma),
+        )
+    },
+
+    createDeleteMessageUseCase() {
+        return new DeleteMessageUseCase(
+            new MessageRepositoryImpl(prisma),
+        )
+    },
+
+    createAddReactionUseCase() {
+        return new AddReactionUseCase(
+            new MessageRepositoryImpl(prisma),
+            new MessageReactionRepositoryImpl(prisma),
+        )
+    },
+
+    createRemoveReactionUseCase() {
+        return new RemoveReactionUseCase(
+            new MessageRepositoryImpl(prisma),
+            new MessageReactionRepositoryImpl(prisma),
+        )
+    },
+
+    // ================================================================
+    // DM / Channel — W4-09
+    // ================================================================
+
+    createCreateDMChannelUseCase() {
+        const notificationService = new NotificationService(RealtimeEmitterBootstrap.getEmitter())
+        const unitOfWork = new PrismaUnitOfWork<CreateDMChannelTxRepositories>((tx) => ({
+            dmChannel: new DMChannelRepositoryImpl(tx),
+            notification: new NotificationRepositoryImpl(tx),
+            outbox: new OutboxRepository(tx),
+        }))
+        return new CreateDMChannelUseCase(unitOfWork, notificationService)
+    },
+
+    createListDMChannelsUseCase() {
+        return new ListDMChannelsUseCase(new DMChannelRepositoryImpl(prisma))
+    },
+
+    createLeaveDMChannelUseCase() {
+        return new LeaveDMChannelUseCase(new DMChannelRepositoryImpl(prisma))
+    },
+
+    createListMyChannelsUseCase() {
+        return new ListMyChannelsUseCase(prisma, new DMChannelRepositoryImpl(prisma))
     },
 }
