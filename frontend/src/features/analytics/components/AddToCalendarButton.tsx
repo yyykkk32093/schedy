@@ -108,14 +108,14 @@ function downloadIcal(params: {
     const lines = [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
-        'PRODID:-//tsudocan//calendar//JP',
+        'PRODID:-//tsunaca//calendar//JP',
         'BEGIN:VEVENT',
         `DTSTART:${dtStart}`,
         `DTEND:${dtEnd}`,
         `SUMMARY:${params.title}`,
         params.location ? `LOCATION:${params.location}` : '',
         `DTSTAMP:${now}`,
-        `UID:${crypto.randomUUID()}@tsudocan`,
+        `UID:${crypto.randomUUID()}@tsunaca`,
         'END:VEVENT',
         'END:VCALENDAR',
     ]
@@ -126,7 +126,7 @@ function downloadIcal(params: {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'tsudocan-event.ics'
+    a.download = 'tsunaca-event.ics'
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)

@@ -1,7 +1,7 @@
 import { DomainValidationError } from '@/domains/_sharedDomains/error/DomainValidationError.js'
 import { ValueObject } from '@/domains/_sharedDomains/model/valueObject/ValueObject.js'
 
-const VALID_METHODS = ['CASH', 'PAYPAY', 'STRIPE'] as const
+const VALID_METHODS = ['CASH', 'PAYPAY', 'CREDIT_CARD'] as const
 export type PaymentMethodType = (typeof VALID_METHODS)[number]
 
 export class PaymentMethod extends ValueObject<PaymentMethodType> {
@@ -21,7 +21,7 @@ export class PaymentMethod extends ValueObject<PaymentMethodType> {
 
     static cash(): PaymentMethod { return new PaymentMethod('CASH') }
     static paypay(): PaymentMethod { return new PaymentMethod('PAYPAY') }
-    static stripe(): PaymentMethod { return new PaymentMethod('STRIPE') }
+    static creditCard(): PaymentMethod { return new PaymentMethod('CREDIT_CARD') }
 
     static reconstruct(value: string): PaymentMethod {
         return new PaymentMethod(value as PaymentMethodType)
@@ -29,5 +29,5 @@ export class PaymentMethod extends ValueObject<PaymentMethodType> {
 
     isCash(): boolean { return this.value === 'CASH' }
     isPayPay(): boolean { return this.value === 'PAYPAY' }
-    isStripe(): boolean { return this.value === 'STRIPE' }
+    isCreditCard(): boolean { return this.value === 'CREDIT_CARD' }
 }

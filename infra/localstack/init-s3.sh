@@ -4,12 +4,12 @@
 # コンテナ起動時に自動実行される
 # ============================================
 
-echo "🪣 Creating S3 bucket: tsudocan-local ..."
+echo "🪣 Creating S3 bucket: tsunaca-local ..."
 
-awslocal s3 mb s3://tsudocan-local --region ap-northeast-1
+awslocal s3 mb s3://tsunaca-local --region ap-northeast-1
 
 # CORS 設定（フロントエンドからのアクセス用）
-awslocal s3api put-bucket-cors --bucket tsudocan-local --cors-configuration '{
+awslocal s3api put-bucket-cors --bucket tsunaca-local --cors-configuration '{
   "CORSRules": [
     {
       "AllowedOrigins": ["http://localhost:5173"],
@@ -20,4 +20,4 @@ awslocal s3api put-bucket-cors --bucket tsudocan-local --cors-configuration '{
   ]
 }'
 
-echo "✅ S3 bucket 'tsudocan-local' created with CORS configuration"
+echo "✅ S3 bucket 'tsunaca-local' created with CORS configuration"

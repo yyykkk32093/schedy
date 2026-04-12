@@ -153,7 +153,7 @@ interface SecretsManagerPayload {
 // Secret Keys
 // ============================================
 
-const SECRET_KEY_APP = 'tsudocan/secrets'
+const SECRET_KEY_APP = 'tsunaca/secrets'
 
 // ============================================
 // Loader 本体

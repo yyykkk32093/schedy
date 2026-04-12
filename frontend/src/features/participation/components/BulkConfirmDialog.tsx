@@ -16,14 +16,14 @@ interface BulkConfirmDialogProps {
  * まとめて支払い確認（CONFIRMED）する。
  */
 export function BulkConfirmDialog({ scheduleId, participants, open, onClose }: BulkConfirmDialogProps) {
-    const confirmableParticipants = participants.filter((p) => p.paymentMethod != null && (p.paymentStatus === 'UNPAID' || p.paymentStatus === 'REPORTED'))
+    const confirmableParticipants = participants.filter((p) => p.paymentMethod != null && p.paymentMethod !== 'CREDIT_CARD' && (p.paymentStatus === 'UNPAID' || p.paymentStatus === 'REPORTED'))
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(confirmableParticipants.map((p) => p.id)))
     const bulkConfirm = useBulkConfirmPayment(scheduleId)
 
     // #40: ダイアログを開くたびに最新の対象者で選択をリセット
     useEffect(() => {
         if (open) {
-            const fresh = participants.filter((p) => p.paymentMethod != null && (p.paymentStatus === 'UNPAID' || p.paymentStatus === 'REPORTED'))
+            const fresh = participants.filter((p) => p.paymentMethod != null && p.paymentMethod !== 'CREDIT_CARD' && (p.paymentStatus === 'UNPAID' || p.paymentStatus === 'REPORTED'))
             setSelectedIds(new Set(fresh.map((p) => p.id)))
         }
     }, [open, participants])
@@ -77,6 +77,9 @@ export function BulkConfirmDialog({ scheduleId, participants, open, onClose }: B
                 <h3 className="text-base font-semibold text-gray-800 mb-1">支払い一括確認</h3>
                 <p className="text-xs text-gray-500 mb-4">
                     未済・確認待ちの参加者を選択して、まとめて支払い確認できます。
+                </p>
+                <p className="text-[10px] text-gray-400 mb-3">
+                    ※ クレジットカード支払いは自動で管理されるため一覧に表示されません。
                 </p>
 
                 {confirmableParticipants.length === 0 ? (

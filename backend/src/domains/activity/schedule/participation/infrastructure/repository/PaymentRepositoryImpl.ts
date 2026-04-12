@@ -57,7 +57,7 @@ export class PaymentRepositoryImpl implements IPaymentRepository {
 
     async findRefundPendingByScheduleId(scheduleId: string): Promise<Payment[]> {
         const rows = await this.prisma.payment.findMany({
-            where: { scheduleId, status: 'REFUND_PENDING' },
+            where: { scheduleId, status: 'REFUND_PENDING', paymentMethod: { not: 'CREDIT_CARD' } },
             orderBy: { createdAt: 'desc' },
         })
         return rows.map((r) => this.toDomain(r))
@@ -67,6 +67,7 @@ export class PaymentRepositoryImpl implements IPaymentRepository {
         const rows = await this.prisma.payment.findMany({
             where: {
                 status: 'REFUND_PENDING',
+                paymentMethod: { not: 'CREDIT_CARD' },
                 schedule: {
                     activity: { communityId, deletedAt: null },
                 },

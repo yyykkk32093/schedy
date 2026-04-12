@@ -218,7 +218,7 @@ export const participationController = {
         }
     },
 
-    /** 4-2: Stripe PaymentIntent 作成 */
+    /** 4-2: Stripe PaymentIntent 作成（繰り上げ参加者用） */
     async createStripePaymentIntent(req: Request, res: Response, next: NextFunction) {
         try {
             const { id: scheduleId } = req.params

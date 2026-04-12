@@ -15,9 +15,11 @@ export class HandleStripePaymentSucceededUseCase {
         )
 
         if (!payment) {
+            // PaymentIntent に対応する Payment が見つからない場合は警告ログを出力
+            // （通常は起こらないが、レースコンディションやデータ不整合時に発生しうる）
             logger.warn(
-                { paymentIntentId: input.paymentIntentId },
-                '[StripeWebhook] payment_intent.succeeded: Payment が見つかりません',
+                { paymentIntentId: input.paymentIntentId, metadata: input.metadata },
+                '[Webhook] payment_intent.succeeded: Payment not found',
             )
             return
         }

@@ -945,11 +945,11 @@ export interface UnreadCountResponse {
 }
 
 // ============================================================
-// Stripe Connect
+// クレジットカード決済
 // ============================================================
 
-/** 4-2: Stripe PaymentIntent 作成レスポンス */
-export interface CreateStripePaymentIntentResponse {
+/** クレジットカード PaymentIntent 作成レスポンス（繰り上げ参加者用） */
+export interface CreateCreditCardPaymentIntentResponse {
     clientSecret: string
     paymentIntentId: string
     totalAmount: number

@@ -188,7 +188,7 @@ export class Payment extends AggregateRoot {
     isStripePaid(): boolean {
         return (
             this.paymentMethod != null &&
-            this.paymentMethod.isStripe() &&
+            this.paymentMethod.isCreditCard() &&
             this.paymentStatus.isPaid() &&
             this.stripePaymentIntentId != null
         )

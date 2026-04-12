@@ -18,7 +18,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 const PAYMENT_LABELS: Record<string, string> = {
     CASH: '現金',
     PAYPAY: 'PayPay',
-    STRIPE: 'カード決済',
+    CREDIT_CARD: 'カード決済',
 }
 
 const PAYMENT_STATUS_LABELS: Record<string, string> = {
@@ -222,8 +222,8 @@ export function ScheduleDetailPage() {
                                                     {PAYMENT_STATUS_LABELS[p.paymentStatus] ?? p.paymentStatus}
                                                 </span>
 
-                                                {/* 支払報告ボタン（本人用 - UNPAID時） */}
-                                                {p.paymentStatus === 'UNPAID' && (
+                                                {/* 支払報告ボタン（本人用 - UNPAID時、クレジットカード以外） */}
+                                                {p.paymentStatus === 'UNPAID' && p.paymentMethod !== 'CREDIT_CARD' && (
                                                     <button
                                                         onClick={() => reportPaymentMutation.mutate(p.id)}
                                                         disabled={reportPaymentMutation.isPending}

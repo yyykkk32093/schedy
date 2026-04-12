@@ -13,7 +13,7 @@
 - 【事実】リポジトリは `frontend/`（React + Vite + TS）と `backend/`（Express + TS + Prisma）に分かれ、フロントはHTTPでバックエンドAPIを呼び出す構成。
 - 【事実】バックエンドはDDD/レイヤ分割（`api/` → `application/` → `domains/`）を前提としており、API層が「ブラウザ実行制約（Node依存・セキュリティ等）」を受けて導入された旨が [backend_README.md](backend_README.md) に明記されている。
 - 【解釈】ドメインは少なくとも `auth/`, `user/`, `schedule/`, `audit/` を想定しており、現時点で動線が太いのは `auth` と `audit`（ログイン→監査ログ記録）。
-- 【仮説】プロジェクト名 `tsudocan` と `Activity` テーブル（Prisma）から、スケジュール/予定管理を核にしつつ、認証・ユーザー管理・監査ログ・将来の外部連携（Outbox）を同居させて育てる設計意図がある。
+- 【仮説】プロジェクト名 `tsunaca` と `Activity` テーブル（Prisma）から、スケジュール/予定管理を核にしつつ、認証・ユーザー管理・監査ログ・将来の外部連携（Outbox）を同居させて育てる設計意図がある。
 
 ## 2. 全体構造
 

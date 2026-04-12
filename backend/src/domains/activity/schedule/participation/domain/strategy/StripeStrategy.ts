@@ -5,7 +5,7 @@ import type { IPaymentStrategy } from './IPaymentStrategy.js'
  * 現時点ではフラグのみ返す。
  */
 export class StripeStrategy implements IPaymentStrategy {
-    readonly method = 'STRIPE' as const
+    readonly method = 'CREDIT_CARD' as const
     canReportPayment(): boolean { return false }
     requiresAdminConfirmation(): boolean { return false }
 }

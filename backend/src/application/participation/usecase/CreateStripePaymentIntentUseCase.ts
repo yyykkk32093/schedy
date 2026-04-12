@@ -43,11 +43,22 @@ export class CreateStripePaymentIntentUseCase {
         if (!payment) {
             throw new ParticipationError('支払い情報が見つかりません', 'PAYMENT_NOT_FOUND')
         }
-        if (!payment.getPaymentMethod()?.isStripe()) {
+        if (!payment.getPaymentMethod()?.isCreditCard()) {
             throw new ParticipationError('Stripe 支払方法が指定されていません', 'INVALID_PAYMENT_METHOD')
         }
-        if (payment.getStripePaymentIntentId()) {
-            throw new ParticipationError('PaymentIntent は既に作成済みです', 'PAYMENT_INTENT_ALREADY_EXISTS')
+
+        // 既存の PaymentIntent がある場合、再利用可能ならそのまま返す
+        const existingPiId = payment.getStripePaymentIntentId()
+        if (existingPiId) {
+            const existing = await this.stripeService.retrievePaymentIntent(existingPiId)
+            const reusableStatuses = ['requires_payment_method', 'requires_confirmation', 'requires_action']
+            if (reusableStatuses.includes(existing.status) && existing.clientSecret) {
+                const schedule = await this.scheduleRepository.findById(input.scheduleId)
+                const baseFee = schedule?.getParticipationFee() ?? 0
+                const { totalAmount, platformFee } = calculatePaymentAmount(baseFee)
+                return { clientSecret: existing.clientSecret, paymentIntentId: existingPiId, totalAmount, platformFee, baseFee }
+            }
+            // terminal state (succeeded, canceled 等) → 新規 PI を作成する（下に続行）
         }
 
         const schedule = await this.scheduleRepository.findById(input.scheduleId)

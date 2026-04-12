@@ -1,5 +1,5 @@
 import { http } from '@/shared/lib/apiClient';
-import type { AddVisitorRequest, AddVisitorResponse, AttendScheduleRequest, AttendScheduleResponse, CreateStripePaymentIntentResponse, GetParticipationHistoryResponse, JoinWaitlistResponse, ListParticipantsResponse, ListPaymentHistoryResponse, ListRefundPendingResponse, ListWaitlistResponse, UpdateVisitorPaymentRequest } from '@/shared/types/api';
+import type { AddVisitorRequest, AddVisitorResponse, AttendScheduleRequest, AttendScheduleResponse, CreateCreditCardPaymentIntentResponse, GetParticipationHistoryResponse, JoinWaitlistResponse, ListParticipantsResponse, ListPaymentHistoryResponse, ListRefundPendingResponse, ListWaitlistResponse, UpdateVisitorPaymentRequest } from '@/shared/types/api';
 
 export const participationApi = {
     list: (scheduleId: string) =>
@@ -12,7 +12,7 @@ export const participationApi = {
         http<void>(`/v1/schedules/${scheduleId}/participations/me`, { method: 'DELETE' }),
 
     joinWaitlist: (scheduleId: string) =>
-        http<JoinWaitlistResponse>(`/v1/schedules/${scheduleId}/waitlist-entries`, { method: 'POST' }),
+        http<JoinWaitlistResponse>(`/v1/schedules/${scheduleId}/waitlist-entries`, { method: 'POST', json: {} }),
 
     cancelWaitlist: (scheduleId: string) =>
         http<void>(`/v1/schedules/${scheduleId}/waitlist-entries/me`, { method: 'DELETE' }),
@@ -50,9 +50,9 @@ export const participationApi = {
     getMyHistory: (scheduleId: string) =>
         http<GetParticipationHistoryResponse>(`/v1/schedules/${scheduleId}/participations/me/history`),
 
-    /** 4-2: Stripe PaymentIntent 作成 */
-    createStripePaymentIntent: (scheduleId: string) =>
-        http<CreateStripePaymentIntentResponse>(`/v1/schedules/${scheduleId}/participations/me/stripe-payment-intent`, { method: 'POST' }),
+    /** クレジットカード PaymentIntent 作成（繰り上げ参加者用） */
+    createCreditCardPaymentIntent: (scheduleId: string) =>
+        http<CreateCreditCardPaymentIntentResponse>(`/v1/schedules/${scheduleId}/participations/me/stripe-payment-intent`, { method: 'POST' }),
 
     // ---- 返金管理 ----
     /** 返金待ち Payment 一覧（スケジュール単位） */

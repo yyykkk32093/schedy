@@ -91,6 +91,15 @@ export class StripeServiceImpl implements IStripeService {
         }
     }
 
+    async retrievePaymentIntent(paymentIntentId: string): Promise<{ status: string; clientSecret: string | null; metadata: Record<string, string> }> {
+        const pi = await this.stripe.paymentIntents.retrieve(paymentIntentId)
+        return {
+            status: pi.status,
+            clientSecret: pi.client_secret ?? null,
+            metadata: (pi.metadata ?? {}) as Record<string, string>,
+        }
+    }
+
     async refundPaymentIntent(paymentIntentId: string, amount?: number): Promise<void> {
         await this.stripe.refunds.create({
             payment_intent: paymentIntentId,

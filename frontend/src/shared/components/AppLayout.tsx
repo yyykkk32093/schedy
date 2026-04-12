@@ -74,7 +74,7 @@ function AppLayoutInner() {
                             </button>
                         ) : (
                             <span className="text-base font-bold text-gray-800 truncate">
-                                {title || 'TsudoCan'}
+                                {title || 'Tsunaca'}
                             </span>
                         )}
                     </div>

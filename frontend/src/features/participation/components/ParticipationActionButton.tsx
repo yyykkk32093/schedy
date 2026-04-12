@@ -2,7 +2,7 @@ import {
     useAttendSchedule,
     useCancelAttendance,
     useCancelWaitlist,
-    useCreateStripePaymentIntent,
+    useCreateCreditCardPaymentIntent,
     useJoinWaitlist,
     useParticipationHistory,
     useReportPayment,
@@ -24,16 +24,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/shared/components/ui/select'
-import type { CreateStripePaymentIntentResponse } from '@/shared/types/api'
+import { useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Check, Copy, ExternalLink, Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { StripePaymentModal } from './StripePaymentModal'
+import { CreditCardPaymentModal } from './CreditCardPaymentModal'
 
 const PAYMENT_LABELS: Record<string, string> = {
     CASH: '現金',
     PAYPAY: 'PayPay',
-    STRIPE: 'カード決済',
+    CREDIT_CARD: 'カード決済',
 }
 
 export type MyScheduleStatus = 'none' | 'attending' | 'waitlisted'
@@ -90,12 +90,18 @@ export function ParticipationActionButton({
     const cancelAttendanceMutation = useCancelAttendance(scheduleId)
     const joinWaitlistMutation = useJoinWaitlist(scheduleId)
     const cancelWaitlistMutation = useCancelWaitlist(scheduleId)
-    const stripePaymentIntentMutation = useCreateStripePaymentIntent(scheduleId)
+    const creditCardPaymentIntentMutation = useCreateCreditCardPaymentIntent(scheduleId)
     const reportPaymentMutation = useReportPayment(scheduleId)
     const selectPaymentMethodMutation = useSelectPaymentMethod(scheduleId)
+    const queryClient = useQueryClient()
 
-    // 4-2: Stripe 決済モーダル用ステート
-    const [stripePaymentData, setStripePaymentData] = useState<CreateStripePaymentIntentResponse | null>(null)
+    // クレジットカード決済モーダル用ステート
+    const [creditCardPaymentData, setCreditCardPaymentData] = useState<{
+        clientSecret: string
+        totalAmount: number
+        baseFee: number
+        platformFee: number
+    } | null>(null)
     // ③ PayPay 支払い案内の表示フラグ
     const [showPayPayGuide, setShowPayPayGuide] = useState(false)
     const [copiedField, setCopiedField] = useState<string | null>(null)
@@ -136,17 +142,17 @@ export function ParticipationActionButton({
 
     /**
      * 参加ボタンのハンドラ。
-     * Stripe 選択時: 参加登録 → PaymentIntent 作成 → 決済モーダル表示
+     * クレジットカード選択時: 参加登録 → PaymentIntent作成 → 決済モーダル表示
      * PayPay 選択時: 参加登録 → PayPay 支払い案内を表示
      * それ以外: 通常の参加登録のみ
      */
     const handleAttend = async () => {
-        if (hasFee && paymentMethod === 'STRIPE') {
-            // Stripe フロー: 参加登録後に PaymentIntent を作成
+        if (hasFee && paymentMethod === 'CREDIT_CARD') {
+            // クレジットカードフロー: 参加登録 → PaymentIntent 作成 → モーダル表示
             try {
                 await attendMutation.mutateAsync({ paymentMethod })
-                const paymentData = await stripePaymentIntentMutation.mutateAsync()
-                setStripePaymentData(paymentData)
+                const paymentData = await creditCardPaymentIntentMutation.mutateAsync()
+                setCreditCardPaymentData(paymentData)
             } catch {
                 // エラーは global toast で表示される
             }
@@ -168,20 +174,29 @@ export function ParticipationActionButton({
         }
     }
 
-    const handleStripePaymentSuccess = () => {
-        setStripePaymentData(null)
-        // 参加者一覧を再取得して支払い状態を反映
-        attendMutation.reset()
+    /** クレジットカード決済成功ハンドラ */
+    const handleCreditCardPaymentSuccess = () => {
+        setCreditCardPaymentData(null)
+        toast.success('決済が完了しました')
+        // Webhook による支払いステータス更新を反映するため、少し遅延してクエリを再取得
+        const invalidate = () => {
+            queryClient.invalidateQueries({ queryKey: ['schedules', 'detail', scheduleId] })
+            queryClient.invalidateQueries({ queryKey: ['participations', 'list', scheduleId] })
+            queryClient.invalidateQueries({ queryKey: ['schedules', 'list', 'user'] })
+        }
+        invalidate()
+        setTimeout(invalidate, 2000)
     }
 
-    const handleStripePaymentCancel = () => {
-        setStripePaymentData(null)
+    /** クレジットカード決済キャンセルハンドラ（常にモーダルを閉じるだけ） */
+    const handleCreditCardPaymentCancel = () => {
+        setCreditCardPaymentData(null)
     }
 
     /**
      * 繰り上げ参加者の支払い方法選択ハンドラ。
      * 参加済みだが paymentMethod 未設定の場合に使用。
-     * 通常の参加フローと同じ後続処理（PayPay案内 / Stripe決済）を行う。
+     * 通常の参加フローと同じ後続処理（PayPay案内 / カード決済）を行う。
      */
     const handleSelectPaymentMethod = async () => {
         if (!myParticipationId) return
@@ -190,9 +205,9 @@ export function ParticipationActionButton({
                 participationId: myParticipationId,
                 paymentMethod,
             })
-            if (hasFee && paymentMethod === 'STRIPE') {
-                const paymentData = await stripePaymentIntentMutation.mutateAsync()
-                setStripePaymentData(paymentData)
+            if (hasFee && paymentMethod === 'CREDIT_CARD') {
+                const paymentData = await creditCardPaymentIntentMutation.mutateAsync()
+                setCreditCardPaymentData(paymentData)
             } else if (hasFee && paymentMethod === 'PAYPAY') {
                 setShowPayPayGuide(true)
             } else {
@@ -280,10 +295,10 @@ export function ParticipationActionButton({
                         )}
                         <button
                             onClick={handleAttend}
-                            disabled={attendMutation.isPending || stripePaymentIntentMutation.isPending}
+                            disabled={attendMutation.isPending || creditCardPaymentIntentMutation.isPending}
                             className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
                         >
-                            {(attendMutation.isPending || stripePaymentIntentMutation.isPending) && <Loader2 className="h-4 w-4 animate-spin inline mr-1" />}
+                            {(attendMutation.isPending || creditCardPaymentIntentMutation.isPending) && <Loader2 className="h-4 w-4 animate-spin inline mr-1" />}
                             参加する
                         </button>
                     </>
@@ -324,13 +339,31 @@ export function ParticipationActionButton({
                                 </Select>
                                 <button
                                     onClick={handleSelectPaymentMethod}
-                                    disabled={selectPaymentMethodMutation.isPending || stripePaymentIntentMutation.isPending}
+                                    disabled={selectPaymentMethodMutation.isPending || creditCardPaymentIntentMutation.isPending}
                                     className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
                                 >
-                                    {(selectPaymentMethodMutation.isPending || stripePaymentIntentMutation.isPending) && <Loader2 className="h-4 w-4 animate-spin inline mr-1" />}
+                                    {(selectPaymentMethodMutation.isPending || creditCardPaymentIntentMutation.isPending) && <Loader2 className="h-4 w-4 animate-spin inline mr-1" />}
                                     支払い方法を選択
                                 </button>
                             </>
+                        )}
+                        {/* クレジットカード未払い/保留 → 支払うボタン */}
+                        {hasFee && myPaymentMethod === 'CREDIT_CARD' && (myPaymentStatus === 'UNPAID' || myPaymentStatus === 'PENDING') && (
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        const paymentData = await creditCardPaymentIntentMutation.mutateAsync()
+                                        setCreditCardPaymentData(paymentData)
+                                    } catch {
+                                        // エラーは global toast で表示される
+                                    }
+                                }}
+                                disabled={creditCardPaymentIntentMutation.isPending}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
+                            >
+                                {creditCardPaymentIntentMutation.isPending && <Loader2 className="h-4 w-4 animate-spin inline mr-1" />}
+                                支払う
+                            </button>
                         )}
                         <button
                             onClick={() => setShowCancelConfirm(true)}
@@ -409,20 +442,20 @@ export function ParticipationActionButton({
             )}
 
             {/* フィードバック */}
-            {attendMutation.isSuccess && !stripePaymentData && !showPayPayGuide && <p className="text-green-600 text-sm">参加登録しました ✓</p>}
+            {attendMutation.isSuccess && !creditCardPaymentData && !showPayPayGuide && <p className="text-green-600 text-sm">参加登録しました ✓</p>}
             {joinWaitlistMutation.isSuccess && <p className="text-yellow-600 text-sm">キャンセル待ち登録しました ✓</p>}
             {cancelAttendanceMutation.isSuccess && <p className="text-gray-600 text-sm">参加を取り消しました</p>}
             {cancelWaitlistMutation.isSuccess && <p className="text-gray-600 text-sm">キャンセル待ちを取り消しました</p>}
 
-            {/* 4-2: Stripe 決済モーダル */}
-            {stripePaymentData && (
-                <StripePaymentModal
-                    clientSecret={stripePaymentData.clientSecret}
-                    totalAmount={stripePaymentData.totalAmount}
-                    baseFee={stripePaymentData.baseFee}
-                    platformFee={stripePaymentData.platformFee}
-                    onSuccess={handleStripePaymentSuccess}
-                    onCancel={handleStripePaymentCancel}
+            {/* クレジットカード決済モーダル */}
+            {creditCardPaymentData && (
+                <CreditCardPaymentModal
+                    clientSecret={creditCardPaymentData.clientSecret}
+                    totalAmount={creditCardPaymentData.totalAmount}
+                    baseFee={creditCardPaymentData.baseFee}
+                    platformFee={creditCardPaymentData.platformFee}
+                    onSuccess={handleCreditCardPaymentSuccess}
+                    onCancel={handleCreditCardPaymentCancel}
                 />
             )}
 
@@ -430,8 +463,25 @@ export function ParticipationActionButton({
             <Dialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
                 <DialogContent className="max-w-xs">
                     <DialogHeader>
-                        <DialogTitle>参加をキャンセル</DialogTitle>
-                        <DialogDescription>キャンセルしますか？</DialogDescription>
+                        <DialogTitle className="flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-amber-500" />
+                            参加をキャンセル
+                        </DialogTitle>
+                        <DialogDescription asChild>
+                            <div>
+                                <span>キャンセルしますか？</span>
+                                {myPaymentMethod === 'CREDIT_CARD' && myPaymentStatus === 'CONFIRMED' && (
+                                    <div className="mt-3 space-y-2 text-left">
+                                        <ol className="list-decimal list-inside space-y-1 text-blue-700 text-sm">
+                                            <li>参加費は自動返金されます</li>
+                                            <li>決済手数料は返金対象外です</li>
+                                            <li>返金には通常 5〜10 営業日かかります</li>
+                                        </ol>
+                                        <p className="text-xs text-gray-500">※ 返金はカード会社経由で行われます</p>
+                                    </div>
+                                )}
+                            </div>
+                        </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="gap-2 sm:gap-0">
                         <button

@@ -1,9 +1,10 @@
 import { stripePromise } from '@/shared/lib/stripe'
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js'
+import { ExternalLink, HelpCircle, X } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-interface StripePaymentModalProps {
+interface CreditCardPaymentModalProps {
     clientSecret: string
     totalAmount: number
     baseFee: number
@@ -13,13 +14,14 @@ interface StripePaymentModalProps {
 }
 
 /**
- * Stripe Payment Element を使った決済フォーム。
- * PaymentIntent の clientSecret を受け取り、カード決済を処理する。
+ * カード決済フォーム。
+ * PaymentIntent の clientSecret を受け取り、決済を処理する。
  */
-function PaymentForm({ totalAmount, baseFee, platformFee, onSuccess, onCancel }: Omit<StripePaymentModalProps, 'clientSecret'>) {
+function PaymentForm({ totalAmount, baseFee, platformFee, onSuccess, onCancel }: Omit<CreditCardPaymentModalProps, 'clientSecret'>) {
     const stripe = useStripe()
     const elements = useElements()
     const [isProcessing, setIsProcessing] = useState(false)
+    const [showFeeDialog, setShowFeeDialog] = useState(false)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -56,8 +58,18 @@ function PaymentForm({ totalAmount, baseFee, platformFee, onSuccess, onCancel }:
                     <span className="text-gray-600">参加費</span>
                     <span>¥{baseFee.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between">
-                    <span className="text-gray-600">手数料</span>
+                <div className="flex justify-between items-center">
+                    <span className="text-gray-600 flex items-center gap-1">
+                        手数料
+                        <button
+                            type="button"
+                            onClick={() => setShowFeeDialog(true)}
+                            className="text-blue-500 hover:text-blue-700"
+                            aria-label="手数料がかかる理由"
+                        >
+                            <HelpCircle className="w-3.5 h-3.5" />
+                        </button>
+                    </span>
                     <span>¥{platformFee.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between font-semibold border-t pt-1 mt-1">
@@ -66,7 +78,19 @@ function PaymentForm({ totalAmount, baseFee, platformFee, onSuccess, onCancel }:
                 </div>
             </div>
 
-            {/* Stripe Payment Element */}
+            {/* Stripe ブランディング + セキュリティ */}
+            <div className="text-xs text-gray-500 space-y-1">
+                <p>
+                    支払いには{' '}
+                    <a href="https://docs.stripe.com/security/stripe" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline inline-flex items-center gap-0.5">
+                        Stripe<ExternalLink className="w-3 h-3" />
+                    </a>
+                    {' '}社の決済サービスを利用しています。
+                </p>
+                <p className="text-[11px] text-gray-400">※ Tsunaca ではクレジットカード情報を保持しません。</p>
+            </div>
+
+            {/* カード情報入力 */}
             <PaymentElement
                 options={{
                     layout: 'tabs',
@@ -90,19 +114,38 @@ function PaymentForm({ totalAmount, baseFee, platformFee, onSuccess, onCancel }:
                     {isProcessing ? '処理中...' : `¥${totalAmount.toLocaleString()} を支払う`}
                 </button>
             </div>
+
+            {/* 手数料がかかる理由ダイアログ */}
+            {showFeeDialog && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4" onClick={() => setShowFeeDialog(false)}>
+                    <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-5" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm font-semibold">手数料がかかる理由</h3>
+                            <button type="button" onClick={() => setShowFeeDialog(false)} className="text-gray-400 hover:text-gray-600">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <div className="text-sm text-gray-600 space-y-2">
+                            <p>クレジットカード決済では、決済サービス（Stripe）の利用料として手数料が発生します。</p>
+                            <p>この手数料はカード会社への支払い処理・不正利用防止・セキュリティ維持にかかる費用です。</p>
+                            <p className="text-xs text-gray-400">※ 手数料は参加キャンセル時に返金対象外となります。</p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </form>
     )
 }
 
 /**
- * Stripe Elements Provider でラップした決済モーダル。
- * clientSecret を受け取って <Elements> を初期化する。
+ * カード決済モーダル。
+ * clientSecret を受け取って Elements を初期化する。
  */
-export function StripePaymentModal(props: StripePaymentModalProps) {
+export function CreditCardPaymentModal(props: CreditCardPaymentModalProps) {
     if (!stripePromise) {
         return (
             <div className="p-4 text-center text-red-500 text-sm">
-                Stripe が設定されていません。管理者にお問い合わせください。
+                決済サービスが設定されていません。管理者にお問い合わせください。
             </div>
         )
     }

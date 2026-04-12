@@ -27,6 +27,12 @@ export interface CreatePaymentIntentResult {
     paymentIntentId: string
 }
 
+export interface RetrievePaymentIntentResult {
+    status: string
+    clientSecret: string | null
+    metadata: Record<string, string>
+}
+
 export interface IStripeService {
     /**
      * Stripe Connect Express アカウントを作成
@@ -62,6 +68,11 @@ export interface IStripeService {
         transferAmount: number
         metadata?: Record<string, string>
     }): Promise<CreatePaymentIntentResult>
+
+    /**
+     * PaymentIntent のステータスと metadata を取得
+     */
+    retrievePaymentIntent(paymentIntentId: string): Promise<RetrievePaymentIntentResult>
 
     /**
      * 返金（全額または部分）

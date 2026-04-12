@@ -48,7 +48,7 @@ export function MainMenuPage() {
             {/* ヘッダー */}
             <header className="border-b">
                 <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
-                    <h1 className="text-xl font-bold">TsudoCan</h1>
+                    <h1 className="text-xl font-bold">Tsunaca</h1>
                     <div className="flex items-center gap-4">
                         <span className="text-sm text-muted-foreground">
                             ID: {user?.userId?.slice(0, 8)}...

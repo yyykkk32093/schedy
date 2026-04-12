@@ -3,7 +3,6 @@ import { communityApi } from '@/features/community/api/communityApi'
 import { LocationSettings, type LocationEntry } from '@/features/community/components/LocationSettings'
 import { useCommunity, useLeaveCommunity, useMembers, useUpdateCommunity } from '@/features/community/hooks/useCommunityQueries'
 import { useAuditLogs, useChangeMemberRole, useRemoveMember } from '@/features/community/hooks/useCommunitySettingsQueries'
-import { useConnectStatus, useOpenDashboard, useStartOnboarding } from '@/features/community/hooks/useConnectQueries'
 import { UnsavedChangesDialog } from '@/shared/components/UnsavedChangesDialog'
 import { CharacterCounter } from '@/shared/components/ui/CharacterCounter'
 import { Button } from '@/shared/components/ui/button'
@@ -335,7 +334,7 @@ export default function CommunitySettingsPage() {
 
                     <div>
                         <label className="text-xs text-gray-500 block mb-2">有効な支払い方法</label>
-                        {([['CASH', '現金'], ['PAYPAY', 'PayPay'], ['STRIPE', 'クレジットカード']] as const).map(([method, label]) => {
+                        {([['CASH', '現金'], ['PAYPAY', 'PayPay'], ['CREDIT_CARD', 'クレジットカード']] as const).map(([method, label]) => {
                             const isPayPayDisabled = method === 'PAYPAY' && !payPayId.trim()
                             return (
                                 <label key={method} className={`flex items-center gap-2 py-1.5 ${isPayPayDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
@@ -352,11 +351,6 @@ export default function CommunitySettingsPage() {
                             )
                         })}
                     </div>
-
-                    {/* Stripe Connect オンボーディング（OWNER のみ表示） */}
-                    {isOwner && (
-                        <StripeConnectSection communityId={communityId!} />
-                    )}
 
                     <Separator className="my-4" />
 
@@ -610,7 +604,7 @@ export default function CommunitySettingsPage() {
                             variant="destructive"
                             disabled={leaveCommunity.isPending}
                             onClick={() => {
-                                leaveCommunity.mutate({ communityId: communityId! }, {
+                                leaveCommunity.mutate(communityId!, {
                                     onSuccess: () => {
                                         setShowLeaveDialog(false)
                                         toast.success('コミュニティを退出しました')
@@ -652,7 +646,7 @@ const AUDIT_VALUE_LABELS: Record<string, string> = {
     // enabledPaymentMethods
     CASH: '現金',
     PAYPAY: 'PayPay',
-    STRIPE: 'カード',
+    CREDIT_CARD: 'カード',
     // visibility / isPublic
     PUBLIC: '公開',
     PRIVATE: '非公開',
@@ -833,90 +827,6 @@ function FrequencyCountSelect({
                     className="w-20 h-9"
                 />
             )}
-        </div>
-    )
-}
-
-// ============================================================
-// Stripe Connect Onboarding セクション（OWNER 専用）
-// ============================================================
-function StripeConnectSection({ communityId }: { communityId: string }) {
-    const { data: status, isLoading } = useConnectStatus(communityId)
-    const startOnboarding = useStartOnboarding(communityId)
-    const openDashboard = useOpenDashboard(communityId)
-
-    if (isLoading) {
-        return (
-            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-400">Stripe Connect 読み込み中…</p>
-            </div>
-        )
-    }
-
-    // アカウント未作成
-    if (!status?.hasAccount) {
-        return (
-            <div className="mt-3 p-3 bg-gray-50 rounded-lg space-y-2">
-                <p className="text-xs font-semibold text-gray-600">💳 Stripe Connect（クレジットカード決済）</p>
-                <p className="text-xs text-gray-500">
-                    参加費のクレジットカード決済を有効にするには、Stripe アカウントの設定が必要です。
-                </p>
-                <Button
-                    size="sm"
-                    onClick={() => startOnboarding.mutate()}
-                    disabled={startOnboarding.isPending}
-                >
-                    {startOnboarding.isPending ? '準備中...' : 'Stripe アカウントを設定'}
-                </Button>
-                {startOnboarding.isError && (
-                    <p className="text-xs text-red-500">
-                        {(startOnboarding.error as Error)?.message ?? 'エラーが発生しました'}
-                    </p>
-                )}
-            </div>
-        )
-    }
-
-    // アカウント作成済みだがオンボーディング未完了
-    if (!status.chargesEnabled) {
-        return (
-            <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg space-y-2">
-                <p className="text-xs font-semibold text-yellow-800">💳 Stripe Connect 設定中</p>
-                <p className="text-xs text-yellow-700">
-                    {status.detailsSubmitted
-                        ? 'Stripe による審査中です。完了次第、カード決済が有効になります。'
-                        : 'アカウント設定が未完了です。続きを完了してください。'}
-                </p>
-                {!status.detailsSubmitted && (
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => startOnboarding.mutate()}
-                        disabled={startOnboarding.isPending}
-                    >
-                        {startOnboarding.isPending ? '準備中...' : '設定を続ける'}
-                    </Button>
-                )}
-            </div>
-        )
-    }
-
-    // オンボーディング完了＆決済有効
-    return (
-        <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg space-y-2">
-            <p className="text-xs font-semibold text-green-800">✅ Stripe Connect 有効</p>
-            <p className="text-xs text-green-700">
-                クレジットカード決済が利用可能です。
-            </p>
-            <Button
-                size="sm"
-                variant="outline"
-                onClick={() => openDashboard.mutate()}
-                disabled={openDashboard.isPending}
-            >
-                <ExternalLink className="w-3 h-3 mr-1" />
-                {openDashboard.isPending ? '読み込み中...' : 'Stripe ダッシュボードを開く'}
-            </Button>
         </div>
     )
 }

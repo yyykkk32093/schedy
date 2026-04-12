@@ -9,7 +9,7 @@ import { AlertTriangle, Ban, Check, Loader2 } from 'lucide-react'
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
     CASH: '現金',
     PAYPAY: 'PayPay',
-    STRIPE: 'カード決済',
+    CREDIT_CARD: 'カード決済',
 }
 
 /**

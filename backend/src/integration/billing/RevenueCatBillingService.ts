@@ -43,7 +43,7 @@ interface RevenueCatSubscriberResponse {
 // RevenueCat の entitlement 識別子
 const ENTITLEMENT_PRO = 'pro'
 // LIFETIME 商品 ID（RevenueCat の product_id と一致させる）
-const LIFETIME_PRODUCT_ID = 'tsudocan_lifetime'
+const LIFETIME_PRODUCT_ID = 'tsunaca_lifetime'
 
 export class RevenueCatBillingService implements IBillingService {
     parseWebhookEvent(payload: unknown): SubscriptionInfo | null {

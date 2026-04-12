@@ -11,7 +11,7 @@ export type BulkUpdatePaymentTxRepositories = {
 
 export type BulkPaymentUpdate = {
     participationId: string
-    paymentMethod: string // CASH | PAYPAY | STRIPE
+    paymentMethod: string // CASH | PAYPAY | CREDIT_CARD
 }
 
 /**

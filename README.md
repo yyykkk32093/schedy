@@ -1,4 +1,4 @@
-# TsudoCan
+# Tsunaca
 
 - Backendアーキテクチャ概要: [backend_README.md](backend_README.md)
 - Outbox / Integration 設計（期待動作・重複送信・routingKey規約）: [backend/src/integration/outbox/outbox.md](backend/src/integration/outbox/outbox.md)

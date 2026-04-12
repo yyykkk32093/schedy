@@ -150,10 +150,10 @@ export function useParticipationHistory(scheduleId: string, enabled = true) {
     })
 }
 
-/** 4-2: Stripe PaymentIntent 作成 */
-export function useCreateStripePaymentIntent(scheduleId: string) {
+/** クレジットカード PaymentIntent 作成（繰り上げ参加者用） */
+export function useCreateCreditCardPaymentIntent(scheduleId: string) {
     return useMutation({
-        mutationFn: () => participationApi.createStripePaymentIntent(scheduleId),
+        mutationFn: () => participationApi.createCreditCardPaymentIntent(scheduleId),
         meta: { skipGlobalErrorHandler: false },
     })
 }

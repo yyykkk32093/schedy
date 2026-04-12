@@ -150,7 +150,7 @@ model Payment {
   scheduleId            String
   participationId       String? // Participation との紐付け（未登録ビジター含む全参加者を確実に辿れる）
   userId                String? // 登録済みユーザーの場合のみ設定（高速参照用の補助カラム）
-  paymentMethod         String? // CASH | PAYPAY | STRIPE | null（未決定=ビジター初期状態「ー」）
+  paymentMethod         String? // CASH | PAYPAY | CREDIT_CARD | null（未決定=ビジター初期状態「ー」）
   displayName           String?   @db.VarChar(100) // 支払い時点の表示名スナップショット（登録ユーザー=displayName, ビジター=visitorName）
   amount                Int // 参加費
   feeAmount             Int       @default(0) // プラットフォーム手数料

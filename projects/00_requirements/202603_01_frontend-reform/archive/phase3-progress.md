@@ -22,11 +22,11 @@
 | 参加コミュニティ数     | SUBSCRIBER = **-1（無制限）**（FeatureGateで将来制御可）                         | 2026-02-10 |
 | seed 配置場所          | `backend/infra/database/seeds/`                                                  | 2026-02-10 |
 | プラットフォーム手数料 | **0円**（`application_fee_amount = ceil(amount×0.036)`、Stripe手数料パススルー） | 2026-02-11 |
-| Stripe課金方式         | **Destination Charges**（OWNER受取=額面-3.6%、TsudoCan±0）                       | 2026-02-11 |
+| Stripe課金方式         | **Destination Charges**（OWNER受取=額面-3.6%、Tsunaca±0）                        | 2026-02-11 |
 | 支払いタイミング       | **ユーザー手動**（「支払う」ボタン押下時のみ、自動課金なし）                     | 2026-02-11 |
 | Stripe Customer        | **不要**（毎回on-sessionワンタイム決済）                                         | 2026-02-11 |
 | 返金条件               | Schedule開始後**5日以内**キャンセルで全額返金                                    | 2026-02-11 |
-| `on_behalf_of`         | **未設定**（TsudoCan名義。明細: `TSUDOCAN* コミュニティ名`）                     | 2026-02-11 |
+| `on_behalf_of`         | **未設定**（Tsunaca名義。明細: `TSUNACA* コミュニティ名`）                       | 2026-02-11 |
 | 参加と支払いの関係     | **独立**（制約なし。いつでも支払い可能）                                         | 2026-02-11 |
 | OWNER/管理者画面       | **参加者一覧 + 支払いステータスバッジ**（✅支払済 / ⚠️未払い / ↩️返金済）           | 2026-02-11 |
 
@@ -36,7 +36,7 @@
 参加者が 1,000円 の Schedule に参加:
   application_fee_amount = ceil(1000 × 0.036) = 36円
   → OWNER受取: 1,000 - 36 = 964円
-  → TsudoCan: 36 - 36(Stripe手数料) = ±0円
+  → Tsunaca: 36 - 36(Stripe手数料) = ±0円
   → Stripe手数料はOWNER負担（振込額から天引き）
 ```
 

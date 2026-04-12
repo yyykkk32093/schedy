@@ -1,5 +1,5 @@
 {
-    "name": "tsudocan",
+    "name": "tsunaca",
     "private": true,
     "scripts": {
         "infra:up": "docker compose up -d",

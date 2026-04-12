@@ -10,7 +10,7 @@
 
 ## 案件スコープ
 
-LINE Front-end Framework（LIFF）を導入し、LINE アプリ内 WebView で TsudoCan の全機能を動作させる。
+LINE Front-end Framework（LIFF）を導入し、LINE アプリ内 WebView で Tsunaca の全機能を動作させる。
 LIFF Browser 固有の制約（Cookie クロスサイト問題）に対応し、既存の Ports/Adapters アーキテクチャを活用して認証・ストレージを切り替える。
 
 ---

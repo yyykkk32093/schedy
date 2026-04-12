@@ -1,5 +1,5 @@
 # ============================================
-# TsudoCan ローカル開発インフラ
+# Tsunaca ローカル開発インフラ
 # PostgreSQL 14 + LocalStack (S3)
 # ============================================
 # 起動: pnpm infra:up
@@ -9,7 +9,7 @@
 services:
   postgres:
     image: postgres:14-alpine
-    container_name: tsudocan-postgres
+    container_name: tsunaca-postgres
     ports:
       - "5432:5432"
     environment:
@@ -17,16 +17,16 @@ services:
       POSTGRES_PASSWORD: app_password
       POSTGRES_DB: reserve_manage
     volumes:
-      - tsudocan-pgdata:/var/lib/postgresql/data
+      - tsunaca-pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U app_user -d reserve_manage"]
+      test: [ "CMD-SHELL", "pg_isready -U app_user -d reserve_manage" ]
       interval: 5s
       timeout: 3s
       retries: 5
 
   localstack:
     image: localstack/localstack:latest
-    container_name: tsudocan-localstack
+    container_name: tsunaca-localstack
     ports:
       - "4566:4566"
     environment:
@@ -35,8 +35,8 @@ services:
       EAGER_SERVICE_LOADING: 1
     volumes:
       - ./infra/localstack/init-s3.sh:/etc/localstack/init/ready.d/init-s3.sh:ro
-      - tsudocan-localstack:/var/lib/localstack
+      - tsunaca-localstack:/var/lib/localstack
 
 volumes:
-  tsudocan-pgdata:
-  tsudocan-localstack:
+  tsunaca-pgdata:
+  tsunaca-localstack:

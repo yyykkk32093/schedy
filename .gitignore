@@ -22,5 +22,9 @@ dist-ssr
 *.sln
 *.sw?
 
+# Environment files with secrets
+.env.local
+.env.production
+
 # build artifacts
 /dist

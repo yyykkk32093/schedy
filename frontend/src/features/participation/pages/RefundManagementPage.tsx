@@ -7,7 +7,7 @@ import { Link, useParams } from 'react-router-dom'
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
     CASH: '現金',
     PAYPAY: 'PayPay',
-    STRIPE: 'カード決済',
+    CREDIT_CARD: 'カード決済',
 }
 
 type ViewMode = 'by-user' | 'by-schedule'

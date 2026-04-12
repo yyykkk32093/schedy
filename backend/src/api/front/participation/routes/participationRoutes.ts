@@ -39,7 +39,7 @@ router.patch('/v1/schedules/:id/payments/bulk-confirm', authMiddleware, validate
 // D-P2-5: 一括支払い更新（All-or-Nothing）
 router.patch('/v1/schedules/:id/payments/bulk', authMiddleware, validateBody(bulkUpdatePaymentsSchema), participationController.bulkUpdatePayment)
 
-// 4-2: Stripe PaymentIntent 作成
+// 4-2: Stripe PaymentIntent 作成（繰り上げ参加者の支払い方法選択時に使用）
 router.post('/v1/schedules/:id/participations/me/stripe-payment-intent', authMiddleware, participationController.createStripePaymentIntent)
 
 // 管理者による参加者除外

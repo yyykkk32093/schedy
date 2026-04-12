@@ -7,7 +7,7 @@ import { StripeStrategy } from './StripeStrategy.js'
 const strategies: Record<PaymentMethodType, IPaymentStrategy> = {
     CASH: new CashStrategy(),
     PAYPAY: new PayPayStrategy(),
-    STRIPE: new StripeStrategy(),
+    CREDIT_CARD: new StripeStrategy(),
 }
 
 export class PaymentStrategyFactory {

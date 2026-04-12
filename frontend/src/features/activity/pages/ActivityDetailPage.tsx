@@ -563,7 +563,7 @@ function ScheduleSection({ schedule, communityId, enabledPaymentMethods, paypayI
                                                     <td className="px-2 py-1 text-center">
                                                         {p?.paymentMethod ? (
                                                             <span className="text-gray-700">
-                                                                {p.paymentMethod === 'CASH' ? '現金' : p.paymentMethod === 'PAYPAY' ? 'PayPay' : p.paymentMethod === 'STRIPE' ? 'カード' : '—'}
+                                                                {p.paymentMethod === 'CASH' ? '現金' : p.paymentMethod === 'PAYPAY' ? 'PayPay' : p.paymentMethod === 'CREDIT_CARD' ? 'カード' : '—'}
                                                             </span>
                                                         ) : <span className="text-gray-300">—</span>}
                                                     </td>
@@ -741,7 +741,7 @@ function ScheduleSection({ schedule, communityId, enabledPaymentMethods, paypayI
                                             <p className="flex-1 min-w-0 text-sm text-gray-800 truncate">
                                                 {p.visitorName ?? p.displayName ?? '—'}
                                                 <span className="text-[10px] text-gray-400 ml-1">
-                                                    （{p.paymentMethod === 'CASH' ? '現金' : p.paymentMethod === 'PAYPAY' ? 'PayPay' : p.paymentMethod === 'STRIPE' ? 'カード' : '未指定'}）
+                                                    （{p.paymentMethod === 'CASH' ? '現金' : p.paymentMethod === 'PAYPAY' ? 'PayPay' : p.paymentMethod === 'CREDIT_CARD' ? 'カード' : '未指定'}）
                                                 </span>
                                             </p>
                                         </label>
@@ -756,7 +756,7 @@ function ScheduleSection({ schedule, communityId, enabledPaymentMethods, paypayI
                                         onChange={(e) => setBulkPaymentMethod(e.target.value)}
                                         className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white"
                                     >
-                                        {(['CASH', 'PAYPAY', 'STRIPE'] as const).map((method) => {
+                                        {(['CASH', 'PAYPAY', 'CREDIT_CARD'] as const).map((method) => {
                                             const enabled = resolvedPaymentMethods.includes(method)
                                             const label = method === 'CASH' ? '現金' : method === 'PAYPAY' ? 'PayPay' : 'カード決済'
                                             return (

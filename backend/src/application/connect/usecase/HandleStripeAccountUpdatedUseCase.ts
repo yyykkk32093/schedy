@@ -4,8 +4,8 @@
  * Stripe から account.updated イベントを受信した際に、
  * 該当 Community の enabledPaymentMethods を同期する。
  *
- * - chargesEnabled = true → 'STRIPE' を enabledPaymentMethods に追加
- * - chargesEnabled = false → 'STRIPE' を enabledPaymentMethods から除去
+ * - chargesEnabled = true → 'CREDIT_CARD' を enabledPaymentMethods に追加
+ * - chargesEnabled = false → 'CREDIT_CARD' を enabledPaymentMethods から除去
  */
 
 import { logger } from '@/_sharedTech/logger/logger.js'
