@@ -121,15 +121,21 @@ export function ParticipationActionButton({
         ? '有効にする場合はコミュニティ設定→支払い方法の設定を行なってください'
         : '有効にするには管理者に問い合わせてください'
 
+    /** Stripe 最低請求額 (50円) 未満の場合、クレジットカード選択を無効化 */
+    const STRIPE_MIN_AMOUNT = 50
+    const isFeeUnderStripeMin = participationFee != null && participationFee > 0 && participationFee < STRIPE_MIN_AMOUNT
+
     const paymentMethodOptions = useMemo(() => {
         return Object.entries(PAYMENT_LABELS).map(([value, label]) => {
             // PayPay 支払い済みキャンセル→再参加時は無効化
             if (hidePayPay && value === 'PAYPAY') return { value, label, disabled: true, reason: '' }
+            // 参加費が Stripe 最低請求額未満の場合、クレジットカードを無効化
+            if (isFeeUnderStripeMin && value === 'CREDIT_CARD') return { value, label, disabled: true, reason: `カード決済は${STRIPE_MIN_AMOUNT}円以上から利用できます` }
             // コミュニティで無効な支払い方法
             if (!enabledPaymentMethods.includes(value)) return { value, label, disabled: true, reason: disabledReason }
             return { value, label, disabled: false, reason: '' }
         })
-    }, [hidePayPay, enabledPaymentMethods, disabledReason])
+    }, [hidePayPay, enabledPaymentMethods, disabledReason, isFeeUnderStripeMin])
 
     const [paymentMethod, setPaymentMethod] = useState('CASH')
 
@@ -139,6 +145,13 @@ export function ParticipationActionButton({
             setPaymentMethod('CASH')
         }
     }, [hidePayPay, paymentMethod])
+
+    // Stripe最低額未満でCC選択中なら CASH にリセット
+    useEffect(() => {
+        if (isFeeUnderStripeMin && paymentMethod === 'CREDIT_CARD') {
+            setPaymentMethod('CASH')
+        }
+    }, [isFeeUnderStripeMin, paymentMethod])
 
     /**
      * 参加ボタンのハンドラ。

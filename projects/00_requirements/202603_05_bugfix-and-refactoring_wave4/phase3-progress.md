@@ -11,11 +11,11 @@
 
 ## タスク一覧
 
-| タスク                                            | 状態   | 備考                                                                        |
-| ------------------------------------------------- | ------ | --------------------------------------------------------------------------- |
-| C-20/21/22/23 通知一覧の情報拡充                  | ✅ 完了 | NotificationMetadata Zod型 + 全16箇所にmetadata埋め込み + APIレスポンス拡張 |
-| C-12 コミュニティ作成 — 活動場所/主要駅の複数入力 | ✅ 完了 | CommunityLocation BE(CRUD API) + FE(MetaSection表示 + LocationSettings編集) |
-| C-25 退会理由入力フロー                           | ✅ 完了 | UserWithdrawal BE(Repository+UseCase) + FE(理由選択ラジオ+テキスト)         |
+| タスク                                            | 状態   | 備考                                                                                                       |
+| ------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------- |
+| C-20/21/22/23 通知一覧の情報拡充                  | ✅ 完了 | NotificationMetadata Zod型 + 全16箇所にmetadata埋め込み + APIレスポンス拡張 + FEメタデータ表示・リンク遷移 |
+| C-12 コミュニティ作成 — 活動場所/主要駅の複数入力 | ✅ 完了 | CommunityLocation BE(CRUD API) + FE(MetaSection表示 + LocationSettings編集)                                |
+| C-25 退会理由入力フロー                           | ✅ 完了 | UserWithdrawal BE(Repository+UseCase) + FE(理由選択ラジオ+テキスト)                                        |
 
 ---
 
@@ -308,3 +308,7 @@ enum WithdrawalReason {
   - C-20/21/22/23: NotificationMetadata.ts (Zod v4) 作成、INotificationRepository/Impl/Service にmetadata追加、全16通知作成箇所にmetadata埋め込み、APIレスポンスにmetadata追加
   - C-12: ICommunityLocationRepository + Impl (CRUD + replaceAll)、communityLocationRoutes (GET/PUT/POST/DELETE)、CommunityDetail型にlocations追加、FE MetaSection表示 + LocationSettings編集コンポーネント
   - C-25: IUserWithdrawalRepository + Impl (upsert)、DeleteUserUseCase にreason/freeText追加、userController更新、FE退会ダイアログに理由選択ラジオ+テキストエリア追加
+- 2026-03-23: C-20/21/22/23 FE側の不足を修正。
+  - BE: CancelParticipationUseCase WAITLIST_PROMOTED metadata に communityId/activityTitle 追加
+  - FE: NotificationItem 型に metadata フィールド追加
+  - FE: NotificationListPage にメタデータ表示（activityTitle, scheduleDate, communityName 等）+ 通知カードからアクティビティ/コミュニティへのリンク遷移を実装

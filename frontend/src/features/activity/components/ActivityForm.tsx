@@ -14,7 +14,7 @@ import {
 import type { Member } from '@/shared/types/api'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AlertCircle } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -116,6 +116,14 @@ function addMinutesToTime(time: string, minutes: number): string {
     return `${hh}:${mm}`
 }
 
+const MAX_FEE = 100_000
+const FEE_MAX_MESSAGE = `参加費は${MAX_FEE.toLocaleString()}円以下で設定してください`
+
+const feeStringSchema = z.string().refine(
+    (v) => v === '' || Number(v) <= MAX_FEE,
+    { message: FEE_MAX_MESSAGE },
+)
+
 const activityFormSchema = z.object({
     title: z.string().min(1, 'アクティビティ名を入力してください').max(100, 'アクティビティ名は100文字以内で入力してください'),
     description: z.string().max(500, '説明は500文字以内で入力してください'),
@@ -128,16 +136,16 @@ const activityFormSchema = z.object({
     repeat: z.string(),
     recurrenceGenerationMonths: z.string(),
     visibility: z.string(),
-    participationFee: z.string(),
-    visitorFee: z.string(),
+    participationFee: feeStringSchema,
+    visitorFee: feeStringSchema,
     isOnline: z.boolean(),
     meetingUrl: z.string(),
     hasCapacity: z.boolean(),
     capacity: z.string(),
     shouldPostAnnouncement: z.boolean(),
     // --- edit mode: Activity defaults ---
-    defaultParticipationFee: z.string(),
-    defaultVisitorFee: z.string(),
+    defaultParticipationFee: feeStringSchema,
+    defaultVisitorFee: feeStringSchema,
     hasDefaultCapacity: z.boolean(),
     defaultCapacity: z.string(),
     allowVisitorWaitlist: z.boolean(),
@@ -224,6 +232,8 @@ export function ActivityForm({
         control,
         watch,
         setValue,
+        setError,
+        clearErrors,
         formState: { errors },
     } = useForm<ActivityFormSchema>({
         resolver: zodResolver(activityFormSchema),
@@ -255,6 +265,25 @@ export function ActivityForm({
             allowVisitorWaitlist: initialValues?.allowVisitorWaitlist ?? false,
         },
     })
+
+    const registerFee = useCallback(
+        (name: 'participationFee' | 'visitorFee') => {
+            const { onChange, ...rest } = register(name)
+            return {
+                ...rest,
+                onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                    onChange(e)
+                    const v = Number(e.target.value)
+                    if (e.target.value !== '' && v > MAX_FEE) {
+                        setError(name, { type: 'manual', message: FEE_MAX_MESSAGE })
+                    } else {
+                        clearErrors(name)
+                    }
+                },
+            }
+        },
+        [register, setError, clearErrors],
+    )
 
     const [organizerSearch, setOrganizerSearch] = useState('')
     const [showOrganizerDropdown, setShowOrganizerDropdown] = useState(false)
@@ -628,8 +657,11 @@ export function ActivityForm({
                     min={0}
                     step={1}
                     placeholder="0（無料の場合は0または空欄）"
-                    {...register('participationFee')}
+                    {...registerFee('participationFee')}
                 />
+                {errors.participationFee && (
+                    <p className="text-sm text-destructive">{errors.participationFee.message}</p>
+                )}
             </div>
 
             {/* ビジター参加費 */}
@@ -641,11 +673,15 @@ export function ActivityForm({
                     min={0}
                     step={1}
                     placeholder="未設定の場合はメンバーと同額"
-                    {...register('visitorFee')}
+                    {...registerFee('visitorFee')}
                 />
-                <p className="text-xs text-muted-foreground">
-                    ビジター（非会員）向けの参加費。空欄の場合はメンバーと同額になります。
-                </p>
+                {errors.visitorFee ? (
+                    <p className="text-sm text-destructive">{errors.visitorFee.message}</p>
+                ) : (
+                    <p className="text-xs text-muted-foreground">
+                        ビジター（非会員）向けの参加費。空欄の場合はメンバーと同額になります。
+                    </p>
+                )}
             </div>
 
             {/* 定員 */}

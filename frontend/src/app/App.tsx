@@ -10,7 +10,6 @@ import { ActivityTopPage } from '@/features/activity/pages/ActivityTopPage'
 import { AlbumCreatePage } from '@/features/album/pages/AlbumCreatePage'
 import { AnnouncementCreatePage } from '@/features/announcement/pages/AnnouncementCreatePage'
 import { AnnouncementDetailPage } from '@/features/announcement/pages/AnnouncementDetailPage'
-import { AnnouncementListPage } from '@/features/announcement/pages/AnnouncementListPage'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { OAuthCallbackPage } from '@/features/auth/pages/OAuthCallbackPage'
 import { SignupPage } from '@/features/auth/pages/SignupPage'
@@ -34,9 +33,7 @@ import { HomePage } from '@/features/home/pages/HomePage'
 import { NotificationListPage } from '@/features/notification/pages/NotificationListPage'
 import { RefundHistoryPage } from '@/features/participation/pages/RefundHistoryPage'
 import { RefundManagementPage } from '@/features/participation/pages/RefundManagementPage'
-import { ScheduleDetailPage } from '@/features/schedule/pages/ScheduleDetailPage'
-import { ScheduleListPage } from '@/features/schedule/pages/ScheduleListPage'
-import { StampListPage } from '@/features/stamp/pages/StampListPage'
+
 import { MyPage } from '@/features/user/pages/MyPage'
 import { AppLayout } from '@/shared/components/AppLayout'
 import { ProtectedRoute } from '@/shared/components/ProtectedRoute'
@@ -158,24 +155,7 @@ const router = createBrowserRouter([
                         handle: { title: 'アクティビティ', showBack: false } satisfies RouteHandle,
                     },
 
-                    // Schedule
-                    {
-                        path: '/communities/:communityId/activities/:activityId/schedules',
-                        element: <ScheduleListPage />,
-                        handle: { title: 'スケジュール一覧', showBack: true } satisfies RouteHandle,
-                    },
-                    {
-                        path: '/schedules/:id',
-                        element: <ScheduleDetailPage />,
-                        handle: { title: 'スケジュール詳細', showBack: true } satisfies RouteHandle,
-                    },
-
                     // Announcement
-                    {
-                        path: '/communities/:communityId/announcements',
-                        element: <AnnouncementListPage />,
-                        handle: { title: 'お知らせ', showBack: true } satisfies RouteHandle,
-                    },
                     {
                         path: '/communities/:communityId/announcements/new',
                         element: <AnnouncementCreatePage />,
@@ -267,13 +247,6 @@ const router = createBrowserRouter([
                     {
                         path: '/dm',
                         element: <Navigate to="/chats" replace />,
-                    },
-
-                    // Stamp
-                    {
-                        path: '/stamps',
-                        element: <StampListPage />,
-                        handle: { title: 'スタンプ', showBack: true } satisfies RouteHandle,
                     },
 
                     // Notification

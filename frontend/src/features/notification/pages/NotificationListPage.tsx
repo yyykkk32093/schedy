@@ -4,8 +4,10 @@ import {
     useMarkNotificationAsRead,
     useNotifications,
 } from '@/features/notification/hooks/useNotificationQueries'
-import { Loader2 } from 'lucide-react'
+import type { NotificationItem } from '@/shared/types/api'
+import { Calendar, ExternalLink, Loader2 } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 const TABS: { label: string; value: NotificationCategory | undefined }[] = [
     { label: 'すべて', value: undefined },
@@ -65,11 +67,10 @@ export function NotificationListPage() {
                 <p className="text-center text-sm text-gray-500 py-8">通知はありません</p>
             ) : (
                 <ul className="space-y-2">
-                    {notifications.map((n) => (
-                        <li
-                            key={n.id}
-                            className={`border rounded-lg p-3 ${n.isRead ? 'bg-white' : 'bg-blue-50 border-blue-200'}`}
-                        >
+                    {notifications.map((n) => {
+                        const link = getNotificationLink(n)
+                        const meta = getMetaSummary(n)
+                        const card = (
                             <div className="flex justify-between items-start">
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
@@ -79,13 +80,29 @@ export function NotificationListPage() {
                                     {n.body && (
                                         <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">{n.body}</p>
                                     )}
+                                    {meta && (
+                                        <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-500">
+                                            {meta.date && (
+                                                <span className="flex items-center gap-0.5">
+                                                    <Calendar className="h-3 w-3" />
+                                                    {meta.date}
+                                                </span>
+                                            )}
+                                            {meta.label && <span>{meta.label}</span>}
+                                            {link && <ExternalLink className="h-3 w-3 text-blue-400" />}
+                                        </div>
+                                    )}
                                     <p className="text-xs text-gray-400 mt-1">
                                         {new Date(n.createdAt).toLocaleString('ja-JP')}
                                     </p>
                                 </div>
                                 {!n.isRead && (
                                     <button
-                                        onClick={() => markAsRead.mutate(n.id)}
+                                        onClick={(e) => {
+                                            e.preventDefault()
+                                            e.stopPropagation()
+                                            markAsRead.mutate(n.id)
+                                        }}
                                         type="button"
                                         className="text-xs text-blue-600 hover:underline flex-shrink-0 ml-2"
                                     >
@@ -93,12 +110,132 @@ export function NotificationListPage() {
                                     </button>
                                 )}
                             </div>
-                        </li>
-                    ))}
+                        )
+
+                        return link ? (
+                            <li key={n.id}>
+                                <Link
+                                    to={link}
+                                    className={`block border rounded-lg p-3 transition-colors hover:border-blue-300 ${n.isRead ? 'bg-white' : 'bg-blue-50 border-blue-200'}`}
+                                    onClick={() => { if (!n.isRead) markAsRead.mutate(n.id) }}
+                                >
+                                    {card}
+                                </Link>
+                            </li>
+                        ) : (
+                            <li
+                                key={n.id}
+                                className={`border rounded-lg p-3 ${n.isRead ? 'bg-white' : 'bg-blue-50 border-blue-200'}`}
+                            >
+                                {card}
+                            </li>
+                        )
+                    })}
                 </ul>
             )}
         </div>
     )
+}
+
+// ============================================================
+// メタデータ → 表示ラベル・日付・リンクの抽出ヘルパー
+// ============================================================
+
+/** schedule 系通知タイプ */
+const SCHEDULE_TYPES = new Set([
+    'WAITLIST_PROMOTED',
+    'SCHEDULE_CANCELLED',
+    'PARTICIPATION_CONFIRMED',
+    'SCHEDULE_REMINDER',
+    'SAME_DAY_CANCELLATION',
+    'PAID_CANCELLATION',
+    'PARTICIPATION_REMOVED_BY_ADMIN',
+    'ACTIVITY_CANCELLED',
+])
+
+const PAYMENT_TYPES = new Set(['PAYMENT_REMINDER'])
+const COMMUNITY_TYPES = new Set(['INVITE_ACCEPTED', 'JOIN_REQUEST', 'JOIN_APPROVED', 'MEMBER_REMOVED'])
+const CHAT_TYPES = new Set(['MENTION', 'DM', 'REPLY'])
+const ANNOUNCEMENT_TYPES = new Set(['ANNOUNCEMENT'])
+
+function getMetaSummary(n: NotificationItem): { label?: string; date?: string } | null {
+    const m = n.metadata
+    if (!m) return null
+
+    if (SCHEDULE_TYPES.has(n.type) || PAYMENT_TYPES.has(n.type)) {
+        const parts: string[] = []
+        if (typeof m.activityTitle === 'string') parts.push(m.activityTitle)
+        if (typeof m.communityName === 'string') parts.push(m.communityName)
+        if (PAYMENT_TYPES.has(n.type) && typeof m.amount === 'number') parts.push(`¥${m.amount.toLocaleString()}`)
+        const date = typeof m.scheduleDate === 'string' ? formatScheduleDate(m.scheduleDate) : undefined
+        return parts.length || date ? { label: parts.join(' / ') || undefined, date } : null
+    }
+
+    if (COMMUNITY_TYPES.has(n.type)) {
+        const name = typeof m.communityName === 'string' ? m.communityName : undefined
+        return name ? { label: name } : null
+    }
+
+    if (CHAT_TYPES.has(n.type)) {
+        const parts: string[] = []
+        if (typeof m.channelName === 'string') parts.push(`#${m.channelName}`)
+        if (typeof m.senderName === 'string') parts.push(m.senderName)
+        return parts.length ? { label: parts.join(' / ') } : null
+    }
+
+    if (ANNOUNCEMENT_TYPES.has(n.type)) {
+        const name = typeof m.communityName === 'string' ? m.communityName : undefined
+        return name ? { label: name } : null
+    }
+
+    return null
+}
+
+function getNotificationLink(n: NotificationItem): string | null {
+    const m = n.metadata
+
+    if (SCHEDULE_TYPES.has(n.type) || PAYMENT_TYPES.has(n.type)) {
+        const communityId = unwrapStr(m?.communityId)
+        const activityId = unwrapStr(m?.activityId)
+        if (communityId && activityId) {
+            return `/communities/${communityId}/activities/${activityId}`
+        }
+        return null
+    }
+
+    if (COMMUNITY_TYPES.has(n.type)) {
+        const cid = unwrapStr(m?.communityId) ?? n.referenceId
+        return cid ? `/communities/${cid}` : null
+    }
+
+    if (ANNOUNCEMENT_TYPES.has(n.type)) {
+        const cid = unwrapStr(m?.communityId)
+        return cid ? `/communities/${cid}` : null
+    }
+
+    // チャット系は現状チャットページへの直リンクがないのでスキップ
+    return null
+}
+
+/** metadata値を文字列として取り出す（ValueObject形式 {value: "..."} にも対応） */
+function unwrapStr(v: unknown): string | null {
+    if (typeof v === 'string') return v
+    if (v && typeof v === 'object' && 'value' in v && typeof (v as { value: unknown }).value === 'string') {
+        return (v as { value: string }).value
+    }
+    return null
+}
+
+function formatScheduleDate(iso: string): string {
+    try {
+        return new Date(iso).toLocaleDateString('ja-JP', {
+            month: 'short',
+            day: 'numeric',
+            weekday: 'short',
+        })
+    } catch {
+        return iso
+    }
 }
 
 /** 通知タイプの小さなチップ表示 (#55: 全通知タイプの日本語マッピング) */

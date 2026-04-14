@@ -82,7 +82,6 @@ export const communityApi = {
         params.days?.forEach((d) => searchParams.append('days', d))
         // W4-03: 追加フィルタ
         params.targetGender?.forEach((g) => searchParams.append('targetGender', g))
-        if (params.communityTypeId) searchParams.set('communityTypeId', params.communityTypeId)
         if (params.joinMethod) searchParams.set('joinMethod', params.joinMethod)
         if (params.limit) searchParams.set('limit', String(params.limit))
         if (params.offset) searchParams.set('offset', String(params.offset))

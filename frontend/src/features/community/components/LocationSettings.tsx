@@ -24,7 +24,7 @@ export interface LocationEntry {
 }
 
 interface LocationSettingsProps {
-    communityId: string
+    communityId?: string
     initialLocations?: Array<{
         id: string
         type: 'MAIN' | 'SUB'

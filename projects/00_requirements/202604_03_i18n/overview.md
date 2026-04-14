@@ -102,6 +102,19 @@ i18n 導入時に以下を対応する必要がある:
 
 ---
 
+### 🔧 バリデーションエラーのエラーコード方式への移行
+
+現在、BE Zod バリデーションエラーがデフォルトの英語メッセージ（例: `Too big: expected number to be <=100000`）のまま FE に返却・表示されている。
+Phase 2 のエラーメッセージキー化（2-1）と合わせて、以下の構成に移行する:
+
+- **BE**: Zod / ドメインエラーからエラーコード + パラメータを返す（例: `{ code: "FEE_TOO_LARGE", field: "participationFee", params: { max: 100000 } }`）
+- **FE**: エラーコードから翻訳キーを引いてユーザー向けメッセージを生成
+- **対象**: Activity/Schedule 作成・更新 API のバリデーションエラー全般、ドメインエラー（DomainValidationError）
+
+> 由来: 202603_XX wave4 — 参加費上限（100,000円）実装時に、BE Zod エラーがそのまま表示される問題を確認。FE で即時バリデーション（onChange）は実装済みだが、BE エラー表記はi18n スコープで対応する方針。
+
+---
+
 ## 📁 参照
 
 - 由来: `projects/202603_02_bugfix-and-refactoring/overview.md` — 設計判断 D-6

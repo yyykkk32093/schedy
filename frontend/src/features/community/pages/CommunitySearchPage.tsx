@@ -52,7 +52,6 @@ export function CommunitySearchPage() {
     const [area, setArea] = useState('')
     const [selectedDays, setSelectedDays] = useState<string[]>([])
     const [selectedGenders, setSelectedGenders] = useState<string[]>([])
-    const [selectedCommunityTypeId, setSelectedCommunityTypeId] = useState('')
     const [selectedJoinMethod, setSelectedJoinMethod] = useState('')
     const [showDetail, setShowDetail] = useState(false)
     const [searchTriggered, setSearchTriggered] = useState(false)
@@ -65,11 +64,10 @@ export function CommunitySearchPage() {
             area: area || undefined,
             days: selectedDays.length > 0 ? selectedDays : undefined,
             targetGender: selectedGenders.length > 0 ? selectedGenders : undefined,
-            communityTypeId: selectedCommunityTypeId || undefined,
             joinMethod: selectedJoinMethod || undefined,
             limit: 20,
         }),
-        [keyword, selectedCategories, selectedLevels, area, selectedDays, selectedGenders, selectedCommunityTypeId, selectedJoinMethod],
+        [keyword, selectedCategories, selectedLevels, area, selectedDays, selectedGenders, selectedJoinMethod],
     )
 
     const { data, isLoading } = useSearchCommunities(searchParams, searchTriggered)
@@ -234,30 +232,6 @@ export function CommunitySearchPage() {
                         </div>
                     </div>
 
-                    {/* W4-03: コミュニティタイプ */}
-                    {masters?.communityTypes && masters.communityTypes.length > 0 && (
-                        <div>
-                            <p className="text-xs font-medium text-gray-500 mb-1">コミュニティタイプ</p>
-                            <Select
-                                value={selectedCommunityTypeId}
-                                onValueChange={(v) => {
-                                    setSelectedCommunityTypeId(v === '__all__' ? '' : v)
-                                    setSearchTriggered(false)
-                                }}
-                            >
-                                <SelectTrigger className="text-sm h-9">
-                                    <SelectValue placeholder="すべて" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="__all__">すべて</SelectItem>
-                                    {masters.communityTypes.map((ct) => (
-                                        <SelectItem key={ct.id} value={ct.id}>{ct.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
-
                     {/* W4-03: 参加方法 */}
                     <div>
                         <p className="text-xs font-medium text-gray-500 mb-1">参加方法</p>
@@ -333,9 +307,6 @@ export function CommunitySearchPage() {
                                                 <Users className="w-3 h-3" />
                                                 {c.memberCount}人
                                             </span>
-                                            {c.communityTypeName && (
-                                                <span>{c.communityTypeName}</span>
-                                            )}
                                             {c.activityFrequency && (
                                                 <span>{c.activityFrequency}</span>
                                             )}

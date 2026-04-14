@@ -131,14 +131,19 @@ function WizardForm() {
             targetGender: s.targetGender.length > 0 ? s.targetGender : undefined,
             ageMin: s.ageMin ? Number(s.ageMin) : undefined,
             ageMax: s.ageMax ? Number(s.ageMax) : undefined,
-            categoryId: s.selectedCategoryId || undefined,
-            recommendedLevelMin: s.recommendedLevelRange[0],
-            recommendedLevelMax: s.recommendedLevelRange[1],
+            categoryIds: [s.selectedCategoryId || 'cat-other'],
+            recommendedLevelMin: s.recommendedLevelEnabled ? s.recommendedLevelRange[0] : undefined,
+            recommendedLevelMax: s.recommendedLevelEnabled ? s.recommendedLevelRange[1] : undefined,
             activityDays: s.selectedDays.length > 0 ? s.selectedDays : undefined,
             tags: s.tags.length > 0 ? s.tags : undefined,
+            locations: s.locations.length > 0 ? s.locations.filter((l) => l.area.trim()).map((l) => ({
+                type: l.type,
+                area: l.area.trim(),
+                station: l.station.trim() || undefined,
+            })) : undefined,
         }
         const result = await createMutation.mutateAsync(payload)
-        navigate(`/communities/${result.communityId}`)
+        navigate(`/communities/${result.communityId}`, { replace: true })
     }
 
     if (mastersLoading) {
@@ -156,7 +161,7 @@ function WizardForm() {
                 {step < totalSteps ? (
                     <Button type="button" className="flex-1" disabled={!canProceed} onClick={() => setStep(step + 1)}>次へ</Button>
                 ) : (
-                    <Button type="button" className="flex-1" disabled={!data.name.trim() || createMutation.isPending} onClick={handleSubmit}>
+                    <Button type="button" className="flex-1" disabled={!data.name.trim() || !s.selectedCategoryId || createMutation.isPending} onClick={handleSubmit}>
                         {createMutation.isPending ? '作成中...' : 'コミュニティを作成'}
                     </Button>
                 )}

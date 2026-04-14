@@ -84,9 +84,9 @@ export function CreateSubCommunityPage() {
                     targetGender: s.targetGender.length > 0 ? s.targetGender : undefined,
                     ageMin: s.ageMin ? Number(s.ageMin) : undefined,
                     ageMax: s.ageMax ? Number(s.ageMax) : undefined,
-                    categoryId: s.selectedCategoryId || undefined,
-                    recommendedLevelMin: s.recommendedLevelRange[0],
-                    recommendedLevelMax: s.recommendedLevelRange[1],
+                    categoryIds: s.selectedCategoryId ? [s.selectedCategoryId] : undefined,
+                    recommendedLevelMin: s.recommendedLevelEnabled ? s.recommendedLevelRange[0] : undefined,
+                    recommendedLevelMax: s.recommendedLevelEnabled ? s.recommendedLevelRange[1] : undefined,
                     activityDays: s.selectedDays.length > 0 ? s.selectedDays : undefined,
                     tags: s.tags.length > 0 ? s.tags : undefined,
                 })
@@ -194,8 +194,8 @@ export function CreateSubCommunityPage() {
                                         if (opt.value === 'SELECT') setShowMemberDialog(true)
                                     }}
                                     className={`flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-colors ${memberInheritance === opt.value
-                                            ? 'bg-blue-50 border-blue-400 text-blue-800'
-                                            : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                                        ? 'bg-blue-50 border-blue-400 text-blue-800'
+                                        : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
                                         }`}
                                 >
                                     <span className="text-sm font-medium">{opt.label}</span>

@@ -86,6 +86,47 @@ frontend-reform（Web版）全機能完了
 
 ---
 
+## 広告機能（W5-01）との連携時の注意点
+
+LIFF Browser 内で広告を表示する場合、以下の制約・注意が必要。
+
+### LIFF Browser と AdSense の制約
+
+| 項目                          | 内容                                                                                                                                                               |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **WebView 内の AdSense 利用** | Google AdSense はアプリ内 WebView での利用に制約がある。LIFF Browser は LINE アプリ内の WebView であり、通常のブラウザとは異なる扱いを受ける                       |
+| **クロスサイト Cookie**       | LIFF Browser はクロスサイト扱いとなり、`SameSite=Lax` Cookie が送信されない。広告トラッキング用の Cookie も影響を受ける可能性がある                                |
+| **AdSense ポリシー準拠**      | WebView 内での AdSense コード配置は、Google の「アプリのウェブコンテンツ表示フレームの技術要件」に準拠する必要がある。準拠しない場合はアカウント停止のリスクがある |
+
+### 推奨対応方針
+
+1. **LIFF 内では広告を非表示にする**（最も安全）
+   - `liff.isInClient()` で LIFF 環境を検出し、広告コンポーネントをレンダリングしない
+   - 広告の Ad Slot Registry（`adConfig.ts`）とは別に、プラットフォーム判定で一括制御
+2. **外部ブラウザでは通常通り広告を表示**
+   - LIFF から `liff.openWindow()` で外部ブラウザに遷移した場合は通常のブラウザ扱い → AdSense が正常動作
+3. **将来のネイティブ化時に AdMob で正式対応**
+   - ネイティブアプリ化時に Google AdMob + WebView API for Ads を導入
+   - WebView 内コンテンツと AdMob を連携させる公式手段が提供されている
+
+### 実装上の考慮事項
+
+```typescript
+// プラットフォーム判定を広告の表示制御に組み込む
+// frontend/src/features/ads/useAd.ts
+
+const isLiffClient = liff.isInClient(); // LIFF Browser 内かどうか
+
+const shouldShowAd = isFreeUser && !isLiffClient;
+```
+
+- **Cookie Consent**: LIFF 内で広告非表示にするなら、LIFF 内では Cookie Consent バナーも不要
+- **収益影響**: LIFF 経由のアクセスが多い場合、広告収益に影響する。外部ブラウザへの誘導を検討する余地あり
+- **参照**: 広告アーキテクチャの詳細は `projects/01_design/02_frontend/ads-architecture.md` を参照
+
+---
+
 ## 作業ログ
 
 - 2026-03-06: 案件作成。Capacitor 撤廃に伴い、LIFF 統合を独立案件として切り出し。最優先案件として位置づけ
+- 2026-04-12: 広告機能（W5-01）との連携時の注意点を追記。LIFF Browser 内での AdSense 制約と推奨対応方針を記載

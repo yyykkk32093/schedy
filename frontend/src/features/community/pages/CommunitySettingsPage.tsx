@@ -1,7 +1,6 @@
 import { useAuth } from '@/app/providers/AuthProvider'
-import { communityApi } from '@/features/community/api/communityApi'
 import { LocationSettings, type LocationEntry } from '@/features/community/components/LocationSettings'
-import { useCommunity, useLeaveCommunity, useMembers, useUpdateCommunity } from '@/features/community/hooks/useCommunityQueries'
+import { useCommunity, useCommunityMasters, useLeaveCommunity, useMembers, useUpdateCommunity } from '@/features/community/hooks/useCommunityQueries'
 import { useAuditLogs, useChangeMemberRole, useRemoveMember } from '@/features/community/hooks/useCommunitySettingsQueries'
 import { UnsavedChangesDialog } from '@/shared/components/UnsavedChangesDialog'
 import { CharacterCounter } from '@/shared/components/ui/CharacterCounter'
@@ -52,6 +51,7 @@ export default function CommunitySettingsPage() {
     const { data: community, isLoading } = useCommunity(communityId!)
     const { data: membersData } = useMembers(communityId!)
     const { data: auditData } = useAuditLogs(communityId!)
+    const { data: masters } = useCommunityMasters()
     const updateCommunity = useUpdateCommunity(communityId!)
     const changeRole = useChangeMemberRole(communityId!)
     const removeMember = useRemoveMember(communityId!)
@@ -85,6 +85,8 @@ export default function CommunitySettingsPage() {
     // tags state
     const [editedTags, setEditedTags] = useState<string[]>([])
     const [tagInput, setTagInput] = useState('')
+    // category state
+    const [selectedCategoryId, setSelectedCategoryId] = useState<string>('')
 
     useEffect(() => {
         if (community) {
@@ -97,6 +99,7 @@ export default function CommunitySettingsPage() {
             setJoinMethod((community.joinMethod as 'FREE_JOIN' | 'APPROVAL' | 'INVITATION') ?? 'FREE_JOIN')
             setIsPublic(community.isPublic ?? true)
             setEditedTags(community.tags ?? [])
+            setSelectedCategoryId(community.categories?.[0]?.id ?? '')
             // 活動頻度をパース（例: "週1回" → unit='週', count='1'）
             const freq = community.activityFrequency ?? ''
             const freqMatch = freq.match(/^(週|月|年)(\d+)回$/)
@@ -148,7 +151,10 @@ export default function CommunitySettingsPage() {
     // tags dirty判定
     const tagsDirty = JSON.stringify([...editedTags].sort()) !== JSON.stringify([...(community?.tags ?? [])].sort())
 
-    const isDirty = profileDirty || paymentDirty || joinDirty || locationDirty || tagsDirty
+    // category dirty判定
+    const categoryDirty = selectedCategoryId !== (community?.categories?.[0]?.id ?? '')
+
+    const isDirty = profileDirty || paymentDirty || joinDirty || locationDirty || tagsDirty || categoryDirty
 
     // タグ上限（FEガード）
     const TAG_LIMIT_FREE = 5
@@ -200,48 +206,36 @@ export default function CommunitySettingsPage() {
         setCoverUrl(result.url)
     }
 
-    /** #44: プロフィール+支払い+参加設定+活動拠点を一括保存 */
+    /** #44 + W5-29: プロフィール+支払い+参加設定+タグ+活動拠点を単一APIで一括保存 */
     const handleSaveAll = async () => {
         const frequencyStr = buildFrequencyString(freqUnit, freqCount, freqCustom)
 
-        // コミュニティ本体の更新
-        updateCommunity.mutate({
-            name: name !== community.name ? name : undefined,
-            description: description !== (community.description ?? '') ? description : undefined,
-            logoUrl: logoUrl !== community.logoUrl ? logoUrl : undefined,
-            coverUrl: coverUrl !== community.coverUrl ? coverUrl : undefined,
-            payPayId: payPayId || null,
-            enabledPaymentMethods: enabledMethods,
-            joinMethod,
-            isPublic,
-            activityFrequency: frequencyStr || null,
-        }, {
-            onSuccess: () => toast.success('保存しました'),
-        })
-
-        // タグの保存（変更がある場合のみ）
-        if (tagsDirty) {
-            try {
-                await communityApi.saveTags(communityId!, editedTags)
-            } catch {
-                toast.error('タグの保存に失敗しました')
-            }
-        }
-
-        // 活動拠点の保存（変更がある場合のみ）
-        if (locationDirty && editedLocations) {
-            try {
-                const payload = editedLocations
-                    .filter((l) => l.area.trim())
-                    .map((l) => ({
-                        type: l.type,
-                        area: l.area.trim(),
-                        station: l.station.trim() || undefined,
-                    }))
-                await communityApi.saveLocations(communityId!, payload)
-            } catch {
-                toast.error('活動拠点の保存に失敗しました')
-            }
+        try {
+            await updateCommunity.mutateAsync({
+                name: name !== community.name ? name : undefined,
+                description: description !== (community.description ?? '') ? description : undefined,
+                logoUrl: logoUrl !== community.logoUrl ? logoUrl : undefined,
+                coverUrl: coverUrl !== community.coverUrl ? coverUrl : undefined,
+                payPayId: payPayId || null,
+                enabledPaymentMethods: enabledMethods,
+                joinMethod,
+                isPublic,
+                activityFrequency: frequencyStr || null,
+                ...(categoryDirty && selectedCategoryId ? { categoryIds: [selectedCategoryId] } : {}),
+                ...(tagsDirty ? { tags: editedTags } : {}),
+                ...(locationDirty && editedLocations ? {
+                    locations: editedLocations
+                        .filter((l) => l.area.trim())
+                        .map((l) => ({
+                            type: l.type as 'MAIN' | 'SUB',
+                            area: l.area.trim(),
+                            station: l.station.trim() || undefined,
+                        })),
+                } : {}),
+            })
+            toast.success('保存しました')
+        } catch {
+            toast.error('保存に失敗しました')
         }
     }
 
@@ -410,6 +404,24 @@ export default function CommunitySettingsPage() {
                     </div>
 
                     <Separator />
+
+                    {/* カテゴリ選択（W5-22） */}
+                    <div className="space-y-1.5">
+                        <Label>カテゴリ</Label>
+                        <div className="flex flex-wrap gap-2">
+                            {(masters?.categories ?? []).map((cat) => (
+                                <Button
+                                    key={cat.id}
+                                    type="button"
+                                    variant={selectedCategoryId === cat.id ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setSelectedCategoryId(selectedCategoryId === cat.id ? '' : cat.id)}
+                                >
+                                    {cat.name}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
 
                     {/* タグ入力 */}
                     <div className="space-y-1.5">
@@ -604,7 +616,7 @@ export default function CommunitySettingsPage() {
                             variant="destructive"
                             disabled={leaveCommunity.isPending}
                             onClick={() => {
-                                leaveCommunity.mutate(communityId!, {
+                                leaveCommunity.mutate({ communityId: communityId! }, {
                                     onSuccess: () => {
                                         setShowLeaveDialog(false)
                                         toast.success('コミュニティを退出しました')

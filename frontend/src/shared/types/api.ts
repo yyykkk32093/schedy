@@ -85,11 +85,12 @@ export interface CreateCommunityRequest {
     targetGender?: string[]
     ageMin?: number
     ageMax?: number
-    categoryId?: string
+    categoryIds: string[]
     recommendedLevelMin?: number
     recommendedLevelMax?: number
     activityDays?: string[]
     tags?: string[]
+    locations?: Array<{ type: 'MAIN' | 'SUB'; area: string; station?: string }>
 }
 
 /** POST /v1/communities — レスポンス */
@@ -112,7 +113,6 @@ export interface CommunityListItem {
     grade: string
     role: string
     createdBy: string
-    communityTypeId: string | null
     joinMethod: string
     isPublic: boolean
     maxMembers: number | null
@@ -131,7 +131,6 @@ export interface CommunityDetail {
     coverUrl: string | null
     grade: string
     createdBy: string
-    communityTypeId: string | null
     joinMethod: string
     isPublic: boolean
     maxMembers: number | null
@@ -139,7 +138,6 @@ export interface CommunityDetail {
     targetGender: string[]
     ageMin: number | null
     ageMax: number | null
-    categoryId: string | null
     recommendedLevelMin: number | null
     recommendedLevelMax: number | null
     categories: Array<{ id: string; name: string; nameEn: string }>
@@ -173,9 +171,11 @@ export interface UpdateCommunityRequest {
     targetGender?: string[]
     ageMin?: number | null
     ageMax?: number | null
-    categoryId?: string | null
+    categoryIds?: string[]
     recommendedLevelMin?: number | null
     recommendedLevelMax?: number | null
+    tags?: string[]
+    locations?: Array<{ type: 'MAIN' | 'SUB'; area: string; station?: string }>
 }
 
 /** POST /v1/communities/:parentId/children — リクエスト */
@@ -199,7 +199,7 @@ export interface CreateSubCommunityRequest {
     activityDays?: string[]
     recommendedLevelMin?: number
     recommendedLevelMax?: number
-    categoryId?: string
+    categoryIds?: string[]
     tags?: string[]
 }
 
@@ -306,7 +306,6 @@ export interface MasterItem {
 }
 
 export interface CommunityMastersResponse {
-    communityTypes: MasterItem[]
     categories: MasterItem[]
     participationLevels: MasterItem[]
 }
@@ -324,8 +323,6 @@ export interface SearchCommunitiesParams {
     days?: string[]
     /** W4-03: 対象性別フィルタ */
     targetGender?: string[]
-    /** W4-03: コミュニティタイプID */
-    communityTypeId?: string
     /** W4-03: 参加方法 (OPEN / APPROVAL / INVITE_ONLY) */
     joinMethod?: string
     limit?: number
@@ -352,7 +349,6 @@ export interface PublicCommunitySearchItem {
     ageMin: number | null
     ageMax: number | null
     activityFrequency: string | null
-    communityTypeName: string | null
 }
 
 /** POST /v1/communities/:id/join — レスポンス */
@@ -931,6 +927,7 @@ export interface NotificationItem {
     body: string | null
     referenceId: string | null
     referenceType: string | null
+    metadata: Record<string, unknown> | null
     isRead: boolean
     createdAt: string
 }

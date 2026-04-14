@@ -4,6 +4,7 @@
  * CommunityCreatePage (Step2, Step3) と CreateSubCommunityPage (Step2, Step3) で共有。
  * 参加・活動設定 + カテゴリ・タグ入力を提供する。
  */
+import { LocationSettings, type LocationEntry } from '@/features/community/components/LocationSettings'
 import { useCommunityMasters } from '@/features/community/hooks/useCommunityQueries'
 import { Badge } from '@/shared/components/ui/badge'
 import { Button } from '@/shared/components/ui/button'
@@ -73,10 +74,12 @@ export interface CommunitySettingsData {
     freqUnit: '' | '週' | '月' | '年'
     freqCount: string
     selectedDays: string[]
+    recommendedLevelEnabled: boolean
     recommendedLevelRange: [number, number]
     selectedCategoryId: string
     tagInput: string
     tags: string[]
+    locations: LocationEntry[]
 }
 
 export const defaultSettingsData: CommunitySettingsData = {
@@ -89,10 +92,12 @@ export const defaultSettingsData: CommunitySettingsData = {
     freqUnit: '',
     freqCount: '',
     selectedDays: [],
-    recommendedLevelRange: [0, 4],
+    recommendedLevelEnabled: false,
+    recommendedLevelRange: [0, 8],
     selectedCategoryId: '',
     tagInput: '',
     tags: [],
+    locations: [],
 }
 
 // ── Step 2: 参加・活動設定 ──
@@ -149,12 +154,12 @@ export function SettingsStep2({ data, update }: SettingsStep2Props) {
                 <div className="flex items-center gap-2">
                     <Select value={data.ageMin || 'none'} onValueChange={(v) => update({ ageMin: v === 'none' ? '' : v })}>
                         <SelectTrigger className="w-28"><SelectValue placeholder="下限" /></SelectTrigger>
-                        <SelectContent>{AGE_OPTIONS.map((a) => (<SelectItem key={`min-${a.value}`} value={a.value}>{a.label}</SelectItem>))}</SelectContent>
+                        <SelectContent>{AGE_OPTIONS.filter((a) => a.value === 'none' || !data.ageMax || Number(a.value) <= Number(data.ageMax)).map((a) => (<SelectItem key={`min-${a.value}`} value={a.value}>{a.label}</SelectItem>))}</SelectContent>
                     </Select>
                     <span className="text-gray-500">〜</span>
                     <Select value={data.ageMax || 'none'} onValueChange={(v) => update({ ageMax: v === 'none' ? '' : v })}>
                         <SelectTrigger className="w-28"><SelectValue placeholder="上限" /></SelectTrigger>
-                        <SelectContent>{AGE_OPTIONS.map((a) => (<SelectItem key={`max-${a.value}`} value={a.value}>{a.label}</SelectItem>))}</SelectContent>
+                        <SelectContent>{AGE_OPTIONS.filter((a) => a.value === 'none' || !data.ageMin || Number(a.value) >= Number(data.ageMin)).map((a) => (<SelectItem key={`max-${a.value}`} value={a.value}>{a.label}</SelectItem>))}</SelectContent>
                     </Select>
                 </div>
             </div>
@@ -162,7 +167,7 @@ export function SettingsStep2({ data, update }: SettingsStep2Props) {
                 <Label>活動頻度</Label>
                 <div className="flex items-center gap-2">
                     <Select value={data.freqUnit || 'none'} onValueChange={(v) => update({ freqUnit: (v === 'none' ? '' : v) as CommunitySettingsData['freqUnit'], freqCount: '' })}>
-                        <SelectTrigger className="w-24"><SelectValue placeholder="単位" /></SelectTrigger>
+                        <SelectTrigger className="w-28"><SelectValue placeholder="単位" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="none">指定なし</SelectItem>
                             <SelectItem value="週">週</SelectItem>
@@ -173,7 +178,7 @@ export function SettingsStep2({ data, update }: SettingsStep2Props) {
                     {data.freqUnit && (
                         <>
                             <Select value={data.freqCount || 'none'} onValueChange={(v) => update({ freqCount: v === 'none' ? '' : v })}>
-                                <SelectTrigger className="w-24"><SelectValue placeholder="回数" /></SelectTrigger>
+                                <SelectTrigger className="w-28"><SelectValue placeholder="回数" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="none">—</SelectItem>
                                     {getFreqCountOptions(data.freqUnit).map((n) => (
@@ -194,19 +199,37 @@ export function SettingsStep2({ data, update }: SettingsStep2Props) {
             </div>
             <div className="space-y-2">
                 <Label>推奨レベル</Label>
-                <p className="text-xs text-gray-500">{PARTICIPATION_LEVEL_LABELS[data.recommendedLevelRange[0]]} 〜 {PARTICIPATION_LEVEL_LABELS[data.recommendedLevelRange[1]]}</p>
-                <Slider
-                    min={0}
-                    max={8}
-                    step={1}
-                    value={data.recommendedLevelRange}
-                    onValueChange={(v) => update({ recommendedLevelRange: v as [number, number] })}
-                    className="w-full"
-                />
-                <div className="flex justify-between text-[10px] text-gray-400">
-                    <span>未経験</span>
-                    <span>プロレベル</span>
-                </div>
+                <label className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={data.recommendedLevelEnabled}
+                        onChange={(e) => update({
+                            recommendedLevelEnabled: e.target.checked,
+                            ...(!e.target.checked ? { recommendedLevelRange: [0, 8] as [number, number] } : {}),
+                        })}
+                        className="rounded"
+                    />
+                    指定する
+                </label>
+                {data.recommendedLevelEnabled ? (
+                    <>
+                        <p className="text-xs text-gray-500">{PARTICIPATION_LEVEL_LABELS[data.recommendedLevelRange[0]]} 〜 {PARTICIPATION_LEVEL_LABELS[data.recommendedLevelRange[1]]}</p>
+                        <Slider
+                            min={0}
+                            max={8}
+                            step={1}
+                            value={data.recommendedLevelRange}
+                            onValueChange={(v) => update({ recommendedLevelRange: v as [number, number] })}
+                            className="w-full"
+                        />
+                        <div className="flex justify-between text-[10px] text-gray-400">
+                            <span>未経験</span>
+                            <span>プロレベル</span>
+                        </div>
+                    </>
+                ) : (
+                    <p className="text-xs text-gray-400">指定なし（全レベル対象）</p>
+                )}
             </div>
         </div>
     )
@@ -236,7 +259,7 @@ export function SettingsStep3({ data, update, basicInfo }: SettingsStep3Props) {
         <div className="space-y-4">
             <h2 className="text-base font-semibold text-gray-800 border-b pb-2">カテゴリ・タグ</h2>
             <div className="space-y-1.5">
-                <Label>カテゴリ</Label>
+                <Label>カテゴリ <span className="text-red-500">*</span></Label>
                 <div className="flex flex-wrap gap-2">
                     {categories.map((cat) => (
                         <Button key={cat.id} type="button" variant={data.selectedCategoryId === cat.id ? 'default' : 'outline'} size="sm"
@@ -245,6 +268,7 @@ export function SettingsStep3({ data, update, basicInfo }: SettingsStep3Props) {
                         </Button>
                     ))}
                 </div>
+                {!data.selectedCategoryId && <p className="text-xs text-red-500">カテゴリを選択してください</p>}
             </div>
             <div className="space-y-1.5">
                 <Label>タグ</Label>
@@ -258,6 +282,11 @@ export function SettingsStep3({ data, update, basicInfo }: SettingsStep3Props) {
                     </div>
                 )}
             </div>
+
+            <LocationSettings
+                onLocationsChange={(locs) => update({ locations: locs })}
+            />
+
             {/* 確認セクション */}
             {basicInfo && (
                 <div className="mt-6 p-4 bg-gray-50 rounded-lg space-y-2">
