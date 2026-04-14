@@ -1,6 +1,6 @@
 -- ============================================================
 -- マスターデータ Seed
--- CommunityTypeMaster / CategoryMaster / ParticipationLevelMaster
+-- CategoryMaster / ParticipationLevelMaster
 -- ============================================================
 -- 実行:
 --   cd backend && PGPASSWORD=app_password psql -h localhost -p 5432 -U app_user -d reserve_manage \
@@ -9,35 +9,22 @@
 
 BEGIN;
 
--- ========== 1. CommunityTypeMaster ==========
-INSERT INTO "CommunityTypeMaster" ("id", "name", "nameEn", "sortOrder", "createdAt")
+-- ========== 1. CategoryMaster ==========
+INSERT INTO "CategoryMaster" ("id", "name", "nameEn", "sortOrder", "createdAt")
 VALUES
-  ('ct-sports',    'スポーツ・サークル',       'Sports Circle',        1, NOW()),
-  ('ct-corporate', '社内・ビジネス',           'Corporate / Business', 2, NOW()),
-  ('ct-hobby',     '趣味・オンラインサークル', 'Hobby / Online',       3, NOW()),
-  ('ct-culture',   'カルチャー',               'Culture',              4, NOW())
-ON CONFLICT ("id") DO UPDATE SET
-  "name"      = EXCLUDED."name",
-  "nameEn"    = EXCLUDED."nameEn",
-  "sortOrder" = EXCLUDED."sortOrder";
-
--- ========== 2. CategoryMaster ==========
-INSERT INTO "CategoryMaster" ("id", "name", "nameEn", "sortOrder", "communityTypeId", "createdAt")
-VALUES
-  ('cat-sports-general', 'スポーツ全般', 'Sports General', 0,  'ct-sports', NOW()),
-  ('cat-badminton',      'バドミントン', 'Badminton',      1,  'ct-sports', NOW()),
-  ('cat-basketball',     'バスケ',       'Basketball',     2,  'ct-sports', NOW()),
-  ('cat-futsal',         'フットサル',   'Futsal',         3,  'ct-sports', NOW()),
-  ('cat-running',        'ランニング',   'Running',        4,  'ct-sports', NOW()),
-  ('cat-tennis',         'テニス',       'Tennis',         5,  'ct-sports', NOW()),
-  ('cat-other',          '他',           'Other',          99, 'ct-hobby',  NOW())
+  ('cat-sports-general', 'スポーツ全般', 'Sports General', 0,  NOW()),
+  ('cat-badminton',      'バドミントン', 'Badminton',      1,  NOW()),
+  ('cat-basketball',     'バスケ',       'Basketball',     2,  NOW()),
+  ('cat-futsal',         'フットサル',   'Futsal',         3,  NOW()),
+  ('cat-running',        'ランニング',   'Running',        4,  NOW()),
+  ('cat-tennis',         'テニス',       'Tennis',         5,  NOW()),
+  ('cat-other',          '他',           'Other',          99, NOW())
 ON CONFLICT ("id") DO UPDATE SET
   "name"            = EXCLUDED."name",
   "nameEn"          = EXCLUDED."nameEn",
-  "sortOrder"       = EXCLUDED."sortOrder",
-  "communityTypeId" = EXCLUDED."communityTypeId";
+  "sortOrder"       = EXCLUDED."sortOrder";
 
--- ========== 3. ParticipationLevelMaster ==========
+-- ========== 2. ParticipationLevelMaster ==========
 INSERT INTO "ParticipationLevelMaster" ("id", "name", "nameEn", "sortOrder", "createdAt")
 VALUES
   ('pl-0', '未経験',     'No Experience',       0, NOW()),
@@ -63,4 +50,3 @@ COMMIT;
 -- DELETE FROM "CommunityCategory" WHERE true;
 -- DELETE FROM "ParticipationLevelMaster" WHERE true;
 -- DELETE FROM "CategoryMaster" WHERE true;
--- DELETE FROM "CommunityTypeMaster" WHERE true;

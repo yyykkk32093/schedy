@@ -203,7 +203,7 @@ export class RemoveParticipationUseCase {
                         referenceType: 'SCHEDULE',
                         metadata: {
                             communityId,
-                            activityId: activity.getId(),
+                            activityId: activity.getId().getValue(),
                             activityTitle: activity.getTitle().getValue(),
                             scheduleDate: schedule.getDate()?.toISOString() ?? undefined,
                         },
@@ -222,7 +222,7 @@ export class RemoveParticipationUseCase {
                     referenceType: 'SCHEDULE',
                     metadata: {
                         communityId,
-                        activityId: activity.getId(),
+                        activityId: activity.getId().getValue(),
                         activityTitle: activity.getTitle().getValue(),
                         scheduleDate: schedule.getDate()?.toISOString() ?? undefined,
                     },

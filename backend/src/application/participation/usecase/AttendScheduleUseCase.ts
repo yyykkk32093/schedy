@@ -67,8 +67,8 @@ export class AttendScheduleUseCase {
             // 有料参加の場合、Payment レコードを作成（participationId を紐付け）
             const isVisitor = input.isVisitor ?? false
             const fee = isVisitor
-                ? (schedule.getVisitorFee() ?? schedule.getParticipationFee() ?? 0)
-                : (schedule.getParticipationFee() ?? 0)
+                ? (schedule.getVisitorFee() ?? schedule.getParticipationFee()).amount
+                : schedule.getParticipationFee().amount
 
             if (input.paymentMethod) {
                 const payment = Payment.create({

@@ -174,7 +174,7 @@ export class RemoveParticipantByAdminUseCase {
                         referenceType: 'SCHEDULE',
                         metadata: {
                             communityId: activity.getCommunityId().getValue(),
-                            activityId: activity.getId(),
+                            activityId: activity.getId().getValue(),
                             activityTitle: activity.getTitle().getValue(),
                             scheduleDate: schedule.getDate()?.toISOString() ?? undefined,
                         },
@@ -192,7 +192,7 @@ export class RemoveParticipantByAdminUseCase {
                 referenceType: 'SCHEDULE',
                 metadata: {
                     communityId: activity.getCommunityId().getValue(),
-                    activityId: activity.getId(),
+                    activityId: activity.getId().getValue(),
                     activityTitle: activity.getTitle().getValue(),
                     scheduleDate: schedule.getDate()?.toISOString() ?? undefined,
                 },

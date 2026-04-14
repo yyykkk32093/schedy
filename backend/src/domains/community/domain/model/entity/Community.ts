@@ -23,7 +23,6 @@ export class Community extends AggregateRoot {
         private readonly createdBy: UserId,
         private deletedAt: Date | null,
         // ---- Phase 2: Community Profile Fields ----
-        private communityTypeId: string | null,
         private joinMethod: JoinMethod,
         private isPublic: boolean,
         private maxMembers: number | null,
@@ -31,7 +30,6 @@ export class Community extends AggregateRoot {
         private targetGender: string[],
         private ageMin: number | null,
         private ageMax: number | null,
-        private categoryId: string | null,
         private recommendedLevelMin: number | null,
         private recommendedLevelMax: number | null,
         // UBL-8: Payment settings
@@ -54,7 +52,6 @@ export class Community extends AggregateRoot {
         description?: CommunityDescription | null
         grade?: CommunityGrade
         createdBy: UserId
-        communityTypeId?: string | null
         joinMethod?: JoinMethod
         isPublic?: boolean
         maxMembers?: number | null
@@ -62,7 +59,6 @@ export class Community extends AggregateRoot {
         targetGender?: string[]
         ageMin?: number | null
         ageMax?: number | null
-        categoryId?: string | null
         recommendedLevelMin?: number | null
         recommendedLevelMax?: number | null
     }): Community {
@@ -82,7 +78,6 @@ export class Community extends AggregateRoot {
             params.grade ?? CommunityGrade.free(),
             params.createdBy,
             null,       // deletedAt
-            params.communityTypeId ?? null,
             joinMethod,
             isPublic,
             params.maxMembers ?? null,
@@ -90,7 +85,6 @@ export class Community extends AggregateRoot {
             params.targetGender ?? [],
             params.ageMin ?? null,
             params.ageMax ?? null,
-            params.categoryId ?? null,
             params.recommendedLevelMin ?? null,
             params.recommendedLevelMax ?? null,
             null,       // payPayId
@@ -120,7 +114,6 @@ export class Community extends AggregateRoot {
         parentId: CommunityId
         parentDepth: number
         createdBy: UserId
-        communityTypeId?: string | null
         joinMethod?: JoinMethod
         isPublic?: boolean
         maxMembers?: number | null
@@ -128,7 +121,6 @@ export class Community extends AggregateRoot {
         targetGender?: string[]
         ageMin?: number | null
         ageMax?: number | null
-        categoryId?: string | null
         recommendedLevelMin?: number | null
         recommendedLevelMax?: number | null
     }): Community {
@@ -155,7 +147,6 @@ export class Community extends AggregateRoot {
             params.grade ?? CommunityGrade.free(),
             params.createdBy,
             null,
-            params.communityTypeId ?? null,
             joinMethod,
             isPublic,
             params.maxMembers ?? null,
@@ -163,7 +154,6 @@ export class Community extends AggregateRoot {
             params.targetGender ?? [],
             params.ageMin ?? null,
             params.ageMax ?? null,
-            params.categoryId ?? null,
             params.recommendedLevelMin ?? null,
             params.recommendedLevelMax ?? null,
             null,       // payPayId
@@ -196,7 +186,6 @@ export class Community extends AggregateRoot {
         grade: CommunityGrade
         createdBy: UserId
         deletedAt: Date | null
-        communityTypeId: string | null
         joinMethod: JoinMethod
         isPublic: boolean
         maxMembers: number | null
@@ -204,7 +193,6 @@ export class Community extends AggregateRoot {
         targetGender: string[]
         ageMin: number | null
         ageMax: number | null
-        categoryId: string | null
         recommendedLevelMin: number | null
         recommendedLevelMax: number | null
         payPayId: string | null
@@ -224,7 +212,6 @@ export class Community extends AggregateRoot {
             params.grade,
             params.createdBy,
             params.deletedAt,
-            params.communityTypeId,
             params.joinMethod,
             params.isPublic,
             params.maxMembers,
@@ -232,7 +219,6 @@ export class Community extends AggregateRoot {
             params.targetGender,
             params.ageMin,
             params.ageMax,
-            params.categoryId,
             params.recommendedLevelMin,
             params.recommendedLevelMax,
             params.payPayId,
@@ -250,7 +236,6 @@ export class Community extends AggregateRoot {
         description?: CommunityDescription | null
         logoUrl?: string | null
         coverUrl?: string | null
-        communityTypeId?: string | null
         joinMethod?: JoinMethod
         isPublic?: boolean
         maxMembers?: number | null
@@ -258,7 +243,6 @@ export class Community extends AggregateRoot {
         targetGender?: string[]
         ageMin?: number | null
         ageMax?: number | null
-        categoryId?: string | null
         recommendedLevelMin?: number | null
         recommendedLevelMax?: number | null
         payPayId?: string | null
@@ -274,7 +258,6 @@ export class Community extends AggregateRoot {
         if (params.description !== undefined) this.description = params.description
         if (params.logoUrl !== undefined) this.logoUrl = params.logoUrl
         if (params.coverUrl !== undefined) this.coverUrl = params.coverUrl
-        if (params.communityTypeId !== undefined) this.communityTypeId = params.communityTypeId
         if (params.isPublic !== undefined) {
             this.isPublic = params.isPublic
             if (!params.isPublic) {
@@ -287,7 +270,6 @@ export class Community extends AggregateRoot {
         if (params.targetGender !== undefined) this.targetGender = params.targetGender
         if (params.ageMin !== undefined) this.ageMin = params.ageMin
         if (params.ageMax !== undefined) this.ageMax = params.ageMax
-        if (params.categoryId !== undefined) this.categoryId = params.categoryId
         if (params.recommendedLevelMin !== undefined) this.recommendedLevelMin = params.recommendedLevelMin
         if (params.recommendedLevelMax !== undefined) this.recommendedLevelMax = params.recommendedLevelMax
         if (params.payPayId !== undefined) this.payPayId = params.payPayId
@@ -327,7 +309,6 @@ export class Community extends AggregateRoot {
     getGrade(): CommunityGrade { return this.grade }
     getCreatedBy(): UserId { return this.createdBy }
     getDeletedAt(): Date | null { return this.deletedAt }
-    getCommunityTypeId(): string | null { return this.communityTypeId }
     getJoinMethod(): JoinMethod { return this.joinMethod }
     getIsPublic(): boolean { return this.isPublic }
     getMaxMembers(): number | null { return this.maxMembers }
@@ -335,7 +316,6 @@ export class Community extends AggregateRoot {
     getTargetGender(): string[] { return this.targetGender }
     getAgeMin(): number | null { return this.ageMin }
     getAgeMax(): number | null { return this.ageMax }
-    getCategoryId(): string | null { return this.categoryId }
     getRecommendedLevelMin(): number | null { return this.recommendedLevelMin }
     getRecommendedLevelMax(): number | null { return this.recommendedLevelMax }
     getPayPayId(): string | null { return this.payPayId }

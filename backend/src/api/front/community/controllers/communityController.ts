@@ -11,8 +11,8 @@ export const communityController = {
                 activityFrequency,
                 targetGender,
                 ageMin, ageMax,
-                categoryId, recommendedLevelMin, recommendedLevelMax,
-                activityDays, tags,
+                categoryIds, recommendedLevelMin, recommendedLevelMax,
+                activityDays, tags, locations,
             } = req.body
             const userId = req.user!.userId
 
@@ -23,8 +23,8 @@ export const communityController = {
                 activityFrequency,
                 targetGender,
                 ageMin, ageMax,
-                categoryId, recommendedLevelMin, recommendedLevelMax,
-                activityDays, tags,
+                categoryIds, recommendedLevelMin, recommendedLevelMax,
+                activityDays, tags, locations,
             })
 
             res.status(201).json(result)
@@ -39,7 +39,7 @@ export const communityController = {
             const {
                 name, description, inheritSettings, memberInheritance, selectedMemberIds,
                 joinMethod, isPublic, maxMembers, targetGender, ageMin, ageMax,
-                activityFrequency, activityDays, categoryId,
+                activityFrequency, activityDays, categoryIds,
                 recommendedLevelMin, recommendedLevelMax, tags,
             } = req.body
             const userId = req.user!.userId
@@ -49,7 +49,7 @@ export const communityController = {
                 parentId, name, description, userId,
                 inheritSettings, memberInheritance, selectedMemberIds,
                 joinMethod, isPublic, maxMembers, targetGender, ageMin, ageMax,
-                activityFrequency, activityDays, categoryId,
+                activityFrequency, activityDays, categoryIds,
                 recommendedLevelMin, recommendedLevelMax, tags,
             })
 
@@ -106,8 +106,9 @@ export const communityController = {
                 reminderEnabled, cancellationAlertEnabled,
                 joinMethod, isPublic, activityFrequency,
                 targetGender,
-                ageMin, ageMax, categoryId,
+                ageMin, ageMax, categoryIds,
                 recommendedLevelMin, recommendedLevelMax,
+                tags, locations,
             } = req.body
             const userId = req.user!.userId
 
@@ -119,8 +120,9 @@ export const communityController = {
                 reminderEnabled, cancellationAlertEnabled,
                 joinMethod, isPublic, activityFrequency,
                 targetGender,
-                ageMin, ageMax, categoryId,
+                ageMin, ageMax, categoryIds,
                 recommendedLevelMin, recommendedLevelMax,
+                tags, locations,
             })
 
             res.status(204).send()
@@ -147,7 +149,7 @@ export const communityController = {
 
     async search(req: Request, res: Response, next: NextFunction) {
         try {
-            const { keyword, categoryIds, levelIds, area, days, targetGender, communityTypeId, joinMethod, limit, offset } = req.query
+            const { keyword, categoryIds, levelIds, area, days, targetGender, joinMethod, limit, offset } = req.query
             const useCase = usecaseFactory.createSearchCommunitiesUseCase()
             const result = await useCase.execute({
                 keyword: keyword as string | undefined,
@@ -156,7 +158,6 @@ export const communityController = {
                 area: area as string | undefined,
                 days: days ? (Array.isArray(days) ? days as string[] : [days as string]) : undefined,
                 targetGender: targetGender ? (Array.isArray(targetGender) ? targetGender as string[] : [targetGender as string]) : undefined,
-                communityTypeId: communityTypeId as string | undefined,
                 joinMethod: joinMethod as string | undefined,
                 limit: limit ? Number(limit) : undefined,
                 offset: offset ? Number(offset) : undefined,

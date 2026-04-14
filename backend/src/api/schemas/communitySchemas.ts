@@ -3,6 +3,14 @@
  */
 import { z } from 'zod/v4'
 
+// ── Location (Community スキーマから参照されるため先に定義) ──
+
+const locationItemSchema = z.object({
+    type: z.enum(['MAIN', 'SUB']),
+    area: z.string().min(1, '活動エリアは必須です').max(100),
+    station: z.string().max(100).optional(),
+})
+
 // ── Community ──
 
 /** POST /v1/communities */
@@ -18,9 +26,10 @@ export const createCommunitySchema = z.object({
     ageMax: z.number().int().min(0).max(130).optional(),
     recommendedLevelMin: z.number().int().min(0).max(8).optional(),
     recommendedLevelMax: z.number().int().min(0).max(8).optional(),
-    categoryId: z.string().min(1).optional(),
+    categoryIds: z.array(z.string().min(1)).min(1, 'カテゴリは必須です'),
     activityDays: z.array(z.string()).optional(),
     tags: z.array(z.string().max(30)).max(20).optional(),
+    locations: z.array(locationItemSchema).max(10).optional(),
 })
 
 /** PATCH /v1/communities/:id */
@@ -37,9 +46,11 @@ export const updateCommunitySchema = z.object({
     targetGender: z.array(z.string()).optional(),
     ageMin: z.number().int().min(0).max(130).nullable().optional(),
     ageMax: z.number().int().min(0).max(130).nullable().optional(),
-    categoryId: z.string().min(1).nullable().optional(),
+    categoryIds: z.array(z.string().min(1)).min(1, 'カテゴリは必須です').optional(),
     recommendedLevelMin: z.number().int().min(0).max(8).nullable().optional(),
     recommendedLevelMax: z.number().int().min(0).max(8).nullable().optional(),
+    tags: z.array(z.string().max(30)).max(20).optional(),
+    locations: z.array(locationItemSchema).max(10).optional(),
 })
 
 /** POST /v1/communities/:parentId/children */
@@ -61,7 +72,7 @@ export const createSubCommunitySchema = z.object({
     ageMax: z.number().int().min(0).nullable().optional(),
     activityFrequency: z.string().max(100).nullable().optional(),
     activityDays: z.array(z.string()).optional(),
-    categoryId: z.string().min(1).nullable().optional(),
+    categoryIds: z.array(z.string().min(1)).nullable().optional(),
     recommendedLevelMin: z.number().int().min(0).max(8).nullable().optional(),
     recommendedLevelMax: z.number().int().min(0).max(8).nullable().optional(),
     tags: z.array(z.string().max(50)).optional(),
@@ -87,12 +98,6 @@ export const joinRequestSchema = z.object({
 })
 
 // ── Location ──
-
-const locationItemSchema = z.object({
-    type: z.enum(['MAIN', 'SUB']),
-    area: z.string().min(1, '活動エリアは必須です').max(100),
-    station: z.string().max(100).optional(),
-})
 
 /** PUT /v1/communities/:id/locations */
 export const saveLocationsSchema = z.object({

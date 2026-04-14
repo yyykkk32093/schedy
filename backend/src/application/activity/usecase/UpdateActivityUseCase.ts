@@ -1,5 +1,6 @@
 import { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnitOfWork.js'
 import { IIdGenerator } from '@/domains/_sharedDomains/domain/service/IIdGenerator.js'
+import { Fee } from '@/domains/_sharedDomains/model/valueObject/Fee.js'
 import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
 import { ActivityDescription } from '@/domains/activity/domain/model/valueObject/ActivityDescription.js'
 import { ActivityTitle } from '@/domains/activity/domain/model/valueObject/ActivityTitle.js'
@@ -76,10 +77,10 @@ export class UpdateActivityUseCase {
                     ? TimeOfDay.createNullable(input.defaultEndTime)
                     : undefined,
                 defaultParticipationFee: input.defaultParticipationFee !== undefined
-                    ? input.defaultParticipationFee
+                    ? Fee.createNullable(input.defaultParticipationFee)
                     : undefined,
                 defaultVisitorFee: input.defaultVisitorFee !== undefined
-                    ? input.defaultVisitorFee
+                    ? Fee.createNullable(input.defaultVisitorFee)
                     : undefined,
                 defaultCapacity: input.defaultCapacity !== undefined
                     ? input.defaultCapacity

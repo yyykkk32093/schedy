@@ -1,3 +1,4 @@
+import { Fee } from '@/domains/_sharedDomains/model/valueObject/Fee.js'
 import { ActivityId } from '@/domains/activity/domain/model/valueObject/ActivityId.js'
 import { TimeOfDay } from '@/domains/activity/domain/model/valueObject/TimeOfDay.js'
 import type { Prisma, PrismaClient, Schedule as PrismaSchedule } from '@prisma/client'
@@ -76,8 +77,8 @@ export class ScheduleRepositoryImpl implements IScheduleRepository {
                 note: schedule.getNote(),
                 status: schedule.getStatus().getValue(),
                 capacity: schedule.getCapacity().getValue(),
-                participationFee: schedule.getParticipationFee(),
-                visitorFee: schedule.getVisitorFee(),
+                participationFee: schedule.getParticipationFee().amount,
+                visitorFee: schedule.getVisitorFee()?.amount ?? null,
                 isOnline: schedule.getIsOnline(),
                 meetingUrl: schedule.getMeetingUrl(),
             },
@@ -89,8 +90,8 @@ export class ScheduleRepositoryImpl implements IScheduleRepository {
                 note: schedule.getNote(),
                 status: schedule.getStatus().getValue(),
                 capacity: schedule.getCapacity().getValue(),
-                participationFee: schedule.getParticipationFee(),
-                visitorFee: schedule.getVisitorFee(),
+                participationFee: schedule.getParticipationFee().amount,
+                visitorFee: schedule.getVisitorFee()?.amount ?? null,
                 isOnline: schedule.getIsOnline(),
                 meetingUrl: schedule.getMeetingUrl(),
             },
@@ -110,8 +111,8 @@ export class ScheduleRepositoryImpl implements IScheduleRepository {
                 note: s.getNote(),
                 status: s.getStatus().getValue(),
                 capacity: s.getCapacity().getValue(),
-                participationFee: s.getParticipationFee(),
-                visitorFee: s.getVisitorFee(),
+                participationFee: s.getParticipationFee().amount,
+                visitorFee: s.getVisitorFee()?.amount ?? null,
                 isOnline: s.getIsOnline(),
                 meetingUrl: s.getMeetingUrl(),
             })),
@@ -136,8 +137,8 @@ export class ScheduleRepositoryImpl implements IScheduleRepository {
             note: row.note,
             status: ScheduleStatus.reconstruct(row.status),
             capacity: ScheduleCapacity.reconstruct(row.capacity),
-            participationFee: row.participationFee ?? 0,
-            visitorFee: row.visitorFee ?? null,
+            participationFee: Fee.reconstruct(row.participationFee ?? 0),
+            visitorFee: row.visitorFee != null ? Fee.reconstruct(row.visitorFee) : null,
             isOnline: row.isOnline,
             meetingUrl: row.meetingUrl,
         })

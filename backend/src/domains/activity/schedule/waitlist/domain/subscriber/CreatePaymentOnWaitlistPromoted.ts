@@ -37,8 +37,8 @@ export class CreatePaymentOnWaitlistPromoted
 
         // D-5:A: ビジターの場合は visitorFee ?? participationFee のフォールバック
         const baseFee = event.isVisitor
-            ? (schedule.getVisitorFee() ?? schedule.getParticipationFee())
-            : schedule.getParticipationFee()
+            ? (schedule.getVisitorFee() ?? schedule.getParticipationFee()).amount
+            : schedule.getParticipationFee().amount
         if (!baseFee || baseFee <= 0) return // 無料スケジュールは Payment 不要
 
         const payment = Payment.create({

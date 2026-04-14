@@ -1,5 +1,6 @@
 import { DomainValidationError } from '@/domains/_sharedDomains/error/DomainValidationError.js'
 import { AggregateRoot } from '@/domains/_sharedDomains/model/entity/AggregateRoot.js'
+import { Fee } from '@/domains/_sharedDomains/model/valueObject/Fee.js'
 import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
 import { CommunityId } from '@/domains/community/domain/model/valueObject/CommunityId.js'
 import { ActivityDescription } from '../valueObject/ActivityDescription.js'
@@ -24,8 +25,8 @@ export class Activity extends AggregateRoot {
         private defaultAddress: string | null,
         private defaultStartTime: TimeOfDay | null,
         private defaultEndTime: TimeOfDay | null,
-        private defaultParticipationFee: number | null,
-        private defaultVisitorFee: number | null,
+        private defaultParticipationFee: Fee | null,
+        private defaultVisitorFee: Fee | null,
         private defaultCapacity: number | null,
         private allowVisitorWaitlist: boolean,
         private recurrenceRule: string | null,
@@ -45,8 +46,8 @@ export class Activity extends AggregateRoot {
         defaultAddress?: string | null
         defaultStartTime?: TimeOfDay | null
         defaultEndTime?: TimeOfDay | null
-        defaultParticipationFee?: number | null
-        defaultVisitorFee?: number | null
+        defaultParticipationFee?: Fee | null
+        defaultVisitorFee?: Fee | null
         defaultCapacity?: number | null
         allowVisitorWaitlist?: boolean
         recurrenceRule?: string | null
@@ -92,8 +93,8 @@ export class Activity extends AggregateRoot {
         defaultAddress: string | null
         defaultStartTime: TimeOfDay | null
         defaultEndTime: TimeOfDay | null
-        defaultParticipationFee: number | null
-        defaultVisitorFee: number | null
+        defaultParticipationFee: Fee | null
+        defaultVisitorFee: Fee | null
         defaultCapacity: number | null
         allowVisitorWaitlist: boolean
         recurrenceRule: string | null
@@ -130,8 +131,8 @@ export class Activity extends AggregateRoot {
         defaultAddress?: string | null
         defaultStartTime?: TimeOfDay | null
         defaultEndTime?: TimeOfDay | null
-        defaultParticipationFee?: number | null
-        defaultVisitorFee?: number | null
+        defaultParticipationFee?: Fee | null
+        defaultVisitorFee?: Fee | null
         defaultCapacity?: number | null
         allowVisitorWaitlist?: boolean
         recurrenceRule?: string | null
@@ -192,8 +193,8 @@ export class Activity extends AggregateRoot {
     getDefaultAddress(): string | null { return this.defaultAddress }
     getDefaultStartTime(): TimeOfDay | null { return this.defaultStartTime }
     getDefaultEndTime(): TimeOfDay | null { return this.defaultEndTime }
-    getDefaultParticipationFee(): number | null { return this.defaultParticipationFee }
-    getDefaultVisitorFee(): number | null { return this.defaultVisitorFee }
+    getDefaultParticipationFee(): Fee | null { return this.defaultParticipationFee }
+    getDefaultVisitorFee(): Fee | null { return this.defaultVisitorFee }
     getDefaultCapacity(): number | null { return this.defaultCapacity }
     getAllowVisitorWaitlist(): boolean { return this.allowVisitorWaitlist }
     getRecurrenceRule(): string | null { return this.recurrenceRule }

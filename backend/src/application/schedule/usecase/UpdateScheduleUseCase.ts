@@ -1,5 +1,6 @@
 import { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnitOfWork.js'
 import { ActivityNotFoundError } from '@/application/activity/error/ActivityNotFoundError.js'
+import { Fee } from '@/domains/_sharedDomains/model/valueObject/Fee.js'
 import { TimeOfDay } from '@/domains/activity/domain/model/valueObject/TimeOfDay.js'
 import type { IActivityRepository } from '@/domains/activity/domain/repository/IActivityRepository.js'
 import type { IScheduleRepository } from '@/domains/activity/schedule/domain/repository/IScheduleRepository.js'
@@ -54,8 +55,8 @@ export class UpdateScheduleUseCase {
                 location: input.location !== undefined ? input.location : undefined,
                 note: input.note !== undefined ? input.note : undefined,
                 capacity: input.capacity !== undefined ? input.capacity : undefined,
-                participationFee: input.participationFee !== undefined ? input.participationFee : undefined,
-                visitorFee: input.visitorFee !== undefined ? input.visitorFee : undefined,
+                participationFee: input.participationFee !== undefined ? Fee.create(input.participationFee) : undefined,
+                visitorFee: input.visitorFee !== undefined ? Fee.createNullable(input.visitorFee) : undefined,
                 isOnline: input.isOnline !== undefined ? input.isOnline : undefined,
                 meetingUrl: input.meetingUrl !== undefined ? input.meetingUrl : undefined,
             })

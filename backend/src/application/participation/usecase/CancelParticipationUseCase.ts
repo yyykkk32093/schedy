@@ -77,7 +77,7 @@ export class CancelParticipationUseCase {
                 if (payment.isStripePaid()) {
                     const schedule = await repos.schedule.findById(input.scheduleId)
                     if (schedule) {
-                        const baseFee = schedule.getParticipationFee()
+                        const baseFee = schedule.getParticipationFee().amount
                         if (baseFee) {
                             stripeRefundInfo = {
                                 paymentIntentId: payment.getStripePaymentIntentId()!,
@@ -160,6 +160,12 @@ export class CancelParticipationUseCase {
                         ),
                     ])
 
+                    // metadata 用に activity 情報を取得
+                    const activityForMeta = await this.prisma.activity.findUnique({
+                        where: { id: activityId! },
+                        select: { communityId: true, title: true },
+                    })
+
                     await this.notificationService.prepareNotification(repos, {
                         userId: promotedUserId,
                         type: 'WAITLIST_PROMOTED',
@@ -168,7 +174,9 @@ export class CancelParticipationUseCase {
                         referenceId: input.scheduleId,
                         referenceType: 'SCHEDULE',
                         metadata: {
+                            communityId: activityForMeta?.communityId,
                             activityId: activityId!,
+                            activityTitle: activityForMeta?.title,
                             scheduleDate: scheduleDate?.toISOString() ?? undefined,
                         },
                     })

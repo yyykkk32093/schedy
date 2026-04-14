@@ -42,7 +42,6 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
                 grade: community.getGrade().getValue(),
                 createdBy: community.getCreatedBy().getValue(),
                 deletedAt: community.getDeletedAt(),
-                communityTypeId: community.getCommunityTypeId(),
                 joinMethod: community.getJoinMethod().getValue(),
                 isPublic: community.getIsPublic(),
                 maxMembers: community.getMaxMembers(),
@@ -50,7 +49,6 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
                 targetGender: community.getTargetGender(),
                 ageMin: community.getAgeMin(),
                 ageMax: community.getAgeMax(),
-                categoryId: community.getCategoryId(),
                 recommendedLevelMin: community.getRecommendedLevelMin(),
                 recommendedLevelMax: community.getRecommendedLevelMax(),
                 payPayId: community.getPayPayId(),
@@ -66,7 +64,6 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
                 coverUrl: community.getCoverUrl(),
                 grade: community.getGrade().getValue(),
                 deletedAt: community.getDeletedAt(),
-                communityTypeId: community.getCommunityTypeId(),
                 joinMethod: community.getJoinMethod().getValue(),
                 isPublic: community.getIsPublic(),
                 maxMembers: community.getMaxMembers(),
@@ -74,7 +71,6 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
                 targetGender: community.getTargetGender(),
                 ageMin: community.getAgeMin(),
                 ageMax: community.getAgeMax(),
-                categoryId: community.getCategoryId(),
                 recommendedLevelMin: community.getRecommendedLevelMin(),
                 recommendedLevelMax: community.getRecommendedLevelMax(),
                 payPayId: community.getPayPayId(),
@@ -98,7 +94,6 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
             grade: CommunityGrade.reconstruct(row.grade),
             createdBy: UserId.create(row.createdBy),
             deletedAt: row.deletedAt,
-            communityTypeId: row.communityTypeId,
             joinMethod: JoinMethod.reconstruct(row.joinMethod),
             isPublic: row.isPublic,
             maxMembers: row.maxMembers,
@@ -106,7 +101,6 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
             targetGender: row.targetGender,
             ageMin: row.ageMin,
             ageMax: row.ageMax,
-            categoryId: row.categoryId,
             recommendedLevelMin: row.recommendedLevelMin,
             recommendedLevelMax: row.recommendedLevelMax,
             payPayId: row.payPayId,
@@ -150,7 +144,6 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
                     grade: c.grade,
                     role: m.role,
                     createdBy: c.createdBy,
-                    communityTypeId: c.communityTypeId,
                     joinMethod: c.joinMethod,
                     isPublic: c.isPublic,
                     maxMembers: c.maxMembers,
@@ -190,7 +183,6 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
             coverUrl: row.coverUrl,
             grade: row.grade,
             createdBy: row.createdBy,
-            communityTypeId: row.communityTypeId,
             joinMethod: row.joinMethod,
             isPublic: row.isPublic,
             maxMembers: row.maxMembers,
@@ -227,7 +219,7 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
     }
 
     async searchPublic(params: SearchCommunitiesParams): Promise<{ items: PublicCommunitySearchItem[]; total: number }> {
-        const { keyword, categoryIds, levelIds, area, days, targetGender, communityTypeId, joinMethod, limit = 20, offset = 0 } = params
+        const { keyword, categoryIds, levelIds, area, days, targetGender, joinMethod, limit = 20, offset = 0 } = params
 
         // AND 条件を組み立て
         const where: Prisma.CommunityWhereInput = {
@@ -268,11 +260,6 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
             where.targetGender = { hasSome: targetGender }
         }
 
-        // W4-03: コミュニティタイプ
-        if (communityTypeId) {
-            where.communityTypeId = communityTypeId
-        }
-
         // W4-03: 参加方法
         if (joinMethod) {
             where.joinMethod = joinMethod
@@ -288,7 +275,6 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
                     participationLevels: {
                         include: { level: { select: { id: true, name: true } } },
                     },
-                    communityType: { select: { name: true } },
                     _count: { select: { memberships: { where: { leftAt: null } } } },
                 },
                 orderBy: { createdAt: 'desc' },
@@ -311,7 +297,6 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
             ageMin: r.ageMin,
             ageMax: r.ageMax,
             activityFrequency: r.activityFrequency,
-            communityTypeName: r.communityType?.name ?? null,
         }))
 
         return { items, total }
@@ -347,7 +332,6 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
             coverUrl: row.coverUrl,
             grade: row.grade,
             createdBy: row.createdBy,
-            communityTypeId: row.communityTypeId,
             joinMethod: row.joinMethod,
             isPublic: row.isPublic,
             maxMembers: row.maxMembers,

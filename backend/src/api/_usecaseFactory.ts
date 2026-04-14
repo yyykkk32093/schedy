@@ -303,6 +303,7 @@ export const usecaseFactory = {
             community: new CommunityRepositoryImpl(tx),
             membership: new CommunityMembershipRepositoryImpl(tx),
             user: new UserRepositoryImpl(tx),
+            tx,
         }))
         return new CreateSubCommunityUseCase(
             new UuidGenerator(),
@@ -357,8 +358,9 @@ export const usecaseFactory = {
             community: new CommunityRepositoryImpl(tx),
             membership: new CommunityMembershipRepositoryImpl(tx),
             auditLog: new CommunityAuditLogRepositoryImpl(tx),
+            tx,
         }))
-        return new UpdateCommunityUseCase(unitOfWork)
+        return new UpdateCommunityUseCase(unitOfWork, new UuidGenerator(), featureGateService)
     },
 
     createSoftDeleteCommunityUseCase() {

@@ -93,7 +93,7 @@ export class AddGuestVisitorUseCase {
             await repos.participation.add(participation)
 
             // ビジター用 Payment レコード作成（paymentMethod=null → 管理者が後で設定）
-            const fee = schedule.getVisitorFee() ?? schedule.getParticipationFee() ?? 0
+            const fee = (schedule.getVisitorFee() ?? schedule.getParticipationFee()).amount
             const payment = Payment.create({
                 id: this.idGenerator.generate(),
                 scheduleId: ScheduleId.create(input.scheduleId),

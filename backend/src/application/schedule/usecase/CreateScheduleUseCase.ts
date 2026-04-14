@@ -1,6 +1,7 @@
 import { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnitOfWork.js'
 import { ActivityNotFoundError } from '@/application/activity/error/ActivityNotFoundError.js'
 import { IIdGenerator } from '@/domains/_sharedDomains/domain/service/IIdGenerator.js'
+import { Fee } from '@/domains/_sharedDomains/model/valueObject/Fee.js'
 import { ActivityId } from '@/domains/activity/domain/model/valueObject/ActivityId.js'
 import { TimeOfDay } from '@/domains/activity/domain/model/valueObject/TimeOfDay.js'
 import type { IActivityRepository } from '@/domains/activity/domain/repository/IActivityRepository.js'
@@ -61,8 +62,8 @@ export class CreateScheduleUseCase {
                 location: input.location,
                 note: input.note,
                 capacity: input.capacity,
-                participationFee: input.participationFee,
-                visitorFee: input.visitorFee ?? null,
+                participationFee: input.participationFee != null ? Fee.create(input.participationFee) : undefined,
+                visitorFee: Fee.createNullable(input.visitorFee),
                 isOnline: input.isOnline,
                 meetingUrl: input.meetingUrl,
             })

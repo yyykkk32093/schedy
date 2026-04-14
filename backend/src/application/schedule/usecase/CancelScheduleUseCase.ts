@@ -61,7 +61,7 @@ export class CancelScheduleUseCase {
                     referenceType: 'SCHEDULE',
                     metadata: {
                         communityId: activity.getCommunityId().getValue(),
-                        activityId: activity.getId(),
+                        activityId: activity.getId().getValue(),
                         activityTitle: activity.getTitle().getValue(),
                         scheduleDate: schedule.getDate()?.toISOString() ?? undefined,
                     },

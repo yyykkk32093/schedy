@@ -312,8 +312,6 @@ model Community {
   deletedAt   DateTime?
 
   // ---- Phase 2: Community Profile Fields ----
-  communityTypeId     String?
-  categoryId          String? // Wave5: 単一カテゴリ（中間テーブルから直接カラムへ移行）
   joinMethod          String   @default("FREE_JOIN") // 'FREE_JOIN' | 'APPROVAL' | 'INVITATION'
   isPublic            Boolean  @default(true)
   maxMembers          Int?
@@ -338,9 +336,6 @@ model Community {
 
   parent   Community?  @relation("CommunityHierarchy", fields: [parentId], references: [id])
   children Community[] @relation("CommunityHierarchy")
-
-  communityType CommunityTypeMaster? @relation(fields: [communityTypeId], references: [id])
-  category      CategoryMaster?      @relation("CommunityCategoryDirect", fields: [categoryId], references: [id])
 
   memberships   CommunityMembership[]
   activities    Activity[]
@@ -375,8 +370,6 @@ model Community {
 
   @@index([createdBy])
   @@index([parentId])
-  @@index([communityTypeId])
-  @@index([categoryId])
 }
 
 model CommunityMembership {
@@ -873,28 +866,14 @@ model DeviceToken {
 // Community Master Tables (Phase 2)
 // ============================================================
 
-model CommunityTypeMaster {
+model CategoryMaster {
   id        String   @id @default(uuid())
   name      String   @unique
   nameEn    String
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
 
-  communities Community[]
-  categories  CategoryMaster[]
-}
-
-model CategoryMaster {
-  id              String   @id @default(uuid())
-  name            String   @unique
-  nameEn          String
-  communityTypeId String? // Wave5: カテゴリ→タイプ自動解決用FK
-  sortOrder       Int      @default(0)
-  createdAt       DateTime @default(now())
-
-  communityType       CommunityTypeMaster? @relation(fields: [communityTypeId], references: [id])
   communityCategories CommunityCategory[]
-  communities         Community[]          @relation("CommunityCategoryDirect")
 }
 
 model ParticipationLevelMaster {

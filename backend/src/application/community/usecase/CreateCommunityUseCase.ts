@@ -45,11 +45,12 @@ export class CreateCommunityUseCase {
         targetGender?: string[]
         ageMin?: number | null
         ageMax?: number | null
-        categoryId?: string | null
+        categoryIds: string[]
         recommendedLevelMin?: number | null
         recommendedLevelMax?: number | null
         activityDays?: string[]
         tags?: string[]
+        locations?: Array<{ type: 'MAIN' | 'SUB'; area: string; station?: string }>
     }): Promise<{ communityId: string }> {
         const communityId = CommunityId.create(this.idGenerator.generate())
         const name = CommunityName.create(input.name)
@@ -65,18 +66,6 @@ export class CreateCommunityUseCase {
             if (!user) throw new Error('User not found')
             const grade = CommunityGradePolicy.gradeFromPlan(user.getPlan())
 
-            // Wave5: categoryId → communityTypeId 自動解決
-            let resolvedCommunityTypeId: string | null = null
-            if (input.categoryId) {
-                const category = await repos.tx.categoryMaster.findUnique({
-                    where: { id: input.categoryId },
-                    select: { communityTypeId: true },
-                })
-                if (category?.communityTypeId) {
-                    resolvedCommunityTypeId = category.communityTypeId
-                }
-            }
-
             // Community 作成
             const community = Community.create({
                 id: communityId,
@@ -84,7 +73,6 @@ export class CreateCommunityUseCase {
                 description,
                 grade,
                 createdBy,
-                communityTypeId: resolvedCommunityTypeId,
                 joinMethod,
                 isPublic: input.isPublic,
                 maxMembers: input.maxMembers,
@@ -92,7 +80,6 @@ export class CreateCommunityUseCase {
                 targetGender: input.targetGender,
                 ageMin: input.ageMin,
                 ageMax: input.ageMax,
-                categoryId: input.categoryId,
                 recommendedLevelMin: input.recommendedLevelMin,
                 recommendedLevelMax: input.recommendedLevelMax,
             })
@@ -102,15 +89,14 @@ export class CreateCommunityUseCase {
             const communityIdValue = communityId.getValue()
             const { tx } = repos
 
-            // Wave5: categoryId は Community に直接保存されるが、
-            // 旧 CommunityCategory テーブルにも互換性のため挿入
-            if (input.categoryId) {
+            // CommunityCategory join table への保存
+            if (input.categoryIds.length > 0) {
                 await tx.communityCategory.createMany({
-                    data: [{
+                    data: input.categoryIds.map((categoryId) => ({
                         id: this.idGenerator.generate(),
                         communityId: communityIdValue,
-                        categoryId: input.categoryId,
-                    }],
+                        categoryId,
+                    })),
                 })
             }
 
@@ -141,6 +127,24 @@ export class CreateCommunityUseCase {
                         id: this.idGenerator.generate(),
                         communityId: communityIdValue,
                         tag,
+                    })),
+                })
+            }
+
+            if (input.locations && input.locations.length > 0) {
+                const mainCount = input.locations.filter((l) => l.type === 'MAIN').length
+                if (mainCount > 1) {
+                    throw new Error('メイン拠点は最大1件です')
+                }
+
+                await tx.communityLocation.createMany({
+                    data: input.locations.map((loc, i) => ({
+                        id: this.idGenerator.generate(),
+                        communityId: communityIdValue,
+                        type: loc.type,
+                        area: loc.area.trim(),
+                        station: loc.station?.trim() || null,
+                        sortOrder: i,
                     })),
                 })
             }

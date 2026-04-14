@@ -42,31 +42,31 @@ ON CONFLICT ("user_id") DO NOTHING;
 
 -- Helena が作成した「週末フットサル」
 INSERT INTO "Community" ("id", "name", "description", "logoUrl", "coverUrl", "grade", "createdBy",
-  "communityTypeId", "categoryId", "joinMethod", "isPublic", "maxMembers", "activityFrequency", "targetGender", "ageMin", "ageMax", "recommendedLevelMin", "recommendedLevelMax",
+  "joinMethod", "isPublic", "maxMembers", "activityFrequency", "targetGender", "ageMin", "ageMax", "recommendedLevelMin", "recommendedLevelMax",
   "createdAt", "updatedAt")
 VALUES
   ('e2e00000-0000-4000-a000-000000000201', '週末フットサル', '毎週末にフットサルを楽しむコミュニティです 🏃‍♂️⚽', NULL, NULL, 'FREE', 'e2e00000-0000-4000-a000-000000000101',
-   'ct-sports', 'cat-futsal', 'FREE_JOIN', true, 30, '週1回', '{指定なし}', 20, 49, 1, 4,
+   'FREE_JOIN', true, 30, '週１回', '{指定なし}', 20, 49, 1, 4,
    NOW() - INTERVAL '30 days', NOW())
 ON CONFLICT ("id") DO NOTHING;
 
 -- Daniel が作成した「朝ヨガサークル」
 INSERT INTO "Community" ("id", "name", "description", "logoUrl", "coverUrl", "grade", "createdBy",
-  "communityTypeId", "categoryId", "joinMethod", "isPublic", "maxMembers", "activityFrequency", "targetGender", "ageMin", "ageMax", "recommendedLevelMin", "recommendedLevelMax",
+  "joinMethod", "isPublic", "maxMembers", "activityFrequency", "targetGender", "ageMin", "ageMax", "recommendedLevelMin", "recommendedLevelMax",
   "createdAt", "updatedAt")
 VALUES
-  ('e2e00000-0000-4000-a000-000000000202', '朝ヨガサークル', '朝7時から公園でヨガをしています 🧘‍♀️', NULL, NULL, 'FREE', 'e2e00000-0000-4000-a000-000000000102',
-   'ct-sports', 'cat-other', 'APPROVAL', true, 15, '週3回', '{指定なし}', 20, 59, 0, 3,
+  ('e2e00000-0000-4000-a000-000000000202', '朝ヨガサークル', '朝７時から公園でヨガをしています 🧘‍♀️', NULL, NULL, 'FREE', 'e2e00000-0000-4000-a000-000000000102',
+   'APPROVAL', true, 15, '週３回', '{指定なし}', 20, 59, 0, 3,
    NOW() - INTERVAL '20 days', NOW())
 ON CONFLICT ("id") DO NOTHING;
 
 -- Sakura が作成した「読書クラブ」
 INSERT INTO "Community" ("id", "name", "description", "logoUrl", "coverUrl", "grade", "createdBy",
-  "communityTypeId", "categoryId", "joinMethod", "isPublic", "maxMembers", "activityFrequency", "targetGender",
+  "joinMethod", "isPublic", "maxMembers", "activityFrequency", "targetGender",
   "createdAt", "updatedAt")
 VALUES
-  ('e2e00000-0000-4000-a000-000000000203', '読書クラブ', '月1回の読書会。今月のテーマ本を語り合おう 📚', NULL, NULL, 'FREE', 'e2e00000-0000-4000-a000-000000000103',
-   'ct-hobby', 'cat-other', 'INVITATION', false, NULL, '月1回', '{指定なし}',
+  ('e2e00000-0000-4000-a000-000000000203', '読書クラブ', '月１回の読書会。今月のテーマ本を語り合おう 📚', NULL, NULL, 'FREE', 'e2e00000-0000-4000-a000-000000000103',
+   'INVITATION', false, NULL, '月１回', '{指定なし}',
    NOW() - INTERVAL '15 days', NOW())
 ON CONFLICT ("id") DO NOTHING;
 

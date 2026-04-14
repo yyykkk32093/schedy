@@ -1,3 +1,4 @@
+import { Fee } from '@/domains/_sharedDomains/model/valueObject/Fee.js'
 import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
 import { CommunityId } from '@/domains/community/domain/model/valueObject/CommunityId.js'
 import type { Prisma, Activity as PrismaActivity, PrismaClient } from '@prisma/client'
@@ -48,8 +49,8 @@ export class ActivityRepositoryImpl implements IActivityRepository {
                 defaultAddress: activity.getDefaultAddress(),
                 defaultStartTime: activity.getDefaultStartTime()?.getValue() ?? null,
                 defaultEndTime: activity.getDefaultEndTime()?.getValue() ?? null,
-                defaultParticipationFee: activity.getDefaultParticipationFee(),
-                defaultVisitorFee: activity.getDefaultVisitorFee(),
+                defaultParticipationFee: activity.getDefaultParticipationFee()?.amount ?? null,
+                defaultVisitorFee: activity.getDefaultVisitorFee()?.amount ?? null,
                 defaultCapacity: activity.getDefaultCapacity(),
                 allowVisitorWaitlist: activity.getAllowVisitorWaitlist(),
                 recurrenceRule: activity.getRecurrenceRule(),
@@ -64,8 +65,8 @@ export class ActivityRepositoryImpl implements IActivityRepository {
                 defaultAddress: activity.getDefaultAddress(),
                 defaultStartTime: activity.getDefaultStartTime()?.getValue() ?? null,
                 defaultEndTime: activity.getDefaultEndTime()?.getValue() ?? null,
-                defaultParticipationFee: activity.getDefaultParticipationFee(),
-                defaultVisitorFee: activity.getDefaultVisitorFee(),
+                defaultParticipationFee: activity.getDefaultParticipationFee()?.amount ?? null,
+                defaultVisitorFee: activity.getDefaultVisitorFee()?.amount ?? null,
                 defaultCapacity: activity.getDefaultCapacity(),
                 allowVisitorWaitlist: activity.getAllowVisitorWaitlist(),
                 recurrenceRule: activity.getRecurrenceRule(),
@@ -85,8 +86,8 @@ export class ActivityRepositoryImpl implements IActivityRepository {
             defaultAddress: row.defaultAddress ?? null,
             defaultStartTime: row.defaultStartTime ? TimeOfDay.reconstruct(row.defaultStartTime) : null,
             defaultEndTime: row.defaultEndTime ? TimeOfDay.reconstruct(row.defaultEndTime) : null,
-            defaultParticipationFee: row.defaultParticipationFee,
-            defaultVisitorFee: row.defaultVisitorFee,
+            defaultParticipationFee: row.defaultParticipationFee != null ? Fee.reconstruct(row.defaultParticipationFee) : null,
+            defaultVisitorFee: row.defaultVisitorFee != null ? Fee.reconstruct(row.defaultVisitorFee) : null,
             defaultCapacity: row.defaultCapacity,
             allowVisitorWaitlist: row.allowVisitorWaitlist,
             recurrenceRule: row.recurrenceRule,

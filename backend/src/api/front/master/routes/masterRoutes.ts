@@ -8,7 +8,6 @@ const router = Router()
 router.get('/v1/masters/community', authMiddleware, masterController.getAllMasters)
 
 // 個別マスタ取得
-router.get('/v1/masters/community-types', authMiddleware, masterController.getCommunityTypes)
 router.get('/v1/masters/categories', authMiddleware, masterController.getCategories)
 router.get('/v1/masters/participation-levels', authMiddleware, masterController.getParticipationLevels)
 

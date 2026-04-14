@@ -3,12 +3,12 @@ import { ValueObject } from '@/domains/_sharedDomains/model/valueObject/ValueObj
 
 /**
  * 金額（参加費・ビジター費）を表す値オブジェクト。
- * - 0以上の整数（円）
- * - 0 = 無料
+ * - 0 以上 MAX 以下の整数（円）
+ * - MAX = 100,000（アプリ上限）
  */
 export class Fee extends ValueObject<number> {
     static readonly FREE = new Fee(0)
-    static readonly MAX = 1_000_000
+    static readonly MAX = 100_000
 
     private constructor(value: number) {
         super(value)

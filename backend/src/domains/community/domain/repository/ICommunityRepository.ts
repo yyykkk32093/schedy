@@ -10,7 +10,6 @@ export type CommunityListItem = {
     grade: string
     role: string
     createdBy: string
-    communityTypeId: string | null
     joinMethod: string
     isPublic: boolean
     maxMembers: number | null
@@ -27,7 +26,6 @@ export type CommunityDetail = {
     coverUrl: string | null
     grade: string
     createdBy: string
-    communityTypeId: string | null
     joinMethod: string
     isPublic: boolean
     maxMembers: number | null
@@ -70,7 +68,6 @@ export type PublicCommunitySearchItem = {
     ageMin: number | null
     ageMax: number | null
     activityFrequency: string | null
-    communityTypeName: string | null
 }
 
 /** 公開コミュニティ検索の条件 */
@@ -82,7 +79,6 @@ export type SearchCommunitiesParams = {
     days?: string[]
     // W4-03: 追加フィルタ
     targetGender?: string[]
-    communityTypeId?: string
     joinMethod?: string
     limit?: number
     offset?: number

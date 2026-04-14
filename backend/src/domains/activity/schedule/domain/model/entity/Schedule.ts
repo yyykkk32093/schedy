@@ -1,5 +1,6 @@
 import { DomainValidationError } from '@/domains/_sharedDomains/error/DomainValidationError.js'
 import { AggregateRoot } from '@/domains/_sharedDomains/model/entity/AggregateRoot.js'
+import { Fee } from '@/domains/_sharedDomains/model/valueObject/Fee.js'
 import { ActivityId } from '@/domains/activity/domain/model/valueObject/ActivityId.js'
 import { TimeOfDay } from '@/domains/activity/domain/model/valueObject/TimeOfDay.js'
 import { ScheduleCapacity } from '../valueObject/ScheduleCapacity.js'
@@ -25,8 +26,8 @@ export class Schedule extends AggregateRoot {
         private note: string | null,
         private status: ScheduleStatus,
         private capacity: ScheduleCapacity,
-        private participationFee: number,
-        private visitorFee: number | null,
+        private participationFee: Fee,
+        private visitorFee: Fee | null,
         private isOnline: boolean,
         private meetingUrl: string | null,
     ) {
@@ -42,8 +43,8 @@ export class Schedule extends AggregateRoot {
         location?: string | null
         note?: string | null
         capacity?: number | null
-        participationFee?: number | null
-        visitorFee?: number | null
+        participationFee?: Fee | null
+        visitorFee?: Fee | null
         isOnline?: boolean
         meetingUrl?: string | null
     }): Schedule {
@@ -64,7 +65,7 @@ export class Schedule extends AggregateRoot {
             params.note ?? null,
             ScheduleStatus.scheduled(),
             ScheduleCapacity.createNullable(params.capacity),
-            params.participationFee ?? 0,
+            params.participationFee ?? Fee.FREE,
             params.visitorFee ?? null,
             params.isOnline ?? false,
             params.meetingUrl ?? null,
@@ -81,8 +82,8 @@ export class Schedule extends AggregateRoot {
         note: string | null
         status: ScheduleStatus
         capacity: ScheduleCapacity
-        participationFee: number
-        visitorFee: number | null
+        participationFee: Fee
+        visitorFee: Fee | null
         isOnline: boolean
         meetingUrl: string | null
     }): Schedule {
@@ -112,8 +113,8 @@ export class Schedule extends AggregateRoot {
         location?: string | null
         note?: string | null
         capacity?: number | null
-        participationFee?: number
-        visitorFee?: number | null
+        participationFee?: Fee
+        visitorFee?: Fee | null
         isOnline?: boolean
         meetingUrl?: string | null
     }): void {
@@ -172,8 +173,8 @@ export class Schedule extends AggregateRoot {
     getNote(): string | null { return this.note }
     getStatus(): ScheduleStatus { return this.status }
     getCapacity(): ScheduleCapacity { return this.capacity }
-    getParticipationFee(): number { return this.participationFee }
-    getVisitorFee(): number | null { return this.visitorFee }
+    getParticipationFee(): Fee { return this.participationFee }
+    getVisitorFee(): Fee | null { return this.visitorFee }
     getIsOnline(): boolean { return this.isOnline }
     getMeetingUrl(): string | null { return this.meetingUrl }
 }

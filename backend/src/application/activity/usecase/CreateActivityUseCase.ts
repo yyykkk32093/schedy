@@ -1,6 +1,7 @@
 import { IUnitOfWorkWithRepos } from '@/application/_sharedApplication/uow/IUnitOfWork.js'
 import { CommunityNotFoundError } from '@/application/community/error/CommunityNotFoundError.js'
 import { IIdGenerator } from '@/domains/_sharedDomains/domain/service/IIdGenerator.js'
+import { Fee } from '@/domains/_sharedDomains/model/valueObject/Fee.js'
 import { UserId } from '@/domains/_sharedDomains/model/valueObject/UserId.js'
 import { Activity } from '@/domains/activity/domain/model/entity/Activity.js'
 import { ActivityDescription } from '@/domains/activity/domain/model/valueObject/ActivityDescription.js'
@@ -84,9 +85,8 @@ export class CreateActivityUseCase {
                 defaultAddress: input.defaultAddress ?? null,
                 defaultStartTime: TimeOfDay.createNullable(input.defaultStartTime),
                 defaultEndTime: TimeOfDay.createNullable(input.defaultEndTime),
-                // D-4: フォーム値を Activity デフォルト属性にも暗黙同期
-                defaultParticipationFee: input.participationFee ?? null,
-                defaultVisitorFee: input.visitorFee ?? null,
+                defaultParticipationFee: Fee.createNullable(input.participationFee),
+                defaultVisitorFee: Fee.createNullable(input.visitorFee),
                 defaultCapacity: input.capacity ?? null,
                 allowVisitorWaitlist: input.allowVisitorWaitlist ?? false,
                 recurrenceRule: input.recurrenceRule ?? null,
@@ -107,8 +107,8 @@ export class CreateActivityUseCase {
                     startTime: TimeOfDay.create(input.defaultStartTime ?? '09:00'),
                     endTime: TimeOfDay.create(input.defaultEndTime ?? '10:00'),
                     location: input.defaultLocation ?? null,
-                    participationFee: input.participationFee ?? null,
-                    visitorFee: input.visitorFee ?? null,
+                    participationFee: Fee.createNullable(input.participationFee),
+                    visitorFee: Fee.createNullable(input.visitorFee),
                     isOnline: input.isOnline ?? false,
                     meetingUrl: input.meetingUrl ?? null,
                     capacity: input.capacity ?? null,

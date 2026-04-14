@@ -15,6 +15,7 @@ import { MembershipId } from '@/domains/community/membership/domain/model/valueO
 import { MembershipRole } from '@/domains/community/membership/domain/model/valueObject/MembershipRole.js'
 import type { ICommunityMembershipRepository } from '@/domains/community/membership/domain/repository/ICommunityMembershipRepository.js'
 import type { IUserRepository } from '@/domains/user/domain/repository/IUserRepository.js'
+import type { Prisma } from '@prisma/client'
 import { CommunityNotFoundError } from '../error/CommunityNotFoundError.js'
 import { CommunityPermissionError } from '../error/CommunityPermissionError.js'
 import { copyParentMembersToChild } from '../helper/membershipPropagation.js'
@@ -23,6 +24,7 @@ export type CreateSubCommunityTxRepositories = {
     community: ICommunityRepository
     membership: ICommunityMembershipRepository
     user: IUserRepository
+    tx: Prisma.TransactionClient
 }
 
 export class CreateSubCommunityUseCase {
@@ -52,7 +54,7 @@ export class CreateSubCommunityUseCase {
         ageMax?: number | null
         activityFrequency?: string | null
         activityDays?: string[]
-        categoryId?: string | null
+        categoryIds?: string[]
         recommendedLevelMin?: number | null
         recommendedLevelMax?: number | null
         tags?: string[]
@@ -85,6 +87,18 @@ export class CreateSubCommunityUseCase {
             const grade = CommunityGradePolicy.gradeFromPlan(user.getPlan())
 
             // 設定を決定: 引き継ぎか入力し直しか
+            // カテゴリは join table から取得
+            let childCategoryIds: string[]
+            if (shouldInheritSettings) {
+                const parentCategories = await repos.tx.communityCategory.findMany({
+                    where: { communityId: input.parentId },
+                    select: { categoryId: true },
+                })
+                childCategoryIds = parentCategories.map((c) => c.categoryId)
+            } else {
+                childCategoryIds = input.categoryIds ?? []
+            }
+
             const childSettings = shouldInheritSettings
                 ? {
                     // 親の設定をそのままコピー
@@ -95,7 +109,6 @@ export class CreateSubCommunityUseCase {
                     targetGender: parent.getTargetGender(),
                     ageMin: parent.getAgeMin(),
                     ageMax: parent.getAgeMax(),
-                    categoryId: parent.getCategoryId(),
                     recommendedLevelMin: parent.getRecommendedLevelMin(),
                     recommendedLevelMax: parent.getRecommendedLevelMax(),
                 }
@@ -108,7 +121,6 @@ export class CreateSubCommunityUseCase {
                     targetGender: input.targetGender,
                     ageMin: input.ageMin,
                     ageMax: input.ageMax,
-                    categoryId: input.categoryId,
                     recommendedLevelMin: input.recommendedLevelMin,
                     recommendedLevelMax: input.recommendedLevelMax,
                 }
@@ -125,6 +137,17 @@ export class CreateSubCommunityUseCase {
                 ...childSettings,
             })
             await repos.community.save(child)
+
+            // CommunityCategory join table への保存
+            if (childCategoryIds.length > 0) {
+                await repos.tx.communityCategory.createMany({
+                    data: childCategoryIds.map((categoryId) => ({
+                        id: this.idGenerator.generate(),
+                        communityId: communityId.getValue(),
+                        categoryId,
+                    })),
+                })
+            }
 
             // 作成者を OWNER として Membership 作成
             const childMembership = CommunityMembership.create({

@@ -2,18 +2,6 @@ import { prisma } from '@/_sharedTech/db/client.js'
 import type { NextFunction, Request, Response } from 'express'
 
 export const masterController = {
-    async getCommunityTypes(_req: Request, res: Response, next: NextFunction) {
-        try {
-            const types = await prisma.communityTypeMaster.findMany({
-                orderBy: { sortOrder: 'asc' },
-                select: { id: true, name: true, nameEn: true, sortOrder: true },
-            })
-            res.status(200).json({ communityTypes: types })
-        } catch (err) {
-            next(err)
-        }
-    },
-
     async getCategories(_req: Request, res: Response, next: NextFunction) {
         try {
             const categories = await prisma.categoryMaster.findMany({
@@ -40,11 +28,7 @@ export const masterController = {
 
     async getAllMasters(_req: Request, res: Response, next: NextFunction) {
         try {
-            const [communityTypes, categories, participationLevels] = await Promise.all([
-                prisma.communityTypeMaster.findMany({
-                    orderBy: { sortOrder: 'asc' },
-                    select: { id: true, name: true, nameEn: true, sortOrder: true },
-                }),
+            const [categories, participationLevels] = await Promise.all([
                 prisma.categoryMaster.findMany({
                     orderBy: { sortOrder: 'asc' },
                     select: { id: true, name: true, nameEn: true, sortOrder: true },
@@ -54,7 +38,7 @@ export const masterController = {
                     select: { id: true, name: true, nameEn: true, sortOrder: true },
                 }),
             ])
-            res.status(200).json({ communityTypes, categories, participationLevels })
+            res.status(200).json({ categories, participationLevels })
         } catch (err) {
             next(err)
         }

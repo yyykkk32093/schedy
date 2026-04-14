@@ -72,7 +72,7 @@ export class AddRegisteredVisitorUseCase {
             await repos.participation.add(participation)
 
             // D-5:A: visitorFee ?? participationFee ?? 0
-            const fee = schedule.getVisitorFee() ?? schedule.getParticipationFee() ?? 0
+            const fee = (schedule.getVisitorFee() ?? schedule.getParticipationFee()).amount
             if (fee > 0) {
                 const payment = Payment.create({
                     id: this.idGenerator.generate(),

@@ -54,7 +54,7 @@ export class CreateStripePaymentIntentUseCase {
             const reusableStatuses = ['requires_payment_method', 'requires_confirmation', 'requires_action']
             if (reusableStatuses.includes(existing.status) && existing.clientSecret) {
                 const schedule = await this.scheduleRepository.findById(input.scheduleId)
-                const baseFee = schedule?.getParticipationFee() ?? 0
+                const baseFee = schedule?.getParticipationFee().amount ?? 0
                 const { totalAmount, platformFee } = calculatePaymentAmount(baseFee)
                 return { clientSecret: existing.clientSecret, paymentIntentId: existingPiId, totalAmount, platformFee, baseFee }
             }
@@ -64,7 +64,7 @@ export class CreateStripePaymentIntentUseCase {
         const schedule = await this.scheduleRepository.findById(input.scheduleId)
         if (!schedule) throw new ScheduleNotFoundError()
 
-        const baseFee = schedule.getParticipationFee()
+        const baseFee = schedule.getParticipationFee().amount
         if (!baseFee || baseFee <= 0) {
             throw new ParticipationError('参加費が設定されていません', 'NO_PARTICIPATION_FEE')
         }
