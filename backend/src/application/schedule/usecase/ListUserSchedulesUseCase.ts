@@ -52,6 +52,7 @@ export class ListUserSchedulesUseCase {
                     communityId: { in: communityIds },
                     deletedAt: null,
                 },
+                deletedAt: null,
                 date: {
                     gte: new Date(input.from),
                     lte: new Date(input.to),

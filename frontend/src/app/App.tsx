@@ -5,7 +5,6 @@ import { QueryProvider } from '@/app/providers/QueryProvider'
 import { ActivityCreatePage } from '@/features/activity/pages/ActivityCreatePage'
 import { ActivityDetailPage } from '@/features/activity/pages/ActivityDetailPage'
 import { ActivityEditPage } from '@/features/activity/pages/ActivityEditPage'
-import { ActivityListPage } from '@/features/activity/pages/ActivityListPage'
 import { ActivityTopPage } from '@/features/activity/pages/ActivityTopPage'
 import { AlbumCreatePage } from '@/features/album/pages/AlbumCreatePage'
 import { AnnouncementCreatePage } from '@/features/announcement/pages/AnnouncementCreatePage'
@@ -127,11 +126,6 @@ const router = createBrowserRouter([
                     },
 
                     // Activity（コミュニティ配下）
-                    {
-                        path: '/communities/:communityId/activities',
-                        element: <ActivityListPage />,
-                        handle: { title: 'アクティビティ一覧', showBack: true } satisfies RouteHandle,
-                    },
                     {
                         path: '/communities/:communityId/activities/new',
                         element: <ActivityCreatePage />,

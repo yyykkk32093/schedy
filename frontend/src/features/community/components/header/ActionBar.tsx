@@ -13,7 +13,7 @@ import {
     DropdownMenuTrigger,
 } from '@/shared/components/ui/dropdown-menu'
 import { useMutation } from '@tanstack/react-query'
-import { Banknote, BarChart3, ChevronDown, Copy, Mail, MessageCircle, Settings, UserPlus } from 'lucide-react'
+import { Banknote, BarChart3, ChevronDown, Copy, GitBranch, Mail, MessageCircle, Settings, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -67,6 +67,14 @@ export function ActionBar({ communityId, isAdminOrAbove }: ActionBarProps) {
             >
                 <Settings className="w-3.5 h-3.5" />
                 設定
+            </Link>
+
+            <Link
+                to={`/communities/${communityId}/sub/tree`}
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 transition-colors px-2 py-1 rounded-md hover:bg-gray-100"
+            >
+                <GitBranch className="w-3.5 h-3.5" />
+                ツリー
             </Link>
         </div>
     )

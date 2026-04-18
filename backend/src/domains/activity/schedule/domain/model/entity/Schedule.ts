@@ -30,6 +30,7 @@ export class Schedule extends AggregateRoot {
         private visitorFee: Fee | null,
         private isOnline: boolean,
         private meetingUrl: string | null,
+        private deletedAt: Date | null,
     ) {
         super()
     }
@@ -69,6 +70,7 @@ export class Schedule extends AggregateRoot {
             params.visitorFee ?? null,
             params.isOnline ?? false,
             params.meetingUrl ?? null,
+            null,
         )
     }
 
@@ -86,6 +88,7 @@ export class Schedule extends AggregateRoot {
         visitorFee: Fee | null
         isOnline: boolean
         meetingUrl: string | null
+        deletedAt: Date | null
     }): Schedule {
         return new Schedule(
             params.id,
@@ -101,6 +104,7 @@ export class Schedule extends AggregateRoot {
             params.visitorFee,
             params.isOnline,
             params.meetingUrl,
+            params.deletedAt,
         )
     }
 
@@ -118,6 +122,9 @@ export class Schedule extends AggregateRoot {
         isOnline?: boolean
         meetingUrl?: string | null
     }): void {
+        if (this.isDeleted()) {
+            throw new DomainValidationError('削除済みスケジュールは更新できません', 'SCHEDULE_ALREADY_DELETED')
+        }
         if (this.isCancelled()) {
             throw new DomainValidationError('キャンセル済みスケジュールは更新できません', 'SCHEDULE_ALREADY_CANCELLED')
         }
@@ -142,10 +149,24 @@ export class Schedule extends AggregateRoot {
     }
 
     cancel(): void {
+        if (this.isDeleted()) {
+            throw new DomainValidationError('削除済みスケジュールはキャンセルできません', 'SCHEDULE_ALREADY_DELETED')
+        }
         if (this.isCancelled()) {
             throw new DomainValidationError('すでにキャンセル済みです', 'SCHEDULE_ALREADY_CANCELLED')
         }
         this.status = ScheduleStatus.cancelled()
+    }
+
+    softDelete(): void {
+        if (this.isDeleted()) {
+            throw new DomainValidationError('すでに削除済みです', 'SCHEDULE_ALREADY_DELETED')
+        }
+        this.deletedAt = new Date()
+    }
+
+    isDeleted(): boolean {
+        return this.deletedAt !== null
     }
 
     /**
@@ -177,4 +198,5 @@ export class Schedule extends AggregateRoot {
     getVisitorFee(): Fee | null { return this.visitorFee }
     getIsOnline(): boolean { return this.isOnline }
     getMeetingUrl(): string | null { return this.meetingUrl }
+    getDeletedAt(): Date | null { return this.deletedAt }
 }

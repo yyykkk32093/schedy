@@ -77,6 +77,7 @@ export class SearchAnnouncementsUseCase {
                 readCount: readCounts.get(r.id) ?? 0,
                 attachments: r.attachments,
                 scheduleInfo: r.scheduleInfo,
+                activityDeleted: r.activityDeleted,
             })),
         }
     }

@@ -183,8 +183,14 @@ export function FeedCard({ item }: FeedCardProps) {
                     </span>
                 )}
 
-                {/* #4: アクティビティ詳細へのリンク */}
-                {item.activityId && (
+                {/* #4: アクティビティ詳細へのリンク（キャンセル・削除済みはステータス表示） */}
+                {item.activityId && item.activityDeleted && (
+                    <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">削除済み</span>
+                )}
+                {item.activityId && !item.activityDeleted && item.scheduleInfo?.scheduleStatus === 'CANCELLED' && (
+                    <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">中止</span>
+                )}
+                {item.activityId && !item.activityDeleted && item.scheduleInfo?.scheduleStatus !== 'CANCELLED' && (
                     <button
                         type="button"
                         onClick={() => navigate(`/communities/${item.communityId}/activities/${item.activityId}${item.scheduleInfo ? `?schedule=${item.scheduleInfo.scheduleId}` : ''}`)}

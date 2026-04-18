@@ -7,15 +7,15 @@ import { z } from 'zod/v4'
 
 /** POST /v1/communities/:communityId/activities */
 export const createActivitySchema = z.object({
-    title: z.string().min(1, 'タイトルは必須です').max(200),
-    description: z.string().max(5000).nullable().optional(),
+    title: z.string().min(1, 'タイトルは必須です').max(100),
+    description: z.string().max(500).nullable().optional(),
     defaultLocation: z.string().max(200).nullable().optional(),
     defaultAddress: z.string().max(500).nullable().optional(),
-    defaultStartTime: z.string().regex(/^\d{2}:\d{2}$/, 'HH:mm形式で入力してください').nullable().optional(),
-    defaultEndTime: z.string().regex(/^\d{2}:\d{2}$/, 'HH:mm形式で入力してください').nullable().optional(),
+    defaultStartTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'HH:mm形式で入力してください').nullable().optional(),
+    defaultEndTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'HH:mm形式で入力してください').nullable().optional(),
     recurrenceRule: z.string().max(500).nullable().optional(),
     organizerUserId: z.string().uuid().nullable().optional(),
-    date: z.string().nullable().optional(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD形式で入力してください'),
     participationFee: z.number().int().min(0).max(100_000).optional(),
     visitorFee: z.number().int().min(0).max(100_000).nullable().optional(),
     isOnline: z.boolean().optional(),
@@ -28,12 +28,12 @@ export const createActivitySchema = z.object({
 
 /** PATCH /v1/activities/:id */
 export const updateActivitySchema = z.object({
-    title: z.string().min(1).max(200).optional(),
-    description: z.string().max(5000).nullable().optional(),
+    title: z.string().min(1).max(100).optional(),
+    description: z.string().max(500).nullable().optional(),
     defaultLocation: z.string().max(200).nullable().optional(),
     defaultAddress: z.string().max(500).nullable().optional(),
-    defaultStartTime: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
-    defaultEndTime: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+    defaultStartTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
+    defaultEndTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
     recurrenceRule: z.string().max(500).nullable().optional(),
     organizerUserId: z.string().uuid().nullable().optional(),
     defaultParticipationFee: z.number().int().min(0).max(100_000).nullable().optional(),
@@ -132,4 +132,11 @@ export const bulkUpdatePaymentsSchema = z.object({
 /** DELETE /v1/activities/:id (soft delete) */
 export const deleteActivitySchema = z.object({
     cancelFutureSchedules: z.boolean().optional(),
+})
+
+/** PATCH /v1/schedules/:id/cancel-or-delete */
+export const cancelOrDeleteScheduleSchema = z.object({
+    operation: z.enum(['cancel', 'delete']),
+    scope: z.enum(['single', 'all']),
+    notifyOption: z.enum(['announcement', 'push_only', 'none']).default('push_only'),
 })

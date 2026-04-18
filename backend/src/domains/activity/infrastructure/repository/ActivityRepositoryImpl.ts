@@ -22,6 +22,13 @@ export class ActivityRepositoryImpl implements IActivityRepository {
         return row ? this.toDomain(row) : null
     }
 
+    async findByIdIncludingDeleted(id: string): Promise<Activity | null> {
+        const row = await this.prisma.activity.findFirst({
+            where: { id },
+        })
+        return row ? this.toDomain(row) : null
+    }
+
     async findsByCommunityId(communityId: string): Promise<Activity[]> {
         const rows = await this.prisma.activity.findMany({
             where: { communityId, deletedAt: null },

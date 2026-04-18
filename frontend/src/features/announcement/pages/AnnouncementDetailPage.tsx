@@ -65,12 +65,30 @@ export function AnnouncementDetailPage() {
             {announcement.activityId && announcement.scheduleInfo && (
                 <div className="mt-3 flex items-center gap-1 text-sm">
                     <span className="text-gray-600">開催日時：</span>
-                    <Link
-                        to={`/communities/${announcement.communityId}/activities/${announcement.activityId}?schedule=${announcement.scheduleInfo.scheduleId}`}
-                        className="text-blue-600 hover:text-blue-700 hover:underline"
-                    >
-                        {announcement.scheduleInfo.date} {announcement.scheduleInfo.startTime}〜{announcement.scheduleInfo.endTime}
-                    </Link>
+                    {announcement.activityDeleted ? (
+                        <span className="text-gray-400 line-through">
+                            {announcement.scheduleInfo.date} {announcement.scheduleInfo.startTime}〜{announcement.scheduleInfo.endTime}
+                        </span>
+                    ) : (
+                        <Link
+                            to={`/communities/${announcement.communityId}/activities/${announcement.activityId}?schedule=${announcement.scheduleInfo.scheduleId}`}
+                            className="text-blue-600 hover:text-blue-700 hover:underline"
+                        >
+                            {announcement.scheduleInfo.date} {announcement.scheduleInfo.startTime}〜{announcement.scheduleInfo.endTime}
+                        </Link>
+                    )}
+                    {announcement.activityDeleted && (
+                        <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">削除済み</span>
+                    )}
+                    {!announcement.activityDeleted && announcement.scheduleInfo.scheduleStatus === 'CANCELLED' && (
+                        <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">中止</span>
+                    )}
+                </div>
+            )}
+            {/* activityIdはあるがscheduleInfoがない場合（全スケジュール削除済み等） */}
+            {announcement.activityId && !announcement.scheduleInfo && announcement.activityDeleted && (
+                <div className="mt-3 flex items-center gap-1 text-sm">
+                    <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">削除済みのアクティビティ</span>
                 </div>
             )}
 

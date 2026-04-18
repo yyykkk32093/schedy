@@ -14,13 +14,13 @@ export class ScheduleRepositoryImpl implements IScheduleRepository {
     constructor(private readonly prisma: PrismaClientLike) { }
 
     async findById(id: string): Promise<Schedule | null> {
-        const row = await this.prisma.schedule.findUnique({ where: { id } })
+        const row = await this.prisma.schedule.findFirst({ where: { id, deletedAt: null } })
         return row ? this.toDomain(row) : null
     }
 
     async findsByActivityId(activityId: string): Promise<Schedule[]> {
         const rows = await this.prisma.schedule.findMany({
-            where: { activityId },
+            where: { activityId, deletedAt: null },
             orderBy: { date: 'asc' },
         })
         return rows.map((r) => this.toDomain(r))
@@ -36,6 +36,7 @@ export class ScheduleRepositoryImpl implements IScheduleRepository {
             where: {
                 activityId: { in: activityIds },
                 date: { gte: today },
+                deletedAt: null,
             },
             orderBy: { date: 'asc' },
         })
@@ -58,6 +59,7 @@ export class ScheduleRepositoryImpl implements IScheduleRepository {
                 activity: { communityId, deletedAt: null },
                 date: { gte: today },
                 status: 'SCHEDULED',
+                deletedAt: null,
             },
             orderBy: { date: 'asc' },
         })
@@ -81,6 +83,7 @@ export class ScheduleRepositoryImpl implements IScheduleRepository {
                 visitorFee: schedule.getVisitorFee()?.amount ?? null,
                 isOnline: schedule.getIsOnline(),
                 meetingUrl: schedule.getMeetingUrl(),
+                deletedAt: schedule.getDeletedAt(),
             },
             update: {
                 date: schedule.getDate(),
@@ -94,6 +97,7 @@ export class ScheduleRepositoryImpl implements IScheduleRepository {
                 visitorFee: schedule.getVisitorFee()?.amount ?? null,
                 isOnline: schedule.getIsOnline(),
                 meetingUrl: schedule.getMeetingUrl(),
+                deletedAt: schedule.getDeletedAt(),
             },
         })
     }
@@ -141,6 +145,7 @@ export class ScheduleRepositoryImpl implements IScheduleRepository {
             visitorFee: row.visitorFee != null ? Fee.reconstruct(row.visitorFee) : null,
             isOnline: row.isOnline,
             meetingUrl: row.meetingUrl,
+            deletedAt: row.deletedAt,
         })
     }
 }

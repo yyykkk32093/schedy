@@ -24,7 +24,8 @@ export interface AnnouncementFeedItemDto {
     isLiked: boolean
     readCount: number
     attachments: Array<{ id: string; fileUrl: string; mimeType: string }>
-    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string } | null
+    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string; scheduleStatus: string } | null
+    activityDeleted: boolean
 }
 
 export interface GetAnnouncementFeedOutput {
@@ -105,6 +106,7 @@ export class GetAnnouncementFeedUseCase {
             readCount: readCounts.get(r.id) ?? 0,
             attachments: r.attachments,
             scheduleInfo: r.scheduleInfo,
+            activityDeleted: r.activityDeleted,
         }))
 
         const nextCursor = hasMore ? feedRows[feedRows.length - 1].id : null

@@ -23,7 +23,8 @@ export interface AnnouncementDetailDto {
     commentCount: number
     readCount: number
     attachments: Array<{ id: string; fileUrl: string; mimeType: string }>
-    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string } | null
+    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string; scheduleStatus: string } | null
+    activityDeleted: boolean
 }
 
 export class FindAnnouncementUseCase {
@@ -69,6 +70,7 @@ export class FindAnnouncementUseCase {
             readCount: readCounts.get(detail.id) ?? 0,
             attachments: detail.attachments,
             scheduleInfo: detail.scheduleInfo,
+            activityDeleted: detail.activityDeleted,
         }
     }
 }

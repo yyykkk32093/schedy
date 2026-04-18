@@ -1,7 +1,15 @@
 import { useAuth } from '@/app/providers/AuthProvider'
+import { activityApi } from '@/features/activity/api/activityApi'
+import { useActivities } from '@/features/activity/hooks/useActivityQueries'
 import { useMembers } from '@/features/community/hooks/useMemberQueries'
 import { Button } from '@/shared/components/ui/button'
 import { CharacterCounter } from '@/shared/components/ui/CharacterCounter'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/shared/components/ui/dialog'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import {
@@ -13,7 +21,7 @@ import {
 } from '@/shared/components/ui/select'
 import type { Member } from '@/shared/types/api'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, History } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -129,7 +137,7 @@ const activityFormSchema = z.object({
     description: z.string().max(500, '説明は500文字以内で入力してください'),
     defaultLocation: z.string(),
     defaultAddress: z.string(),
-    date: z.string(),
+    date: z.string().min(1, '開催日を入力してください'),
     defaultStartTime: z.string(),
     defaultEndTime: z.string(),
     organizerUserId: z.string(),
@@ -139,9 +147,15 @@ const activityFormSchema = z.object({
     participationFee: feeStringSchema,
     visitorFee: feeStringSchema,
     isOnline: z.boolean(),
-    meetingUrl: z.string(),
+    meetingUrl: z.string().refine(
+        (v) => v === '' || /^https?:\/\/.+/.test(v),
+        { message: '有効なURLを入力してください' },
+    ),
     hasCapacity: z.boolean(),
-    capacity: z.string(),
+    capacity: z.string().refine(
+        (v) => v === '' || (Number.isInteger(Number(v)) && Number(v) >= 1),
+        { message: '1以上の整数を入力してください' },
+    ),
     shouldPostAnnouncement: z.boolean(),
     // --- edit mode: Activity defaults ---
     defaultParticipationFee: feeStringSchema,
@@ -293,6 +307,42 @@ export function ActivityForm({
         return true // 初回は capacityOptions 未確定なので後で再判定
     })
 
+    // --- 履歴から入力 ---
+    const [showHistoryDialog, setShowHistoryDialog] = useState(false)
+    const [historyLoading, setHistoryLoading] = useState<string | null>(null)
+    const { data: activitiesData } = useActivities(communityId)
+    const pastActivities = useMemo(() => (activitiesData?.activities ?? []).slice(0, 10), [activitiesData])
+
+    const applyHistory = async (activityId: string) => {
+        setHistoryLoading(activityId)
+        try {
+            const detail = await activityApi.findById(activityId)
+            setValue('title', detail.title)
+            setValue('description', detail.description ?? '')
+            setValue('defaultLocation', detail.defaultLocation ?? '')
+            setValue('defaultAddress', detail.defaultAddress ?? '')
+            setValue('defaultStartTime', detail.defaultStartTime ?? '')
+            setValue('defaultEndTime', detail.defaultEndTime ?? '')
+            setValue('organizerUserId', detail.organizerUserId ?? user?.userId ?? '')
+            setValue('participationFee', detail.defaultParticipationFee != null ? String(detail.defaultParticipationFee) : '')
+            setValue('visitorFee', detail.defaultVisitorFee != null ? String(detail.defaultVisitorFee) : '')
+            if (detail.defaultCapacity != null) {
+                setValue('hasCapacity', true)
+                setValue('capacity', String(detail.defaultCapacity))
+                setIsCustomCapacity(true)
+            } else {
+                setValue('hasCapacity', false)
+                setValue('capacity', '')
+                setIsCustomCapacity(false)
+            }
+            setValue('allowVisitorWaitlist', detail.allowVisitorWaitlist)
+            setValue('repeat', rruleToRepeat(detail.recurrenceRule))
+            setShowHistoryDialog(false)
+        } finally {
+            setHistoryLoading(null)
+        }
+    }
+
     // Organizer 検索用のメンバー一覧
     const { data: membersData } = useMembers(communityId)
     const members = membersData?.members ?? []
@@ -366,6 +416,54 @@ export function ActivityForm({
 
     return (
         <form onSubmit={handleSubmit(onFormSubmit)} className="max-w-lg mx-auto px-4 py-6 space-y-5">
+            {/* 履歴から入力（作成モードのみ） */}
+            {!isEditMode && (
+                <div className="flex justify-end">
+                    <button
+                        type="button"
+                        onClick={() => setShowHistoryDialog(true)}
+                        className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                    >
+                        <History className="w-4 h-4" />
+                        履歴から入力
+                    </button>
+                </div>
+            )}
+
+            {/* 履歴選択ダイアログ */}
+            <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
+                <DialogContent className="max-w-sm max-h-[70vh] flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle>過去のアクティビティから入力</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-y-auto -mx-6 px-6">
+                        {pastActivities.length === 0 ? (
+                            <p className="py-8 text-sm text-muted-foreground text-center">履歴がありません</p>
+                        ) : (
+                            <ul className="divide-y">
+                                {pastActivities.map((a) => (
+                                    <li key={a.id}>
+                                        <button
+                                            type="button"
+                                            disabled={historyLoading != null}
+                                            onClick={() => applyHistory(a.id)}
+                                            className="w-full text-left px-1 py-3 hover:bg-muted/50 rounded transition-colors disabled:opacity-50"
+                                        >
+                                            <p className="text-sm font-medium truncate">{a.title}</p>
+                                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                                {a.defaultLocation ?? ''}
+                                                {a.defaultStartTime ? ` ${a.defaultStartTime}` : ''}
+                                                {a.defaultEndTime ? `〜${a.defaultEndTime}` : ''}
+                                            </p>
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             {/* アクティビティ名 */}
             <div className="space-y-1.5">
                 <Label htmlFor="activityName">アクティビティ名</Label>

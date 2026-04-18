@@ -2,6 +2,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/shared/components/ui/avat
 import { Badge } from '@/shared/components/ui/badge'
 import { SingleImagePreview } from '@/shared/components/ui/ImagePreviewModal'
 import type { CommunityDetail } from '@/shared/types/api'
+import { getDefaultCoverUrl } from '@/shared/utils/defaultCoverImage'
 import { ChevronDown, ChevronUp, Users } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
@@ -49,10 +50,14 @@ export function HeroSection({ community, coverOverlay }: HeroSectionProps) {
                     )}
                 </div>
             ) : (
-                <div className="relative w-full h-24 bg-gradient-to-r from-blue-400 to-blue-600">
-                    {/* カバー画像なしの場合もオーバーレイ配置 */}
+                <div className="relative w-full h-32 bg-gray-200 overflow-hidden">
+                    <img
+                        src={getDefaultCoverUrl(community.id)}
+                        alt="デフォルトカバー"
+                        className="w-full h-full object-cover"
+                    />
                     {coverOverlay && (
-                        <div className="absolute right-0 top-0 bottom-0 flex items-center pr-3 pl-2 bg-gradient-to-l from-black/10 to-transparent">
+                        <div className="absolute right-0 top-0 bottom-0 flex items-center pr-3 pl-2 bg-gradient-to-l from-black/30 via-black/15 to-transparent">
                             {coverOverlay}
                         </div>
                     )}

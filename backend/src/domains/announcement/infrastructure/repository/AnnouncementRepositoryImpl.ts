@@ -19,30 +19,42 @@ export class AnnouncementRepositoryImpl implements IAnnouncementRepository {
      */
     private async resolveScheduleInfos(
         activityIds: string[],
-    ): Promise<Map<string, { scheduleId: string; date: string; startTime: string; endTime: string }>> {
+    ): Promise<Map<string, { scheduleId: string; date: string; startTime: string; endTime: string; scheduleStatus: string }>> {
         if (activityIds.length === 0) return new Map()
         const schedules = await this.prisma.schedule.findMany({
-            where: { activityId: { in: activityIds }, status: 'SCHEDULED' },
+            where: { activityId: { in: activityIds }, deletedAt: null },
             orderBy: { date: 'asc' },
-            select: { id: true, activityId: true, date: true, startTime: true, endTime: true },
+            select: { id: true, activityId: true, date: true, startTime: true, endTime: true, status: true },
         })
         // 各 activityId に対して最も近い将来 or 最新の過去スケジュールを選択
-        const result = new Map<string, { scheduleId: string; date: string; startTime: string; endTime: string }>()
+        const result = new Map<string, { scheduleId: string; date: string; startTime: string; endTime: string; scheduleStatus: string }>()
         const now = new Date()
         for (const s of schedules) {
             const existing = result.get(s.activityId)
             const sDate = new Date(s.date)
             if (!existing) {
-                result.set(s.activityId, { scheduleId: s.id, date: s.date.toISOString().split('T')[0], startTime: s.startTime, endTime: s.endTime })
+                result.set(s.activityId, { scheduleId: s.id, date: s.date.toISOString().split('T')[0], startTime: s.startTime, endTime: s.endTime, scheduleStatus: s.status })
             } else {
                 // 将来の日付で最も近いもの優先、なければ最新の過去
                 const existingDate = new Date(existing.date)
                 if (sDate >= now && (existingDate < now || sDate < existingDate)) {
-                    result.set(s.activityId, { scheduleId: s.id, date: s.date.toISOString().split('T')[0], startTime: s.startTime, endTime: s.endTime })
+                    result.set(s.activityId, { scheduleId: s.id, date: s.date.toISOString().split('T')[0], startTime: s.startTime, endTime: s.endTime, scheduleStatus: s.status })
                 }
             }
         }
         return result
+    }
+
+    /**
+     * activityId のうち削除済み（deletedAt != null）のものを Set で返す
+     */
+    private async resolveDeletedActivityIds(activityIds: string[]): Promise<Set<string>> {
+        if (activityIds.length === 0) return new Set()
+        const deletedActivities = await this.prisma.activity.findMany({
+            where: { id: { in: activityIds }, deletedAt: { not: null } },
+            select: { id: true },
+        })
+        return new Set(deletedActivities.map((a) => a.id))
     }
 
     async findById(id: string): Promise<Announcement | null> {
@@ -74,6 +86,7 @@ export class AnnouncementRepositoryImpl implements IAnnouncementRepository {
         })
 
         const scheduleMap = row.activityId ? await this.resolveScheduleInfos([row.activityId]) : new Map()
+        const deletedSet = row.activityId ? await this.resolveDeletedActivityIds([row.activityId]) : new Set<string>()
         return {
             id: row.id,
             communityId: row.communityId,
@@ -91,12 +104,21 @@ export class AnnouncementRepositoryImpl implements IAnnouncementRepository {
                 mimeType: a.mimeType,
             })),
             scheduleInfo: row.activityId ? (scheduleMap.get(row.activityId) ?? null) : null,
+            activityDeleted: row.activityId ? deletedSet.has(row.activityId) : false,
         }
     }
 
     async findsByCommunityId(communityId: string): Promise<Announcement[]> {
         const rows = await this.prisma.announcement.findMany({
             where: { communityId, deletedAt: null },
+            orderBy: { createdAt: 'desc' },
+        })
+        return rows.map((r) => this.toDomain(r))
+    }
+
+    async findsByActivityId(activityId: string): Promise<Announcement[]> {
+        const rows = await this.prisma.announcement.findMany({
+            where: { activityId, deletedAt: null },
             orderBy: { createdAt: 'desc' },
         })
         return rows.map((r) => this.toDomain(r))
@@ -183,6 +205,7 @@ export class AnnouncementRepositoryImpl implements IAnnouncementRepository {
         // スケジュール情報を一括取得
         const activityIds = [...new Set(rows.filter((r) => r.activityId).map((r) => r.activityId!))]
         const scheduleMap = await this.resolveScheduleInfos(activityIds)
+        const deletedSet = await this.resolveDeletedActivityIds(activityIds)
 
         return rows.map((r) => {
             const author = userMap.get(r.authorId)
@@ -204,6 +227,7 @@ export class AnnouncementRepositoryImpl implements IAnnouncementRepository {
                     mimeType: a.mimeType,
                 })),
                 scheduleInfo: r.activityId ? (scheduleMap.get(r.activityId) ?? null) : null,
+                activityDeleted: r.activityId ? deletedSet.has(r.activityId) : false,
             }
         })
     }
@@ -244,6 +268,7 @@ export class AnnouncementRepositoryImpl implements IAnnouncementRepository {
         // スケジュール情報を一括取得
         const activityIds = [...new Set(rows.filter((r) => r.activityId).map((r) => r.activityId!))]
         const scheduleMap = await this.resolveScheduleInfos(activityIds)
+        const deletedSet = await this.resolveDeletedActivityIds(activityIds)
 
         return rows.map((r) => {
             const author = userMap.get(r.authorId)
@@ -265,6 +290,7 @@ export class AnnouncementRepositoryImpl implements IAnnouncementRepository {
                     mimeType: a.mimeType,
                 })),
                 scheduleInfo: r.activityId ? (scheduleMap.get(r.activityId) ?? null) : null,
+                activityDeleted: r.activityId ? deletedSet.has(r.activityId) : false,
             }
         })
     }

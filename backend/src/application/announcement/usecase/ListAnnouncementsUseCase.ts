@@ -23,7 +23,8 @@ export interface CommunityAnnouncementItemDto {
     isLiked: boolean
     readCount: number
     attachments: Array<{ id: string; fileUrl: string; mimeType: string }>
-    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string } | null
+    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string; scheduleStatus: string } | null
+    activityDeleted: boolean
 }
 
 export class ListAnnouncementsUseCase {
@@ -85,6 +86,7 @@ export class ListAnnouncementsUseCase {
                 readCount: readCounts.get(r.id) ?? 0,
                 attachments: r.attachments,
                 scheduleInfo: r.scheduleInfo,
+                activityDeleted: r.activityDeleted,
             })),
         }
     }

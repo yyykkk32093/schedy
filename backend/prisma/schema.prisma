@@ -99,19 +99,20 @@ model Activity {
 }
 
 model Schedule {
-  id               String   @id @default(uuid())
+  id               String    @id @default(uuid())
   activityId       String
-  date             DateTime @db.Date
+  date             DateTime  @db.Date
   startTime        String // "HH:mm" format
   endTime          String // "HH:mm" format
   location         String?
   note             String?
-  status           String   @default("SCHEDULED") // SCHEDULED | CANCELLED
+  status           String    @default("SCHEDULED") // SCHEDULED | CANCELLED
   capacity         Int?
-  participationFee Int      @default(0) // 参加費（円）。0 = 無料
+  participationFee Int       @default(0) // 参加費（円）。0 = 無料
   visitorFee       Int? // ビジター参加費（null = 通常参加費と同額）
-  isOnline         Boolean  @default(false)
+  isOnline         Boolean   @default(false)
   meetingUrl       String? // オンライン時の会議URL
+  deletedAt        DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -112,6 +112,7 @@ import { DeleteWebhookConfigUseCase } from '@/application/webhook/usecase/Delete
 import { GetWebhookConfigsUseCase } from '@/application/webhook/usecase/GetWebhookConfigsUseCase.js'
 import { UpsertWebhookConfigUseCase } from '@/application/webhook/usecase/UpsertWebhookConfigUseCase.js'
 
+import { CancelOrDeleteScheduleTxRepositories, CancelOrDeleteScheduleUseCase } from '@/application/schedule/usecase/CancelOrDeleteScheduleUseCase.js'
 import { CancelScheduleTxRepositories, CancelScheduleUseCase } from '@/application/schedule/usecase/CancelScheduleUseCase.js'
 import { CreateScheduleTxRepositories, CreateScheduleUseCase } from '@/application/schedule/usecase/CreateScheduleUseCase.js'
 import { FindScheduleUseCase } from '@/application/schedule/usecase/FindScheduleUseCase.js'
@@ -516,6 +517,20 @@ export const usecaseFactory = {
         }))
         const notificationService = new NotificationService(RealtimeEmitterBootstrap.getEmitter())
         return new CancelScheduleUseCase(unitOfWork, notificationService)
+    },
+
+    createCancelOrDeleteScheduleUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<CancelOrDeleteScheduleTxRepositories>((tx) => ({
+            schedule: new ScheduleRepositoryImpl(tx),
+            activity: new ActivityRepositoryImpl(tx),
+            membership: new CommunityMembershipRepositoryImpl(tx),
+            participation: new ParticipationRepositoryImpl(tx),
+            notification: new NotificationRepositoryImpl(tx),
+            outbox: new OutboxRepository(tx),
+            announcement: new AnnouncementRepositoryImpl(tx),
+        }))
+        const notificationService = new NotificationService(RealtimeEmitterBootstrap.getEmitter())
+        return new CancelOrDeleteScheduleUseCase(unitOfWork, notificationService, new UuidGenerator())
     },
 
     // ---- Participation + Waitlist ----

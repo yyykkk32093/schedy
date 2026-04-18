@@ -13,7 +13,8 @@ export interface AnnouncementDetailRow {
     content: string
     createdAt: Date
     attachments: Array<{ id: string; fileUrl: string; mimeType: string }>
-    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string } | null
+    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string; scheduleStatus: string } | null
+    activityDeleted: boolean
 }
 
 /** フィード取得用の生データ行（Prisma JOIN結果をそのまま返す） */
@@ -30,13 +31,15 @@ export interface AnnouncementFeedRow {
     communityName: string
     communityLogoUrl: string | null
     attachments: Array<{ id: string; fileUrl: string; mimeType: string }>
-    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string } | null
+    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string; scheduleStatus: string } | null
+    activityDeleted: boolean
 }
 
 export interface IAnnouncementRepository {
     findById(id: string): Promise<Announcement | null>
     findDetailById(id: string): Promise<AnnouncementDetailRow | null>
     findsByCommunityId(communityId: string): Promise<Announcement[]>
+    findsByActivityId(activityId: string): Promise<Announcement[]>
     save(
         announcement: Announcement,
         attachments?: Array<{ fileUrl: string; fileName: string; mimeType: string; fileSize: number }>,

@@ -29,14 +29,22 @@ export class FindActivityUseCase {
         organizerDisplayName: string | null
         createdBy: string
         createdByDisplayName: string | null
+        deleted: boolean
         communityPaymentSettings: {
             enabledPaymentMethods: string[]
             paypayId: string | null
             stripeAccountId: string | null
         }
     }> {
-        const activity = await this.activityRepository.findById(input.activityId)
+        let activity = await this.activityRepository.findById(input.activityId)
+
+        // 通常検索で見つからない場合、削除済みも含めて検索
+        if (!activity) {
+            activity = await this.activityRepository.findByIdIncludingDeleted(input.activityId)
+        }
         if (!activity) throw new ActivityNotFoundError()
+
+        const deleted = activity.isDeleted()
 
         const createdByUserId = activity.getCreatedBy().getValue()
         const user = await this.userRepository.findById(createdByUserId)
@@ -77,6 +85,7 @@ export class FindActivityUseCase {
             organizerDisplayName,
             createdBy: createdByUserId,
             createdByDisplayName: user?.getDisplayName()?.getValue() ?? null,
+            deleted,
             communityPaymentSettings: {
                 enabledPaymentMethods: community?.getEnabledPaymentMethods() ?? ['CASH'],
                 paypayId: community?.getPayPayId() ?? null,

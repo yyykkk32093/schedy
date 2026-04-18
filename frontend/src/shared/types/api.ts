@@ -427,6 +427,7 @@ export interface ActivityDetail extends ActivityListItem {
     allowVisitorWaitlist: boolean
     recurrenceRule: string | null
     organizerDisplayName: string | null
+    deleted: boolean
     communityPaymentSettings: {
         enabledPaymentMethods: string[]
         paypayId: string | null
@@ -688,7 +689,8 @@ export interface AnnouncementListItem {
     isLiked: boolean
     readCount: number
     attachments: Array<{ id: string; fileUrl: string; mimeType: string }>
-    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string } | null
+    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string; scheduleStatus: string } | null
+    activityDeleted: boolean
 }
 
 export interface AnnouncementDetail {
@@ -709,7 +711,8 @@ export interface AnnouncementDetail {
     commentCount: number
     readCount: number
     attachments: Array<{ id: string; fileUrl: string; mimeType: string }>
-    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string } | null
+    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string; scheduleStatus: string } | null
+    activityDeleted: boolean
 }
 
 export interface AnnouncementFeedItem {
@@ -731,7 +734,8 @@ export interface AnnouncementFeedItem {
     isLiked: boolean
     readCount: number
     attachments: Array<{ id: string; fileUrl: string; mimeType: string }>
-    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string } | null
+    scheduleInfo: { scheduleId: string; date: string; startTime: string; endTime: string; scheduleStatus: string } | null
+    activityDeleted: boolean
 }
 
 export interface AnnouncementFeedResponse {

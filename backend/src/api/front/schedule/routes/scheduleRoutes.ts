@@ -1,6 +1,6 @@
 import { authMiddleware } from '@/api/middleware/authMiddleware.js'
 import { validateBody } from '@/api/middleware/validateBody.js'
-import { createScheduleSchema, updateScheduleSchema } from '@/api/schemas/index.js'
+import { cancelOrDeleteScheduleSchema, createScheduleSchema, updateScheduleSchema } from '@/api/schemas/index.js'
 import { Router } from 'express'
 import { scheduleController } from '../controllers/scheduleController.js'
 
@@ -14,5 +14,6 @@ router.get('/v1/activities/:activityId/schedules', authMiddleware, scheduleContr
 router.get('/v1/schedules/:id', authMiddleware, scheduleController.findById)
 router.patch('/v1/schedules/:id', authMiddleware, validateBody(updateScheduleSchema), scheduleController.update)
 router.patch('/v1/schedules/:id/cancel', authMiddleware, scheduleController.cancel)
+router.patch('/v1/schedules/:id/cancel-or-delete', authMiddleware, validateBody(cancelOrDeleteScheduleSchema), scheduleController.cancelOrDelete)
 
 export default router

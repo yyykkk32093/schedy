@@ -98,4 +98,25 @@ export const scheduleController = {
             next(err)
         }
     },
+
+    async cancelOrDelete(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { id } = req.params
+            const userId = req.user!.userId
+            const { operation, scope, notifyOption } = req.body
+
+            const useCase = usecaseFactory.createCancelOrDeleteScheduleUseCase()
+            const result = await useCase.execute({
+                scheduleId: id,
+                userId,
+                operation,
+                scope,
+                notifyOption: notifyOption ?? 'push_only',
+            })
+
+            res.status(200).json({ activityDeleted: result.activityDeleted })
+        } catch (err) {
+            next(err)
+        }
+    },
 }

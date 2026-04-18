@@ -20,6 +20,8 @@ interface ScheduleCardProps {
 export function ScheduleCard({ schedule, timeOnly, onRemove }: ScheduleCardProps) {
     const navigate = useNavigate()
 
+    const isCancelled = schedule.status === 'CANCELLED'
+
     // C-19: 過去スケジュール判定
     const isExpired = (() => {
         if (!schedule.date || !schedule.endTime) return false
@@ -34,14 +36,19 @@ export function ScheduleCard({ schedule, timeOnly, onRemove }: ScheduleCardProps
     return (
         <button
             onClick={() => navigate(`/communities/${schedule.communityId}/activities/${schedule.activityId}?schedule=${schedule.scheduleId}`)}
-            className="w-full text-left p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors"
+            className={`w-full text-left p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${isCancelled ? 'opacity-60' : ''}`}
         >
             <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                        <p className="text-xs text-blue-600 font-medium truncate">
+                        <p className={`text-xs font-medium truncate ${isCancelled ? 'text-gray-400 line-through' : 'text-blue-600'}`}>
                             {title}
                         </p>
+                        {isCancelled && (
+                            <span className="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-600 shrink-0">
+                                中止
+                            </span>
+                        )}
                         {schedule.isOnline && (
                             <span className="inline-flex items-center gap-0.5 rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700 shrink-0">
                                 <Globe className="w-2.5 h-2.5" />
@@ -93,7 +100,7 @@ export function ScheduleCard({ schedule, timeOnly, onRemove }: ScheduleCardProps
                         )}
                     </div>
                 </div>
-                {onRemove && (
+                {onRemove && !isCancelled && (
                     <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onRemove(schedule.scheduleId) }}

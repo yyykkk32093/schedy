@@ -1,5 +1,5 @@
 import { useAuth } from '@/app/providers/AuthProvider'
-import { useActivity, useChangeOrganizer, useDeleteActivity, type NotifyOption } from '@/features/activity/hooks/useActivityQueries'
+import { useActivity, useChangeOrganizer, type NotifyOption } from '@/features/activity/hooks/useActivityQueries'
 import { chatApi } from '@/features/chat/api/chatApi'
 import { useMyRole } from '@/features/community/hooks/useCommunityQueries'
 import { useMembers } from '@/features/community/hooks/useMemberQueries'
@@ -7,7 +7,7 @@ import { BulkConfirmDialog } from '@/features/participation/components/BulkConfi
 import { ParticipationActionButton } from '@/features/participation/components/ParticipationActionButton'
 import { RefundPendingSection } from '@/features/participation/components/RefundPendingSection'
 import { useAddVisitor, useBulkUpdatePayment, useConfirmPayment, useParticipants, useRemoveParticipation, useUpdateVisitorPayment, useVisitorNameSuggestions, useWaitlistEntries } from '@/features/participation/hooks/useParticipationQueries'
-import { useSchedule, useSchedules } from '@/features/schedule/hooks/useScheduleQueries'
+import { useCancelOrDeleteSchedule, useSchedule, useSchedules } from '@/features/schedule/hooks/useScheduleQueries'
 import { useSetHeaderActions } from '@/shared/components/HeaderActionsContext'
 import {
     Dialog,
@@ -40,15 +40,17 @@ export function ActivityDetailPage() {
     const [searchParams, setSearchParams] = useSearchParams()
     const scheduleIdParam = searchParams.get('schedule')
     const { data: activity, isLoading } = useActivity(id!)
-    const deleteMutation = useDeleteActivity(activity?.communityId ?? '')
-    const deleteMutationRef = useRef(deleteMutation)
-    deleteMutationRef.current = deleteMutation
     const { data: schedulesData, isLoading: isSchedulesLoading, isError: isSchedulesError, error: schedulesError, refetch: refetchSchedules } = useSchedules(id!)
     const schedules = schedulesData?.schedules ?? []
     const { role: currentUserRole, isAdminOrAbove } = useMyRole(activity?.communityId ?? '')
+    const cancelOrDeleteMutation = useCancelOrDeleteSchedule(id!, activity?.communityId ?? '')
+    const cancelOrDeleteRef = useRef(cancelOrDeleteMutation)
+    cancelOrDeleteRef.current = cancelOrDeleteMutation
     const [showOrganizerDialog, setShowOrganizerDialog] = useState(false)
-    const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-    const [deleteNotifyOption, setDeleteNotifyOption] = useState<NotifyOption>('push_only')
+    const [showActionDialog, setShowActionDialog] = useState(false)
+    const [dialogOperation, setDialogOperation] = useState<'cancel' | 'delete'>('cancel')
+    const [dialogScope, setDialogScope] = useState<'single' | 'all'>('single')
+    const [dialogNotifyOption, setDialogNotifyOption] = useState<NotifyOption>('push_only')
 
     // 表示対象のスケジュールを決定（param があれば優先、なければ先頭にフォールバック）
     const activeSchedule = useMemo(() => {
@@ -76,10 +78,12 @@ export function ActivityDetailPage() {
         })
     }, [schedules])
 
-    // ヘッダーに編集・削除アイコンを設定（C-16: 過去禁止 + C-17: 権限チェック）
+    // ヘッダーに編集・削除アイコンを設定（C-16: 過去禁止 + C-17: 権限チェック + キャンセル済み/削除済み禁止）
+    const isActiveScheduleCancelled = activeSchedule?.status === 'CANCELLED'
+    const isScheduleUnavailable = !activeSchedule
     const headerActions = useMemo(
         () =>
-            activity && isAdminOrAbove && !isPastActivity ? (
+            activity && isAdminOrAbove && !isPastActivity && !isActiveScheduleCancelled && !isScheduleUnavailable ? (
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => navigate(`/communities/${communityId}/activities/${id}/edit`)}
@@ -89,17 +93,20 @@ export function ActivityDetailPage() {
                         <Edit className="w-5 h-5 text-gray-600" />
                     </button>
                     <button
-                        onClick={async () => {
-                            setShowDeleteDialog(true)
+                        onClick={() => {
+                            setDialogOperation('cancel')
+                            setDialogScope('single')
+                            setDialogNotifyOption('push_only')
+                            setShowActionDialog(true)
                         }}
                         className="p-1.5 hover:bg-gray-100 rounded-md"
-                        aria-label="削除"
+                        aria-label="キャンセル・削除"
                     >
                         <Trash2 className="w-5 h-5 text-gray-600" />
                     </button>
                 </div>
             ) : null,
-        [activity, id, navigate, isAdminOrAbove, isPastActivity]
+        [activity, id, navigate, isAdminOrAbove, isPastActivity, isActiveScheduleCancelled, isScheduleUnavailable]
     )
     useSetHeaderActions(headerActions)
 
@@ -119,10 +126,32 @@ export function ActivityDetailPage() {
         )
     }
 
+    if (activity.deleted) {
+        return (
+            <div className="max-w-lg mx-auto px-4 py-20 text-center space-y-3">
+                <Trash2 className="w-10 h-10 text-gray-300 mx-auto" />
+                <h1 className="text-lg font-semibold text-gray-700">このアクティビティは削除されました</h1>
+                <p className="text-sm text-gray-500">「{activity.title}」は削除済みです。</p>
+                <button
+                    type="button"
+                    onClick={() => navigate(-1)}
+                    className="text-sm text-blue-600 hover:underline"
+                >
+                    戻る
+                </button>
+            </div>
+        )
+    }
+
     return (
         <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
             {/* ── アクティビティ名 ── */}
-            <h1 className="text-xl font-bold text-gray-900">{activity.title}</h1>
+            <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-gray-900">{activity.title}</h1>
+                {activeSchedule?.status === 'CANCELLED' && (
+                    <span className="text-xs text-red-500 font-medium bg-red-50 px-2 py-0.5 rounded shrink-0">中止</span>
+                )}
+            </div>
 
             {/* ── アクティビティ概要 ── */}
             {activity.description && (
@@ -281,7 +310,7 @@ export function ActivityDetailPage() {
                         </button>
                     </div>
                 ) : !activeSchedule ? (
-                    <p className="text-sm text-gray-400 text-center py-4">スケジュールが見つかりません</p>
+                    <p className="text-sm text-gray-400 text-center py-4">削除済みのスケジュールです。</p>
                 ) : (
                     <ScheduleSection
                         schedule={activeSchedule}
@@ -304,29 +333,27 @@ export function ActivityDetailPage() {
                 />
             )}
 
-            {/* ── 削除確認ダイアログ ── */}
-            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            {/* ── キャンセル・削除ダイアログ ── */}
+            <Dialog open={showActionDialog} onOpenChange={setShowActionDialog}>
                 <DialogContent className="max-w-sm">
                     <DialogHeader>
-                        <DialogTitle>アクティビティを削除</DialogTitle>
+                        <DialogTitle>スケジュールの操作</DialogTitle>
                     </DialogHeader>
-                    <p className="text-sm text-gray-600">
-                        「{activity?.title}」を削除しますか？この操作は取り消せません。
-                    </p>
-                    <div className="space-y-2 py-2">
-                        <p className="text-xs font-medium text-gray-500">参加者への通知</p>
+
+                    {/* ① 操作の選択 */}
+                    <div className="space-y-2">
+                        <p className="text-xs font-medium text-gray-500">操作</p>
                         {([
-                            { value: 'announcement' as NotifyOption, label: 'お知らせとして投稿する', desc: 'お知らせ一覧に表示 + プッシュ通知' },
-                            { value: 'push_only' as NotifyOption, label: 'プッシュ通知のみ', desc: 'プッシュ通知のみ送信' },
-                            { value: 'none' as NotifyOption, label: '通知なし', desc: '通知せずに削除' },
+                            { value: 'cancel' as const, label: 'キャンセルする', desc: 'スケジュールを「中止」にする（履歴は残ります）' },
+                            { value: 'delete' as const, label: '削除する', desc: 'スケジュールを完全に削除する' },
                         ]).map(({ value, label, desc }) => (
                             <label key={value} className="flex items-start gap-2 cursor-pointer">
                                 <input
                                     type="radio"
-                                    name="deleteNotify"
+                                    name="dialogOperation"
                                     value={value}
-                                    checked={deleteNotifyOption === value}
-                                    onChange={() => setDeleteNotifyOption(value)}
+                                    checked={dialogOperation === value}
+                                    onChange={() => setDialogOperation(value)}
                                     className="mt-0.5"
                                 />
                                 <div>
@@ -336,28 +363,91 @@ export function ActivityDetailPage() {
                             </label>
                         ))}
                     </div>
+
+                    {/* ② 対象範囲（recurrenceRule がある場合のみ） */}
+                    {activity?.recurrenceRule && (
+                        <div className="space-y-2">
+                            <p className="text-xs font-medium text-gray-500">対象</p>
+                            {([
+                                { value: 'single' as const, label: 'この回のみ', desc: '表示中のスケジュールだけに適用' },
+                                { value: 'all' as const, label: 'すべての回', desc: 'このアクティビティの全スケジュールに適用' },
+                            ]).map(({ value, label, desc }) => (
+                                <label key={value} className="flex items-start gap-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="dialogScope"
+                                        value={value}
+                                        checked={dialogScope === value}
+                                        onChange={() => setDialogScope(value)}
+                                        className="mt-0.5"
+                                    />
+                                    <div>
+                                        <span className="text-sm text-gray-700">{label}</span>
+                                        <p className="text-xs text-gray-400">{desc}</p>
+                                    </div>
+                                </label>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* ③ 通知オプション */}
+                    <div className="space-y-2">
+                        <p className="text-xs font-medium text-gray-500">参加者への通知</p>
+                        {([
+                            { value: 'announcement' as NotifyOption, label: 'お知らせとして投稿する', desc: 'お知らせ一覧に表示 + プッシュ通知' },
+                            { value: 'push_only' as NotifyOption, label: 'プッシュ通知のみ', desc: 'プッシュ通知のみ送信' },
+                            { value: 'none' as NotifyOption, label: '通知なし', desc: '通知せずに実行' },
+                        ]).map(({ value, label, desc }) => (
+                            <label key={value} className="flex items-start gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="dialogNotify"
+                                    value={value}
+                                    checked={dialogNotifyOption === value}
+                                    onChange={() => setDialogNotifyOption(value)}
+                                    className="mt-0.5"
+                                />
+                                <div>
+                                    <span className="text-sm text-gray-700">{label}</span>
+                                    <p className="text-xs text-gray-400">{desc}</p>
+                                </div>
+                            </label>
+                        ))}
+                    </div>
+
                     <div className="flex justify-end gap-2 pt-1">
                         <button
                             type="button"
-                            onClick={() => setShowDeleteDialog(false)}
+                            onClick={() => setShowActionDialog(false)}
                             className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-md"
                         >
-                            キャンセル
+                            戻る
                         </button>
                         <button
                             type="button"
                             onClick={async () => {
-                                await deleteMutationRef.current.mutateAsync({
-                                    activityId: id!,
-                                    notifyOption: deleteNotifyOption,
+                                if (!activeSchedule) return
+                                const result = await cancelOrDeleteRef.current.mutateAsync({
+                                    scheduleId: activeSchedule.id,
+                                    operation: dialogOperation,
+                                    scope: activity?.recurrenceRule ? dialogScope : 'single',
+                                    notifyOption: dialogNotifyOption,
                                 })
-                                setShowDeleteDialog(false)
-                                navigate(-1)
+                                setShowActionDialog(false)
+                                // Activityが削除された場合は前の画面に戻る
+                                if (result.activityDeleted) {
+                                    navigate(-1)
+                                }
                             }}
-                            disabled={deleteMutation.isPending}
-                            className="px-3 py-1.5 text-sm text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50"
+                            disabled={cancelOrDeleteMutation.isPending}
+                            className={`px-3 py-1.5 text-sm text-white rounded-md disabled:opacity-50 ${dialogOperation === 'delete'
+                                ? 'bg-red-600 hover:bg-red-700'
+                                : 'bg-orange-500 hover:bg-orange-600'
+                                }`}
                         >
-                            {deleteMutation.isPending ? '削除中...' : '削除する'}
+                            {cancelOrDeleteMutation.isPending
+                                ? '処理中...'
+                                : dialogOperation === 'delete' ? '削除する' : 'キャンセルする'}
                         </button>
                     </div>
                 </DialogContent>
@@ -437,11 +527,6 @@ function ScheduleSection({ schedule, communityId, enabledPaymentMethods, paypayI
 
     return (
         <div className="border rounded-lg p-4 space-y-3">
-            {isCancelled && (
-                <div className="flex items-center">
-                    <span className="text-xs text-red-500 font-normal bg-red-50 px-1.5 py-0.5 rounded">キャンセル済</span>
-                </div>
-            )}
 
             {/* C-18: オンライン時に会議URL表示 */}
             {schedule.isOnline && schedule.meetingUrl && (

@@ -22,4 +22,11 @@ export const scheduleApi = {
 
     cancel: (id: string) =>
         http<void>(`/v1/schedules/${id}/cancel`, { method: 'PATCH' }),
+
+    cancelOrDelete: (id: string, data: {
+        operation: 'cancel' | 'delete'
+        scope: 'single' | 'all'
+        notifyOption: 'announcement' | 'push_only' | 'none'
+    }) =>
+        http<{ activityDeleted: boolean }>(`/v1/schedules/${id}/cancel-or-delete`, { method: 'PATCH', json: data }),
 }

@@ -1,5 +1,5 @@
 import { scheduleApi } from '@/features/schedule/api/scheduleApi'
-import { scheduleKeys, scheduleListKeys } from '@/shared/lib/queryKeys'
+import { activityKeys, activityListKeys, scheduleKeys, scheduleListKeys } from '@/shared/lib/queryKeys'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 export function useSchedules(activityId: string) {
@@ -45,5 +45,28 @@ export function useCancelSchedule(activityId: string) {
     return useMutation({
         mutationFn: scheduleApi.cancel,
         onSuccess: () => qc.invalidateQueries({ queryKey: scheduleListKeys.byActivity(activityId) }),
+    })
+}
+
+export function useCancelOrDeleteSchedule(activityId: string, communityId: string) {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: (input: {
+            scheduleId: string
+            operation: 'cancel' | 'delete'
+            scope: 'single' | 'all'
+            notifyOption: 'announcement' | 'push_only' | 'none'
+        }) => {
+            const { scheduleId, ...data } = input
+            return scheduleApi.cancelOrDelete(scheduleId, data)
+        },
+        onSuccess: (data, variables) => {
+            qc.invalidateQueries({ queryKey: scheduleListKeys.byActivity(activityId) })
+            // Activity自体も論理削除された場合
+            if (data.activityDeleted) {
+                qc.invalidateQueries({ queryKey: activityKeys.detail(activityId) })
+                qc.invalidateQueries({ queryKey: activityListKeys.byCommunity(communityId) })
+            }
+        },
     })
 }
