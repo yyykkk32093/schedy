@@ -38,8 +38,8 @@ async function main(): Promise<void> {
     const prisma = new PrismaClient()
     try {
         // 全件数とカテゴリ分布
-        const total = await prisma.place.count({ where: { isActive: true } })
-        const byCategory = await prisma.place.groupBy({
+        const total = await prisma.placeMaster.count({ where: { isActive: true } })
+        const byCategory = await prisma.placeMaster.groupBy({
             by: ['category'],
             where: { isActive: true },
             _count: { _all: true },
@@ -54,17 +54,17 @@ async function main(): Promise<void> {
 
         // 文化センター系の名前を含むレコード件数
         const cultureCount = await prisma.$queryRawUnsafe<{ count: bigint }[]>(
-            `SELECT COUNT(*)::bigint AS count FROM "Place" WHERE "isActive"=true AND "name" LIKE '%文化センター%'`,
+            `SELECT COUNT(*)::bigint AS count FROM master.place_masters WHERE "is_active"=true AND "name" LIKE '%文化センター%'`,
         )
         console.log(`\n名前に「文化センター」を含む件数: ${cultureCount[0].count}`)
 
         const communityCount = await prisma.$queryRawUnsafe<{ count: bigint }[]>(
-            `SELECT COUNT(*)::bigint AS count FROM "Place" WHERE "isActive"=true AND "name" LIKE '%コミュニティセンター%'`,
+            `SELECT COUNT(*)::bigint AS count FROM master.place_masters WHERE "is_active"=true AND "name" LIKE '%コミュニティセンター%'`,
         )
         console.log(`名前に「コミュニティセンター」を含む件数: ${communityCount[0].count}`)
 
         const kokubunjiCount = await prisma.$queryRawUnsafe<{ count: bigint }[]>(
-            `SELECT COUNT(*)::bigint AS count FROM "Place" WHERE "isActive"=true AND "name" LIKE '%国分寺%'`,
+            `SELECT COUNT(*)::bigint AS count FROM master.place_masters WHERE "is_active"=true AND "name" LIKE '%国分寺%'`,
         )
         console.log(`名前に「国分寺」を含む件数: ${kokubunjiCount[0].count}`)
 
@@ -75,21 +75,21 @@ async function main(): Promise<void> {
 
             // 既存検索SQL再現
             const sql = `
-                SELECT "id", "name", "address", "normalizedName", "category", "usageCount",
-                       similarity("normalizedName", $1) AS sim,
-                       ("normalizedName" LIKE $2) AS "prefixMatch",
-                       ("normalizedName" LIKE $3) AS "containsMatch",
+                SELECT "id", "name", "address", "normalized_name" AS "normalizedName", "category", "usage_count" AS "usageCount",
+                       similarity("normalized_name", $1) AS sim,
+                       ("normalized_name" LIKE $2) AS "prefixMatch",
+                       ("normalized_name" LIKE $3) AS "containsMatch",
                        (
-                           similarity("normalizedName", $1) * 0.7
-                           + CASE WHEN "normalizedName" LIKE $2 THEN 0.3 ELSE 0 END
-                           + (LOG(10, 1 + "usageCount"::numeric)) * 0.1
+                           similarity("normalized_name", $1) * 0.7
+                           + CASE WHEN "normalized_name" LIKE $2 THEN 0.3 ELSE 0 END
+                           + (LOG(10, 1 + "usage_count"::numeric)) * 0.1
                        ) AS "score"
-                FROM "Place"
-                WHERE "isActive" = TRUE
+                FROM master.place_masters
+                WHERE "is_active" = TRUE
                   AND (
-                        "normalizedName" LIKE $2
-                     OR "normalizedName" LIKE $3
-                     OR similarity("normalizedName", $1) > 0.1
+                        "normalized_name" LIKE $2
+                     OR "normalized_name" LIKE $3
+                     OR similarity("normalized_name", $1) > 0.1
                   )
                 ORDER BY "score" DESC
                 LIMIT 20
@@ -112,17 +112,17 @@ async function main(): Promise<void> {
             // 閾値別カウント
             const thresholdRows = await prisma.$queryRawUnsafe<{ count: bigint, threshold: number }[]>(
                 `
-                SELECT 0.05 AS threshold, COUNT(*)::bigint AS count FROM "Place"
-                  WHERE "isActive"=true AND similarity("normalizedName", $1) > 0.05
+                SELECT 0.05 AS threshold, COUNT(*)::bigint AS count FROM master.place_masters
+                  WHERE "is_active"=true AND similarity("normalized_name", $1) > 0.05
                 UNION ALL
-                SELECT 0.1, COUNT(*)::bigint FROM "Place"
-                  WHERE "isActive"=true AND similarity("normalizedName", $1) > 0.1
+                SELECT 0.1, COUNT(*)::bigint FROM master.place_masters
+                  WHERE "is_active"=true AND similarity("normalized_name", $1) > 0.1
                 UNION ALL
-                SELECT 0.2, COUNT(*)::bigint FROM "Place"
-                  WHERE "isActive"=true AND similarity("normalizedName", $1) > 0.2
+                SELECT 0.2, COUNT(*)::bigint FROM master.place_masters
+                  WHERE "is_active"=true AND similarity("normalized_name", $1) > 0.2
                 UNION ALL
-                SELECT 0.3, COUNT(*)::bigint FROM "Place"
-                  WHERE "isActive"=true AND similarity("normalizedName", $1) > 0.3
+                SELECT 0.3, COUNT(*)::bigint FROM master.place_masters
+                  WHERE "is_active"=true AND similarity("normalized_name", $1) > 0.3
                 `,
                 normalized,
             )

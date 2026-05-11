@@ -86,9 +86,9 @@
       "updatedAt": "updated_at"
     }
   },
-  "Place": {
-    "table": "places",
-    "schema": "activity",
+  "PlaceMaster": {
+    "table": "place_masters",
+    "schema": "master",
     "columns": {
       "id": "id",
       "name": "name",

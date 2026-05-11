@@ -51,7 +51,7 @@ BEGIN
 END $$;
 
 -- upsert（usageCount は更新しない）
-INSERT INTO activity.places (
+INSERT INTO master.place_masters (
   "id",
   "name",
   "address",
@@ -95,7 +95,7 @@ ON CONFLICT ("source", "source_id") DO UPDATE SET
   "updated_at" = NOW();
 
 -- スナップショットに含まれないOSM Placeは論理削除
-UPDATE activity.places p
+UPDATE master.place_masters p
 SET
   "is_active" = false,
   "updated_at" = NOW()
@@ -111,5 +111,5 @@ COMMIT;
 
 -- 確認出力
 SELECT COUNT(*)::int AS active_place_count
-FROM activity.places
+FROM master.place_masters
 WHERE "source" = 'osm' AND "is_active" = true;

@@ -122,7 +122,7 @@ CREATE TABLE "activity"."activities" (
 );
 
 -- CreateTable
-CREATE TABLE "activity"."places" (
+CREATE TABLE "master"."place_masters" (
     "id" TEXT NOT NULL,
     "name" VARCHAR(200) NOT NULL,
     "address" VARCHAR(500) NOT NULL,
@@ -138,7 +138,7 @@ CREATE TABLE "activity"."places" (
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "places_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "place_masters_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -977,10 +977,10 @@ CREATE INDEX "activities_organizer_user_id_idx" ON "activity"."activities"("orga
 CREATE INDEX "activities_default_place_id_idx" ON "activity"."activities"("default_place_id");
 
 -- CreateIndex
-CREATE INDEX "places_is_active_usage_count_idx" ON "activity"."places"("is_active", "usage_count" DESC);
+CREATE INDEX "place_masters_is_active_usage_count_idx" ON "master"."place_masters"("is_active", "usage_count" DESC);
 
 -- CreateIndex
-CREATE UNIQUE INDEX "places_source_source_id_key" ON "activity"."places"("source", "source_id");
+CREATE UNIQUE INDEX "place_masters_source_source_id_key" ON "master"."place_masters"("source", "source_id");
 
 -- CreateIndex
 CREATE INDEX "schedules_activity_id_idx" ON "activity"."schedules"("activity_id");
@@ -1364,7 +1364,7 @@ CREATE UNIQUE INDEX "help_feedbacks_user_id_article_slug_key" ON "support"."help
 ALTER TABLE "activity"."activities" ADD CONSTRAINT "activities_community_id_fkey" FOREIGN KEY ("community_id") REFERENCES "community"."communities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "activity"."activities" ADD CONSTRAINT "activities_default_place_id_fkey" FOREIGN KEY ("default_place_id") REFERENCES "activity"."places"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "activity"."activities" ADD CONSTRAINT "activities_default_place_id_fkey" FOREIGN KEY ("default_place_id") REFERENCES "master"."place_masters"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "activity"."schedules" ADD CONSTRAINT "schedules_activity_id_fkey" FOREIGN KEY ("activity_id") REFERENCES "activity"."activities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

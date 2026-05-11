@@ -26,6 +26,7 @@ model OutboxEvent {
   nextRetryAt DateTime @default(now()) @map("next_retry_at")
 
   @@index([status, nextRetryAt])
+
   @@map("outbox_events")
   @@schema("outbox")
 }
@@ -53,6 +54,7 @@ model AuthAuditLog {
   createdAt  DateTime @default(now()) @map("created_at")
 
   @@index([userId, occurredAt])
+
   @@map("auth_audit_logs")
   @@schema("auth")
 }
@@ -76,6 +78,7 @@ model OutboxDeadLetter {
 
   @@index([failedAt])
   @@index([routingKey])
+
   @@map("outbox_dead_letters")
   @@schema("outbox")
 }
@@ -104,7 +107,7 @@ model Activity {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   community     Community      @relation(fields: [communityId], references: [id])
-  defaultPlace  Place?         @relation(fields: [defaultPlaceId], references: [id])
+  defaultPlace  PlaceMaster?   @relation(fields: [defaultPlaceId], references: [id])
   schedules     Schedule[]
   chatChannel   ChatChannel?
   announcements Announcement[] // Phase3 #4: アクティビティ由来のお知らせ
@@ -113,6 +116,7 @@ model Activity {
   @@index([createdBy])
   @@index([organizerUserId])
   @@index([defaultPlaceId])
+
   @@map("activities")
   @@schema("activity")
 }
@@ -121,7 +125,7 @@ model Activity {
 // - source/sourceId で OSM の安定IDを保持し再取得時のupsertキーとする
 // - normalizedName/normalizedAddress に pg_trgm GIN インデックスを付与（migration内 raw SQL）
 // - usageCount は Activity 保存時にインクリメント
-model Place {
+model PlaceMaster {
   id                String  @id @default(uuid()) @map("id")
   name              String  @map("name") @db.VarChar(200)
   address           String  @map("address") @db.VarChar(500)
@@ -142,8 +146,9 @@ model Place {
 
   @@unique([source, sourceId])
   @@index([isActive, usageCount(sort: Desc)])
-  @@map("places")
-  @@schema("activity")
+
+  @@map("place_masters")
+  @@schema("master")
 }
 
 model Schedule {
@@ -175,6 +180,7 @@ model Schedule {
 
   @@index([activityId])
   @@index([date])
+
   @@map("schedules")
   @@schema("activity")
 }
@@ -195,6 +201,7 @@ model Participation {
   // userId が NOT NULL の場合のみユニーク制約（部分インデックスはマイグレーションSQLで手動定義）
   @@index([scheduleId])
   @@index([userId])
+
   @@map("participations")
   @@schema("activity")
 }
@@ -225,6 +232,7 @@ model Payment {
   @@index([scheduleId, userId])
   @@index([participationId])
   @@index([stripePaymentIntentId])
+
   @@map("payments")
   @@schema("billing")
 }
@@ -243,6 +251,7 @@ model WaitlistEntry {
   // userId が NOT NULL の場合のみユニーク制約（部分インデックスはマイグレーションSQLで手動定義）
   @@index([scheduleId, userId])
   @@index([scheduleId, registeredAt])
+
   @@map("waitlist_entries")
   @@schema("activity")
 }
@@ -345,6 +354,7 @@ model AuthSecurityState {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([lockedUntil])
+
   @@map("auth_security_states")
   @@schema("auth")
 }
@@ -467,6 +477,7 @@ model Community {
 
   @@index([createdBy])
   @@index([parentId])
+
   @@map("communities")
   @@schema("community")
 }
@@ -484,6 +495,7 @@ model CommunityMembership {
 
   @@unique([communityId, userId])
   @@index([userId])
+
   @@map("community_memberships")
   @@schema("community")
 }
@@ -506,6 +518,7 @@ model CommunityLocation {
   community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
 
   @@index([communityId])
+
   @@map("community_locations")
   @@schema("community")
 }
@@ -532,6 +545,7 @@ model CommunityJoinRequest {
   @@unique([communityId, userId, status])
   @@index([communityId])
   @@index([userId])
+
   @@map("community_join_requests")
   @@schema("community")
 }
@@ -564,6 +578,7 @@ model Announcement {
   @@index([communityId])
   @@index([authorId])
   @@index([activityId])
+
   @@map("announcements")
   @@schema("announcement")
 }
@@ -578,6 +593,7 @@ model AnnouncementRead {
 
   @@unique([announcementId, userId])
   @@index([userId])
+
   @@map("announcement_reads")
   @@schema("announcement")
 }
@@ -596,6 +612,7 @@ model AnnouncementLike {
 
   @@unique([announcementId, userId])
   @@index([userId])
+
   @@map("announcement_likes")
   @@schema("announcement")
 }
@@ -615,6 +632,7 @@ model AnnouncementComment {
 
   @@index([announcementId, createdAt])
   @@index([userId])
+
   @@map("announcement_comments")
   @@schema("announcement")
 }
@@ -637,6 +655,7 @@ model AnnouncementAttachment {
   announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
 
   @@index([announcementId])
+
   @@map("announcement_attachments")
   @@schema("announcement")
 }
@@ -655,6 +674,7 @@ model AnnouncementBookmark {
 
   @@unique([announcementId, userId])
   @@index([userId])
+
   @@map("announcement_bookmarks")
   @@schema("announcement")
 }
@@ -677,6 +697,7 @@ model Album {
   photos    AlbumPhoto[]
 
   @@index([communityId])
+
   @@map("albums")
   @@schema("media")
 }
@@ -695,6 +716,7 @@ model AlbumPhoto {
   album Album @relation(fields: [albumId], references: [id], onDelete: Cascade)
 
   @@index([albumId])
+
   @@map("album_photos")
   @@schema("media")
 }
@@ -714,6 +736,7 @@ model PlanFeaturePolicy {
 
   @@unique([plan, feature])
   @@index([plan])
+
   @@map("plan_feature_policies")
   @@schema("master")
 }
@@ -729,6 +752,7 @@ model PlanLimitPolicy {
 
   @@unique([plan, limitKey])
   @@index([plan])
+
   @@map("plan_limit_policies")
   @@schema("master")
 }
@@ -744,6 +768,7 @@ model CommunityGradeFeaturePolicy {
 
   @@unique([grade, feature])
   @@index([grade])
+
   @@map("community_grade_feature_policies")
   @@schema("master")
 }
@@ -759,6 +784,7 @@ model CommunityGradeLimitPolicy {
 
   @@unique([grade, limitKey])
   @@index([grade])
+
   @@map("community_grade_limit_policies")
   @@schema("master")
 }
@@ -784,6 +810,7 @@ model CommunityAuditLog {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([communityId, createdAt])
+
   @@map("community_audit_logs")
   @@schema("community")
 }
@@ -806,6 +833,7 @@ model ParticipationAuditLog {
 
   @@index([scheduleId, createdAt])
   @@index([userId, createdAt])
+
   @@map("participation_audit_logs")
   @@schema("activity")
 }
@@ -823,6 +851,7 @@ model WaitlistAuditLog {
 
   @@index([scheduleId, createdAt])
   @@index([userId, createdAt])
+
   @@map("waitlist_audit_logs")
   @@schema("activity")
 }
@@ -846,6 +875,7 @@ model InviteToken {
 
   @@index([communityId])
   @@index([token])
+
   @@map("invite_tokens")
   @@schema("community")
 }
@@ -860,6 +890,7 @@ model InviteTokenUsage {
 
   @@unique([tokenId, userId])
   @@index([tokenId])
+
   @@map("invite_token_usages")
   @@schema("community")
 }
@@ -880,6 +911,7 @@ model ChatChannel {
   channelReadState ChannelReadState[]
 
   @@index([type])
+
   @@map("chat_channels")
   @@schema("messaging")
 }
@@ -907,6 +939,7 @@ model Message {
   @@index([channelId, createdAt])
   @@index([parentMessageId])
   @@index([senderId])
+
   @@map("messages")
   @@schema("messaging")
 }
@@ -924,6 +957,7 @@ model MessageAttachment {
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([messageId])
+
   @@map("message_attachments")
   @@schema("messaging")
 }
@@ -938,6 +972,7 @@ model DMParticipant {
 
   @@unique([channelId, userId])
   @@index([userId])
+
   @@map("dm_participants")
   @@schema("messaging")
 }
@@ -957,6 +992,7 @@ model Stamp {
   reactions MessageReaction[]
 
   @@index([createdByUserId])
+
   @@map("stamps")
   @@schema("messaging")
 }
@@ -978,6 +1014,7 @@ model MessageReaction {
   @@index([messageId])
   @@index([stampId])
   @@index([userId])
+
   @@map("message_reactions")
   @@schema("messaging")
 }
@@ -1000,6 +1037,7 @@ model Notification {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([userId, isRead, createdAt])
+
   @@map("notifications")
   @@schema("notification")
 }
@@ -1017,6 +1055,7 @@ model DeviceToken {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([userId])
+
   @@map("device_tokens")
   @@schema("notification")
 }
@@ -1036,6 +1075,7 @@ model CategoryMaster {
   matchFormats        CategoryMatchFormat[]
 
   @@index([sortOrder])
+
   @@map("category_masters")
   @@schema("master")
 }
@@ -1055,6 +1095,7 @@ model CategoryMatchFormat {
 
   @@unique([categoryId, name])
   @@index([categoryId, sortOrder])
+
   @@map("category_match_formats")
   @@schema("master")
 }
@@ -1073,6 +1114,7 @@ model MatchingResult {
   user     User     @relation(fields: [createdBy], references: [id])
 
   @@index([createdBy])
+
   @@map("matching_results")
   @@schema("support")
 }
@@ -1087,6 +1129,7 @@ model ParticipationLevelMaster {
   communityLevels CommunityParticipationLevel[]
 
   @@index([sortOrder])
+
   @@map("participation_level_masters")
   @@schema("master")
 }
@@ -1105,6 +1148,7 @@ model CommunityCategory {
 
   @@unique([communityId, categoryId])
   @@index([categoryId])
+
   @@map("community_categories")
   @@schema("community")
 }
@@ -1119,6 +1163,7 @@ model CommunityParticipationLevel {
 
   @@unique([communityId, levelId])
   @@index([levelId])
+
   @@map("community_participation_levels")
   @@schema("community")
 }
@@ -1136,6 +1181,7 @@ model CommunityActivityDay {
 
   @@unique([communityId, day])
   @@index([communityId])
+
   @@map("community_activity_days")
   @@schema("community")
 }
@@ -1149,6 +1195,7 @@ model CommunityTag {
 
   @@unique([communityId, tag])
   @@index([communityId])
+
   @@map("community_tags")
   @@schema("community")
 }
@@ -1177,6 +1224,7 @@ model Poll {
   @@index([communityId])
   @@index([announcementId])
   @@index([createdBy])
+
   @@map("polls")
   @@schema("announcement")
 }
@@ -1193,6 +1241,7 @@ model PollOption {
   votes PollVote[]
 
   @@index([pollId])
+
   @@map("poll_options")
   @@schema("announcement")
 }
@@ -1207,6 +1256,7 @@ model PollVote {
 
   @@unique([pollOptionId, userId])
   @@index([userId])
+
   @@map("poll_votes")
   @@schema("announcement")
 }
@@ -1230,6 +1280,7 @@ model CommunityWebhookConfig {
 
   @@unique([communityId, service])
   @@index([communityId])
+
   @@map("community_webhook_configs")
   @@schema("community")
 }
@@ -1249,6 +1300,7 @@ model CommunityBookmark {
 
   @@unique([communityId, userId])
   @@index([userId])
+
   @@map("community_bookmarks")
   @@schema("community")
 }
@@ -1271,6 +1323,7 @@ model ExpenseCategory {
   expenses  Expense[]
 
   @@index([communityId])
+
   @@map("expense_categories")
   @@schema("support")
 }
@@ -1298,6 +1351,7 @@ model Expense {
   @@index([communityId])
   @@index([categoryId])
   @@index([createdBy])
+
   @@map("expenses")
   @@schema("support")
 }
@@ -1322,6 +1376,7 @@ model PlanMaster {
 
   @@index([sortOrder])
   @@index([availableFrom, availableTo])
+
   @@map("plan_masters")
   @@schema("master")
 }
@@ -1341,6 +1396,7 @@ model ChannelReadState {
 
   @@unique([channelId, userId])
   @@index([userId])
+
   @@map("channel_read_states")
   @@schema("messaging")
 }
@@ -1371,6 +1427,7 @@ model InquiryCategoryMaster {
   inquiries Inquiry[]
 
   @@index([isActive, sortOrder])
+
   @@map("inquiry_category_masters")
   @@schema("master")
 }
@@ -1405,6 +1462,7 @@ model Inquiry {
   @@index([status, lastActivityAt(sort: Desc)])
   @@index([categoryId])
   @@index([assigneeUserId, status])
+
   @@map("inquiries")
   @@schema("support")
 }
@@ -1425,6 +1483,7 @@ model InquiryMessage {
 
   @@index([inquiryId, createdAt])
   @@index([authorUserId])
+
   @@map("inquiry_messages")
   @@schema("support")
 }
@@ -1451,6 +1510,7 @@ model InquiryAttachment {
   @@index([messageId])
   @@index([scanStatus])
   @@index([isPurged])
+
   @@map("inquiry_attachments")
   @@schema("support")
 }
@@ -1478,6 +1538,7 @@ model HelpFeedback {
   @@index([articleSlug, createdAt])
   @@index([categorySlug, createdAt])
   @@index([userId, createdAt])
+
   @@map("help_feedbacks")
   @@schema("support")
 }

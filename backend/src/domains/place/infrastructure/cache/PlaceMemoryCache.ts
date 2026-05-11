@@ -99,7 +99,7 @@ export class PlaceMemoryCache {
     async initialize(prisma: PrismaClient): Promise<void> {
         try {
             const start = Date.now()
-            const rows = await prisma.place.findMany({
+            const rows = await prisma.placeMaster.findMany({
                 where: { isActive: true },
                 select: {
                     id: true,

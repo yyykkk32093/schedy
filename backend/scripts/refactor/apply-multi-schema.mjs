@@ -34,6 +34,7 @@ const MODEL_SCHEMA = {
     CommunityGradeFeaturePolicy: 'master',
     CommunityGradeLimitPolicy: 'master',
     InquiryCategoryMaster: 'master',
+    PlaceMaster: 'master',
     // outbox
     OutboxEvent: 'outbox',
     OutboxRetryPolicy: 'outbox',
@@ -54,7 +55,6 @@ const MODEL_SCHEMA = {
     InviteTokenUsage: 'community',
     // activity
     Activity: 'activity',
-    Place: 'activity',
     Schedule: 'activity',
     Participation: 'activity',
     WaitlistEntry: 'activity',
@@ -134,11 +134,7 @@ function tableNameOf(modelName) {
 
 let src = fs.readFileSync(SCHEMA_PATH, 'utf8')
 
-// 1) generator: add previewFeatures
-src = src.replace(
-    /generator client \{\n  provider = "prisma-client-js"\n\}/,
-    `generator client {\n  provider        = "prisma-client-js"\n  previewFeatures = ["multiSchema"]\n}`,
-)
+// 1) generator: keep as-is (multiSchema is GA in Prisma 6.19+, no previewFeatures needed)
 
 // 2) datasource: add schemas
 src = src.replace(

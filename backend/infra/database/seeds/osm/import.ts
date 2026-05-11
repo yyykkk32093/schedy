@@ -1,5 +1,5 @@
 /**
- * places.jsonl を Prisma 経由で Place テーブルに upsert
+ * places.jsonl を Prisma 経由で PlaceMaster テーブルに upsert
  *
  * - upsertキー: (source, sourceId)
  * - usageCount は upsert の update では上書きしない（既存値保持）
@@ -73,11 +73,11 @@ async function main(): Promise<void> {
         const sourceIds = Array.from(seenSourceIds)
         const deactivatedCount = await prisma.$executeRawUnsafe<number>(
             `
-            UPDATE "Place"
-            SET "isActive" = false
+            UPDATE master.place_masters
+            SET "is_active" = false
             WHERE "source" = $1
-              AND "isActive" = true
-              AND NOT ("sourceId" = ANY($2::text[]))
+              AND "is_active" = true
+              AND NOT ("source_id" = ANY($2::text[]))
             `,
             SOURCE,
             sourceIds,
@@ -92,7 +92,7 @@ async function flushBatch(prisma: PrismaClient, batch: PlaceRecord[]): Promise<v
     // 並列度を抑えた upsert（バルクupsertはPrisma未対応）
     await Promise.all(
         batch.map((rec) =>
-            prisma.place.upsert({
+            prisma.placeMaster.upsert({
                 where: {
                     source_sourceId: { source: SOURCE, sourceId: rec.sourceId },
                 },

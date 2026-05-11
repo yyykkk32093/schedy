@@ -1,5 +1,5 @@
 import { normalizePlaceQuery } from '@/_sharedTech/text/placeNormalize.js'
-import type { Prisma, PrismaClient, Place as PrismaPlace } from '@prisma/client'
+import type { Prisma, PrismaClient, PlaceMaster as PrismaPlace } from '@prisma/client'
 import { Place } from '../../domain/model/entity/Place.js'
 import { GeoCoordinate } from '../../domain/model/valueObject/GeoCoordinate.js'
 import { PlaceAddress } from '../../domain/model/valueObject/PlaceAddress.js'
@@ -27,7 +27,7 @@ SELECT "id", "name", "address", "lat", "lng", "normalized_name" AS "normalizedNa
          + (LOG(10, 1 + "usage_count"::numeric)) * 0.1
          + (1.0 / GREATEST(1, LENGTH("normalized_name"))) * 0.05
        ) AS "score"
-FROM activity.places
+FROM master.place_masters
 WHERE "is_active" = TRUE
   AND ("normalized_name" LIKE $1 OR "normalized_name" LIKE $2)
 ORDER BY "score" DESC
@@ -40,7 +40,7 @@ export class PlaceRepositoryImpl implements IPlaceRepository {
     constructor(private readonly prisma: PrismaClientLike) { }
 
     async findById(id: string): Promise<Place | null> {
-        const row = await this.prisma.place.findUnique({ where: { id } })
+        const row = await this.prisma.placeMaster.findUnique({ where: { id } })
         return row ? this.toDomain(row) : null
     }
 
@@ -72,7 +72,7 @@ export class PlaceRepositoryImpl implements IPlaceRepository {
     }
 
     async incrementUsageCount(id: string): Promise<void> {
-        await this.prisma.place.update({
+        await this.prisma.placeMaster.update({
             where: { id },
             data: { usageCount: { increment: 1 } },
         })
