@@ -2,24 +2,23 @@ import type { IAnnouncementBookmarkRepository } from '@/domains/announcement/dom
 import type { IAnnouncementRepository } from '@/domains/announcement/domain/repository/IAnnouncementRepository.js'
 
 /**
- * Phase 3 (3-1): お知らせブックマーク Toggle
+ * お知らせブックマーク追加（冪等）。
+ *
+ * Phase 3 (REST 再設計): 旧 ToggleAnnouncementBookmarkUseCase を分割。
  */
-export class ToggleAnnouncementBookmarkUseCase {
+export class BookmarkAnnouncementUseCase {
     constructor(
         private readonly announcementRepository: IAnnouncementRepository,
         private readonly bookmarkRepository: IAnnouncementBookmarkRepository,
     ) { }
 
-    async execute(input: {
-        announcementId: string
-        userId: string
-    }): Promise<{ bookmarked: boolean }> {
-        // お知らせの存在確認
+    async execute(input: { announcementId: string; userId: string }): Promise<{ bookmarked: true }> {
         const announcement = await this.announcementRepository.findById(input.announcementId)
         if (!announcement || announcement.isDeleted()) {
             throw new Error('お知らせが見つかりません')
         }
 
-        return this.bookmarkRepository.toggle(input.announcementId, input.userId)
+        await this.bookmarkRepository.add(input.announcementId, input.userId)
+        return { bookmarked: true }
     }
 }

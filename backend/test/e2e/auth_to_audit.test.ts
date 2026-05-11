@@ -75,10 +75,10 @@ describeE2E('Auth → AuthAuditLog E2E', () => {
 
     it("Login Success → AuthAuditLog が TX 内で直接記録される", async () => {
         const res = await request(app)
-            .post("/v1/auth/password")
-            .send({ email: "test@example.com", password: "password123" });
+            .post("/v1/auth/sessions")
+            .send({ method: "password", email: "test@example.com", password: "password123" });
 
-        expect(res.status).toBe(200);
+        expect(res.status).toBe(201);
 
         // Outbox は不要（TX 内 INSERT のためワーカー不要）
         const logs = await prisma.authAuditLog.findMany();
@@ -89,8 +89,8 @@ describeE2E('Auth → AuthAuditLog E2E', () => {
 
     it("Login Failed → AuthAuditLog が TX 内で直接記録される", async () => {
         const res = await request(app)
-            .post("/v1/auth/password")
-            .send({ email: "test@example.com", password: "wrongpass" });
+            .post("/v1/auth/sessions")
+            .send({ method: "password", email: "test@example.com", password: "wrongpass" });
 
         expect(res.status).toBe(401);
 

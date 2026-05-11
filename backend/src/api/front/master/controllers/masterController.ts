@@ -19,17 +19,4 @@ export const masterController = {
             next(err)
         }
     },
-
-    async getAllMasters(_req: Request, res: Response, next: NextFunction) {
-        try {
-            const masterRepo = usecaseFactory.createMasterRepository()
-            const [categories, participationLevels] = await Promise.all([
-                masterRepo.findCategories(),
-                masterRepo.findParticipationLevels(),
-            ])
-            res.status(200).json({ categories, participationLevels })
-        } catch (err) {
-            next(err)
-        }
-    },
 }

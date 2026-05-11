@@ -21,7 +21,7 @@ export const planController = {
             }
             const useCase = usecaseFactory.createCancelSubscriptionUseCase()
             await useCase.execute({ userId })
-            res.status(200).json({ message: 'サブスクリプションを解約しました' })
+            res.status(204).send()
         } catch (err) {
             next(err)
         }

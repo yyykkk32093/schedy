@@ -46,7 +46,7 @@ export function useAddAlbumPhoto(albumId: string, communityId: string) {
 export function useDeleteAlbumPhoto(albumId: string, communityId: string) {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: (photoId: string) => albumApi.deletePhoto(photoId),
+        mutationFn: (photoId: string) => albumApi.deletePhoto(albumId, photoId),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: albumPhotoKeys.byAlbum(albumId) })
             qc.invalidateQueries({ queryKey: albumListKeys.byCommunity(communityId) })

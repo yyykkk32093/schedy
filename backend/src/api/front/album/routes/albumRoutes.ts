@@ -13,6 +13,6 @@ router.post('/v1/communities/:communityId/albums', authMiddleware, validateBody(
 // アルバム写真
 router.get('/v1/albums/:albumId/photos', authMiddleware, albumController.listPhotos)
 router.post('/v1/albums/:albumId/photos', authMiddleware, validateBody(addAlbumPhotoSchema), albumController.addPhoto)
-router.delete('/v1/albums/photos/:photoId', authMiddleware, albumController.deletePhoto)
+router.delete('/v1/albums/:albumId/photos/:photoId', authMiddleware, albumController.deletePhoto)
 
 export default router

@@ -6,20 +6,20 @@ type PrismaClientLike = PrismaClient | Prisma.TransactionClient
 export class AnnouncementLikeRepositoryImpl implements IAnnouncementLikeRepository {
     constructor(private readonly prisma: PrismaClientLike) { }
 
-    async toggle(announcementId: string, userId: string): Promise<{ liked: boolean }> {
-        const existing = await this.prisma.announcementLike.findUnique({
+    async add(announcementId: string, userId: string): Promise<void> {
+        // 冪等: 既に存在する場合は何もしない
+        await this.prisma.announcementLike.upsert({
             where: { announcementId_userId: { announcementId, userId } },
+            create: { announcementId, userId },
+            update: {},
         })
+    }
 
-        if (existing) {
-            await this.prisma.announcementLike.delete({ where: { id: existing.id } })
-            return { liked: false }
-        }
-
-        await this.prisma.announcementLike.create({
-            data: { announcementId, userId },
+    async remove(announcementId: string, userId: string): Promise<void> {
+        // 冪等: 存在しない場合は何もしない
+        await this.prisma.announcementLike.deleteMany({
+            where: { announcementId, userId },
         })
-        return { liked: true }
     }
 
     async countByAnnouncementId(announcementId: string): Promise<number> {

@@ -90,12 +90,9 @@ describeE2E("OAuth SignIn E2E", () => {
             });
 
             const res = await request(app)
-                .post("/v1/auth/oauth/google")
-                .send({
-                    code: "valid-google-code-001",
-                });
+                .post("/v1/auth/sessions").send({ method: "oauth", provider: "google", code: "valid-google-code-001" });
 
-            expect(res.status).toBe(200);
+            expect(res.status).toBe(201);
             expect(typeof res.body?.userId).toBe("string");
             expect(typeof res.body?.accessToken).toBe("string");
 
@@ -139,10 +136,9 @@ describeE2E("OAuth SignIn E2E", () => {
             });
 
             const firstRes = await request(app)
-                .post("/v1/auth/oauth/google")
-                .send({ code: "valid-google-code-002" });
+                .post("/v1/auth/sessions").send({ method: "oauth", provider: "google", code: "valid-google-code-002" });
 
-            expect(firstRes.status).toBe(200);
+            expect(firstRes.status).toBe(201);
             const userId = firstRes.body.userId as string;
 
             // 2回目signin（同じgoogleUidで別のcode）
@@ -154,10 +150,9 @@ describeE2E("OAuth SignIn E2E", () => {
             });
 
             const secondRes = await request(app)
-                .post("/v1/auth/oauth/google")
-                .send({ code: "valid-google-code-003" });
+                .post("/v1/auth/sessions").send({ method: "oauth", provider: "google", code: "valid-google-code-003" });
 
-            expect(secondRes.status).toBe(200);
+            expect(secondRes.status).toBe(201);
             expect(secondRes.body.userId).toBe(userId); // 同じユーザー
             expect(typeof secondRes.body.accessToken).toBe("string");
 
@@ -188,8 +183,7 @@ describeE2E("OAuth SignIn E2E", () => {
             });
 
             const oauthRes = await request(app)
-                .post("/v1/auth/oauth/google")
-                .send({ code: "valid-google-code-conflict" });
+                .post("/v1/auth/sessions").send({ method: "oauth", provider: "google", code: "valid-google-code-conflict" });
 
             expect(oauthRes.status).toBe(409);
             expect(oauthRes.body?.code).toBe("ACCOUNT_LINK_REQUIRED");
@@ -203,8 +197,7 @@ describeE2E("OAuth SignIn E2E", () => {
             );
 
             const res = await request(app)
-                .post("/v1/auth/oauth/google")
-                .send({ code: "invalid-code" });
+                .post("/v1/auth/sessions").send({ method: "oauth", provider: "google", code: "invalid-code" });
 
             expect(res.status).toBe(401);
             expect(res.body?.code).toBe("OAUTH_AUTHENTICATION_FAILED");
@@ -224,10 +217,9 @@ describeE2E("OAuth SignIn E2E", () => {
             });
 
             const res = await request(app)
-                .post("/v1/auth/oauth/line")
-                .send({ code: "valid-line-code-001" });
+                .post("/v1/auth/sessions").send({ method: "oauth", provider: "line", code: "valid-line-code-001" });
 
-            expect(res.status).toBe(200);
+            expect(res.status).toBe(201);
             expect(typeof res.body?.userId).toBe("string");
             expect(typeof res.body?.accessToken).toBe("string");
 
@@ -250,10 +242,9 @@ describeE2E("OAuth SignIn E2E", () => {
             });
 
             const res = await request(app)
-                .post("/v1/auth/oauth/line")
-                .send({ code: "valid-line-code-no-email" });
+                .post("/v1/auth/sessions").send({ method: "oauth", provider: "line", code: "valid-line-code-no-email" });
 
-            expect(res.status).toBe(200);
+            expect(res.status).toBe(201);
 
             const userId = res.body.userId as string;
             const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -275,10 +266,9 @@ describeE2E("OAuth SignIn E2E", () => {
             });
 
             const res = await request(app)
-                .post("/v1/auth/oauth/apple")
-                .send({ code: "valid-apple-code-001" });
+                .post("/v1/auth/sessions").send({ method: "oauth", provider: "apple", code: "valid-apple-code-001" });
 
-            expect(res.status).toBe(200);
+            expect(res.status).toBe(201);
             expect(typeof res.body?.userId).toBe("string");
             expect(typeof res.body?.accessToken).toBe("string");
 
@@ -301,10 +291,9 @@ describeE2E("OAuth SignIn E2E", () => {
             });
 
             const res = await request(app)
-                .post("/v1/auth/oauth/apple")
-                .send({ code: "valid-apple-relay-code" });
+                .post("/v1/auth/sessions").send({ method: "oauth", provider: "apple", code: "valid-apple-relay-code" });
 
-            expect(res.status).toBe(200);
+            expect(res.status).toBe(201);
 
             const userId = res.body.userId as string;
             const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -317,22 +306,22 @@ describeE2E("OAuth SignIn E2E", () => {
     // エラーケース
     // ========================================
     describe("Error Cases", () => {
-        it("未サポートプロバイダ → 400", async () => {
+        it("未サポートプロバイダ → 400 (VALIDATION_ERROR)", async () => {
             const res = await request(app)
-                .post("/v1/auth/oauth/twitter")
-                .send({ code: "some-code" });
+                .post("/v1/auth/sessions")
+                .send({ method: "oauth", provider: "twitter", code: "some-code" });
 
             expect(res.status).toBe(400);
-            expect(res.body?.message).toBe("unsupported provider");
+            expect(res.body?.code).toBe("VALIDATION_ERROR");
         });
 
-        it("codeなし → 400", async () => {
+        it("codeなし → 400 (VALIDATION_ERROR)", async () => {
             const res = await request(app)
-                .post("/v1/auth/oauth/google")
-                .send({});
+                .post("/v1/auth/sessions")
+                .send({ method: "oauth", provider: "google" });
 
             expect(res.status).toBe(400);
-            expect(res.body?.message).toBe("code is required");
+            expect(res.body?.code).toBe("VALIDATION_ERROR");
         });
     });
 });

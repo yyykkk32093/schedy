@@ -18,22 +18,26 @@ import type {
 export const authApi = {
     /**
      * パスワードログイン
-     * POST /v1/auth/password
+     * POST /v1/auth/sessions { method: "password", ... }
+     *
+     * Phase 3 (REST 再設計): 旧 `POST /v1/auth/password` を統合エンドポイントに変更。
      */
     loginWithPassword: (data: PasswordLoginRequest) =>
-        http<PasswordLoginResponse>('/v1/auth/password', {
+        http<PasswordLoginResponse>('/v1/auth/sessions', {
             method: 'POST',
-            json: data,
+            json: { method: 'password', ...data },
         }),
 
     /**
      * OAuthログイン（初回は自動サインアップ）
-     * POST /v1/auth/oauth/:provider
+     * POST /v1/auth/sessions { method: "oauth", provider, ... }
+     *
+     * Phase 3 (REST 再設計): 旧 `POST /v1/auth/oauth/:provider` を統合エンドポイントに変更。
      */
     loginWithOAuth: (provider: OAuthProvider, data: OAuthLoginRequest) =>
-        http<OAuthLoginResponse>(`/v1/auth/oauth/${provider}`, {
+        http<OAuthLoginResponse>('/v1/auth/sessions', {
             method: 'POST',
-            json: data,
+            json: { method: 'oauth', provider, ...data },
         }),
 
     /**

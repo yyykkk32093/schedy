@@ -35,13 +35,19 @@ export const announcementApi = {
     markAsRead: (id: string) =>
         http<void>(`/v1/announcements/${id}/read`, { method: 'PATCH' }),
 
-    // ── UBL-1: いいね ──
-    toggleLike: (announcementId: string) =>
-        http<ToggleLikeResponse>(`/v1/announcements/${announcementId}/like`, { method: 'POST' }),
+    // ── UBL-1: いいね (Phase 3 REST 再設計でリソース化: /likes) ──
+    like: (announcementId: string) =>
+        http<ToggleLikeResponse>(`/v1/announcements/${announcementId}/likes`, { method: 'POST' }),
 
-    // ── Phase 3 (3-1): ブックマーク ──
-    toggleBookmark: (announcementId: string) =>
-        http<ToggleBookmarkResponse>(`/v1/announcements/${announcementId}/bookmark`, { method: 'POST' }),
+    unlike: (announcementId: string) =>
+        http<ToggleLikeResponse>(`/v1/announcements/${announcementId}/likes`, { method: 'DELETE' }),
+
+    // ── Phase 3 (3-1): ブックマーク (Phase 3 REST 再設計でリソース化: /bookmarks) ──
+    bookmark: (announcementId: string) =>
+        http<ToggleBookmarkResponse>(`/v1/announcements/${announcementId}/bookmarks`, { method: 'POST' }),
+
+    unbookmark: (announcementId: string) =>
+        http<ToggleBookmarkResponse>(`/v1/announcements/${announcementId}/bookmarks`, { method: 'DELETE' }),
 
     // ── UBL-2: コメント ──
     listComments: (announcementId: string, cursor?: string) =>
@@ -52,8 +58,8 @@ export const announcementApi = {
     createComment: (announcementId: string, data: CreateCommentRequest) =>
         http<CreateCommentResponse>(`/v1/announcements/${announcementId}/comments`, { method: 'POST', json: data }),
 
-    deleteComment: (commentId: string) =>
-        http<void>(`/v1/announcements/comments/${commentId}`, { method: 'DELETE' }),
+    deleteComment: (announcementId: string, commentId: string) =>
+        http<void>(`/v1/announcements/${announcementId}/comments/${commentId}`, { method: 'DELETE' }),
 
     // ── UBL-4: 検索 ──
     search: (keyword: string) =>

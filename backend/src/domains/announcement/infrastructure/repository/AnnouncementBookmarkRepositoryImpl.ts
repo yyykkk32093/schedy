@@ -6,20 +6,18 @@ type PrismaClientLike = PrismaClient | Prisma.TransactionClient
 export class AnnouncementBookmarkRepositoryImpl implements IAnnouncementBookmarkRepository {
     constructor(private readonly prisma: PrismaClientLike) { }
 
-    async toggle(announcementId: string, userId: string): Promise<{ bookmarked: boolean }> {
-        const existing = await this.prisma.announcementBookmark.findUnique({
+    async add(announcementId: string, userId: string): Promise<void> {
+        await this.prisma.announcementBookmark.upsert({
             where: { announcementId_userId: { announcementId, userId } },
+            create: { announcementId, userId },
+            update: {},
         })
+    }
 
-        if (existing) {
-            await this.prisma.announcementBookmark.delete({ where: { id: existing.id } })
-            return { bookmarked: false }
-        }
-
-        await this.prisma.announcementBookmark.create({
-            data: { announcementId, userId },
+    async remove(announcementId: string, userId: string): Promise<void> {
+        await this.prisma.announcementBookmark.deleteMany({
+            where: { announcementId, userId },
         })
-        return { bookmarked: true }
     }
 
     async isBookmarked(announcementId: string, userId: string): Promise<boolean> {

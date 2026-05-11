@@ -118,13 +118,16 @@ export const announcementController = {
         }
     },
 
-    /** UBL-1: いいね Toggle */
-    async toggleLike(req: Request, res: Response, next: NextFunction) {
+    /**
+     * Phase 3 (REST 再設計): いいね追加（POST /v1/announcements/:id/likes）
+     * 冪等: 既にいいね済みでも 200 で返す。
+     */
+    async like(req: Request, res: Response, next: NextFunction) {
         try {
             const { id: announcementId } = req.params
             const userId = req.user!.userId
 
-            const useCase = usecaseFactory.createToggleAnnouncementLikeUseCase()
+            const useCase = usecaseFactory.createLikeAnnouncementUseCase()
             const result = await useCase.execute({ announcementId, userId })
             res.status(200).json(result)
         } catch (err) {
@@ -132,13 +135,48 @@ export const announcementController = {
         }
     },
 
-    /** Phase 3 (3-1): ブックマーク Toggle */
-    async toggleBookmark(req: Request, res: Response, next: NextFunction) {
+    /**
+     * Phase 3 (REST 再設計): いいね削除（DELETE /v1/announcements/:id/likes）
+     * 冪等: いいね未登録でも 200 で返す。
+     */
+    async unlike(req: Request, res: Response, next: NextFunction) {
         try {
             const { id: announcementId } = req.params
             const userId = req.user!.userId
 
-            const useCase = usecaseFactory.createToggleAnnouncementBookmarkUseCase()
+            const useCase = usecaseFactory.createUnlikeAnnouncementUseCase()
+            const result = await useCase.execute({ announcementId, userId })
+            res.status(200).json(result)
+        } catch (err) {
+            next(err)
+        }
+    },
+
+    /**
+     * Phase 3 (REST 再設計): ブックマーク追加（POST /v1/announcements/:id/bookmarks）
+     */
+    async bookmark(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { id: announcementId } = req.params
+            const userId = req.user!.userId
+
+            const useCase = usecaseFactory.createBookmarkAnnouncementUseCase()
+            const result = await useCase.execute({ announcementId, userId })
+            res.status(201).json(result)
+        } catch (err) {
+            next(err)
+        }
+    },
+
+    /**
+     * Phase 3 (REST 再設計): ブックマーク削除（DELETE /v1/announcements/:id/bookmarks）
+     */
+    async unbookmark(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { id: announcementId } = req.params
+            const userId = req.user!.userId
+
+            const useCase = usecaseFactory.createUnbookmarkAnnouncementUseCase()
             const result = await useCase.execute({ announcementId, userId })
             res.status(200).json(result)
         } catch (err) {

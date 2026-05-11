@@ -32,7 +32,7 @@ export function FeedCard({ item }: FeedCardProps) {
     const isAuthor = !!user && user.userId === item.authorId
 
     const handleToggleBookmark = () => {
-        bookmarkMutation.mutate(item.id)
+        bookmarkMutation.mutate({ announcementId: item.id, isBookmarked: item.isBookmarked })
         setMenuOpen(false)
     }
 
@@ -183,7 +183,7 @@ export function FeedCard({ item }: FeedCardProps) {
             <div className="mt-2 pl-[42px] flex items-center gap-4">
                 <button
                     type="button"
-                    onClick={() => likeMutation.mutate(item.id)}
+                    onClick={() => likeMutation.mutate({ announcementId: item.id, isLiked: item.isLiked })}
                     disabled={likeMutation.isPending}
                     className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors"
                 >
@@ -228,7 +228,7 @@ export function FeedCard({ item }: FeedCardProps) {
 
                 <button
                     type="button"
-                    onClick={() => bookmarkMutation.mutate(item.id)}
+                    onClick={() => bookmarkMutation.mutate({ announcementId: item.id, isBookmarked: item.isBookmarked })}
                     disabled={bookmarkMutation.isPending}
                     className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-500 transition-colors ml-auto"
                 >

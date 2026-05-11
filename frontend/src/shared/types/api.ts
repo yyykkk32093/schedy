@@ -7,25 +7,25 @@
 // Auth
 // ============================================================
 
-/** POST /v1/auth/password — リクエスト */
+/** POST /v1/auth/sessions { method: "password" } — リクエスト */
 export interface PasswordLoginRequest {
     email: string
     password: string
 }
 
-/** POST /v1/auth/password — レスポンス */
+/** POST /v1/auth/sessions { method: "password" } — レスポンス */
 export interface PasswordLoginResponse {
     userId: string
     accessToken?: string  // httpOnly Cookie方式では省略されうる
 }
 
-/** POST /v1/auth/oauth/:provider — リクエスト */
+/** POST /v1/auth/sessions { method: "oauth", provider } — リクエスト */
 export interface OAuthLoginRequest {
     code: string
     redirectUri?: string
 }
 
-/** POST /v1/auth/oauth/:provider — レスポンス */
+/** POST /v1/auth/sessions { method: "oauth", provider } — レスポンス */
 export interface OAuthLoginResponse {
     userId: string
     accessToken?: string

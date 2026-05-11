@@ -21,14 +21,16 @@ router.patch('/v1/announcements/:id', authMiddleware, validateBody(updateAnnounc
 router.delete('/v1/announcements/:id', authMiddleware, announcementController.softDelete)
 
 // UBL-1: いいね toggle
-router.post('/v1/announcements/:id/like', authMiddleware, announcementController.toggleLike)
+router.post('/v1/announcements/:id/likes', authMiddleware, announcementController.like)
+router.delete('/v1/announcements/:id/likes', authMiddleware, announcementController.unlike)
 
 // Phase 3 (3-1): ブックマーク toggle
-router.post('/v1/announcements/:id/bookmark', authMiddleware, announcementController.toggleBookmark)
+router.post('/v1/announcements/:id/bookmarks', authMiddleware, announcementController.bookmark)
+router.delete('/v1/announcements/:id/bookmarks', authMiddleware, announcementController.unbookmark)
 
 // UBL-2: コメント CRUD
 router.get('/v1/announcements/:id/comments', authMiddleware, announcementController.listComments)
 router.post('/v1/announcements/:id/comments', authMiddleware, validateBody(createCommentSchema), announcementController.createComment)
-router.delete('/v1/announcements/comments/:commentId', authMiddleware, announcementController.deleteComment)
+router.delete('/v1/announcements/:id/comments/:commentId', authMiddleware, announcementController.deleteComment)
 
 export default router

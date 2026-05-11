@@ -2,9 +2,23 @@ import { featureGateService } from '@/_sharedTech/featureGate/featureGateService
 import { usecaseFactory } from '@/api/_usecaseFactory.js'
 import { authMiddleware } from '@/api/middleware/authMiddleware.js'
 import { clearAuthCookie } from '@/api/middleware/cookieUtils.js'
+import { validateBody } from '@/api/middleware/validateBody.js'
+import { createSessionSchema } from '@/api/schemas/index.js'
 import { Router } from 'express'
+import { sessionController } from '../controllers/sessionController.js'
 
 const router = Router()
+
+/**
+ * セッション作成 (= ログイン) API
+ * POST /v1/auth/sessions
+ *
+ * Phase 3 (REST 再設計): パスワード / OAuth 認証を単一エンドポイントに統合。
+ * body 例:
+ *   { "method": "password", "email": "...", "password": "..." }
+ *   { "method": "oauth", "provider": "google", "code": "...", "redirectUri": "..." }
+ */
+router.post('/v1/auth/sessions', validateBody(createSessionSchema), sessionController.create)
 
 /**
  * ログアウト API

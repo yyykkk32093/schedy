@@ -1,6 +1,8 @@
 export interface IAnnouncementLikeRepository {
-    /** いいね toggle: あれば削除、なければ作成。returns 最終状態 */
-    toggle(announcementId: string, userId: string): Promise<{ liked: boolean }>
+    /** いいね追加（既に存在する場合は何もせず冪等に true を返す） */
+    add(announcementId: string, userId: string): Promise<void>
+    /** いいね削除（存在しない場合は何もせず冪等に成功する） */
+    remove(announcementId: string, userId: string): Promise<void>
     /** いいね数を取得 */
     countByAnnouncementId(announcementId: string): Promise<number>
     /** 一括: announcementIds に対する各いいね数 */

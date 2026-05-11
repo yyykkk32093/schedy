@@ -4,8 +4,12 @@ import { Router } from 'express'
 
 const router = Router()
 
-/** POST /v1/communities/:id/bookmark — ブックマーク追加 */
-router.post('/v1/communities/:id/bookmark', authMiddleware, async (req, res, next) => {
+/**
+ * Phase 3 (REST 再設計): ブックマークをリソース化。
+ * 旧: POST /v1/communities/:id/bookmark / DELETE /v1/communities/:id/bookmark
+ * 新: POST /v1/communities/:id/bookmarks / DELETE /v1/communities/:id/bookmarks
+ */
+router.post('/v1/communities/:id/bookmarks', authMiddleware, async (req, res, next) => {
     try {
         const { id: communityId } = req.params
         const userId = req.user!.userId
@@ -18,15 +22,14 @@ router.post('/v1/communities/:id/bookmark', authMiddleware, async (req, res, nex
     }
 })
 
-/** DELETE /v1/communities/:id/bookmark — ブックマーク解除 */
-router.delete('/v1/communities/:id/bookmark', authMiddleware, async (req, res, next) => {
+router.delete('/v1/communities/:id/bookmarks', authMiddleware, async (req, res, next) => {
     try {
         const { id: communityId } = req.params
         const userId = req.user!.userId
 
         await usecaseFactory.createRemoveCommunityBookmarkUseCase().execute({ communityId, userId })
 
-        res.status(200).json({ bookmarked: false })
+        res.status(204).send()
     } catch (err) {
         next(err)
     }

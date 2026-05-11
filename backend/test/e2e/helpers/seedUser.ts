@@ -19,11 +19,11 @@ export async function createTestUser(
         throw new Error(`createTestUser failed: ${res.status} ${JSON.stringify(res.body)}`)
     }
 
-    // ログインしてトークンを取得
+    // ログインしてトークンを取得（Phase 3: /v1/auth/sessions に統一）
     const loginRes = await request(app)
-        .post('/v1/auth/password')
-        .send({ email: params.email, password: params.password })
-    if (loginRes.status !== 200) {
+        .post('/v1/auth/sessions')
+        .send({ method: 'password', email: params.email, password: params.password })
+    if (loginRes.status !== 201) {
         throw new Error(`login failed: ${loginRes.status} ${JSON.stringify(loginRes.body)}`)
     }
 

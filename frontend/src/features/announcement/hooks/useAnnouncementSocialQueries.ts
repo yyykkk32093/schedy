@@ -10,12 +10,18 @@ import type { AnnouncementFeedItem, AnnouncementListItem, CreateCommentRequest }
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 // ─── UBL-1: いいねトグル ─────────────────────────────────
+//
+// Phase 3 (REST 再設計): サーバー側は POST/DELETE /likes に分割されたため、
+// 現状の isLiked を受け取って適切なエンドポイントを呈される。
 
 export function useToggleAnnouncementLike() {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: (announcementId: string) => announcementApi.toggleLike(announcementId),
-        onMutate: async (announcementId) => {
+        mutationFn: ({ announcementId, isLiked }: { announcementId: string; isLiked: boolean }) =>
+            isLiked
+                ? announcementApi.unlike(announcementId)
+                : announcementApi.like(announcementId),
+        onMutate: async ({ announcementId }) => {
             // Optimistic update: フィードキャッシュを即時更新
             await qc.cancelQueries({ queryKey: announcementFeedKeys.all })
             qc.setQueriesData<{ pages: Array<{ items: AnnouncementFeedItem[]; nextCursor: string | null }> }>(
@@ -40,7 +46,7 @@ export function useToggleAnnouncementLike() {
                 },
             )
         },
-        onSettled: (_data, _error, announcementId) => {
+        onSettled: (_data, _error, { announcementId }) => {
             qc.invalidateQueries({ queryKey: announcementFeedKeys.all })
             qc.invalidateQueries({ queryKey: announcementListKeys.all })
             // C-07: お知らせ詳細ページのキャッシュも更新
@@ -51,13 +57,19 @@ export function useToggleAnnouncementLike() {
     })
 }
 
-// ─── Phase 3 (3-1): ブックマークトグル ───────────────────
+// ─── Phase 3 (3-1): ブックマークトグル ─────────────────
+//
+// Phase 3 (REST 再設計): サーバー側は POST/DELETE /bookmarks に分割されたため、
+// 現状の isBookmarked を受け取って適切なエンドポイントを呈される。
 
 export function useToggleAnnouncementBookmark() {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: (announcementId: string) => announcementApi.toggleBookmark(announcementId),
-        onMutate: async (announcementId) => {
+        mutationFn: ({ announcementId, isBookmarked }: { announcementId: string; isBookmarked: boolean }) =>
+            isBookmarked
+                ? announcementApi.unbookmark(announcementId)
+                : announcementApi.bookmark(announcementId),
+        onMutate: async ({ announcementId }) => {
             // Optimistic update: フィードキャッシュ + コミュニティタブキャッシュを即時更新
             await qc.cancelQueries({ queryKey: announcementFeedKeys.all })
             await qc.cancelQueries({ queryKey: announcementListKeys.all })
@@ -128,7 +140,7 @@ export function useCreateAnnouncementComment(announcementId: string) {
 export function useDeleteAnnouncementComment(announcementId: string) {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: (commentId: string) => announcementApi.deleteComment(commentId),
+        mutationFn: (commentId: string) => announcementApi.deleteComment(announcementId, commentId),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: announcementCommentKeys.byAnnouncement(announcementId) })
             qc.invalidateQueries({ queryKey: announcementFeedKeys.all })

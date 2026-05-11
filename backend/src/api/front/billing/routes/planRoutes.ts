@@ -7,7 +7,9 @@ const router = Router()
 // GET /v1/plans — 現在販売中のプラン一覧（認証不要 — 購入画面で公開表示）
 router.get('/v1/plans', planController.listAvailablePlans)
 
-// POST /v1/billing/cancel — サブスクリプション解約（認証必須）
-router.post('/v1/billing/cancel', authMiddleware, planController.cancelSubscription)
+// Phase 3 (REST 再設計): RPC 風 cancel をリソース指向の DELETE に変更
+//   旧: POST /v1/billing/cancel
+//   新: DELETE /v1/subscriptions/me （ログインユーザの現在サブスクリプションを解約）
+router.delete('/v1/subscriptions/me', authMiddleware, planController.cancelSubscription)
 
 export default router

@@ -125,7 +125,8 @@ export function PaywallPage() {
         setPurchasing(true)
         setError(null)
         try {
-            await http('/v1/billing/cancel', { method: 'POST' })
+            // Phase 3 (REST 再設計): 旧 POST /v1/billing/cancel → DELETE /v1/subscriptions/me
+            await http('/v1/subscriptions/me', { method: 'DELETE' })
             window.location.reload()
         } catch (err) {
             const message = err instanceof Error ? err.message : '解約処理に失敗しました'

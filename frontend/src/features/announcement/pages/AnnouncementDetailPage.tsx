@@ -108,7 +108,7 @@ export function AnnouncementDetailPage() {
             <div className="mt-4 flex items-center gap-4 border-t pt-3">
                 <button
                     type="button"
-                    onClick={() => likeMutation.mutate(id!)}
+                    onClick={() => likeMutation.mutate({ announcementId: id!, isLiked: 'isLiked' in announcement ? announcement.isLiked : false })}
                     disabled={likeMutation.isPending}
                     className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors"
                 >
@@ -134,7 +134,7 @@ export function AnnouncementDetailPage() {
 
                 <button
                     type="button"
-                    onClick={() => bookmarkMutation.mutate(id!)}
+                    onClick={() => bookmarkMutation.mutate({ announcementId: id!, isBookmarked: 'isBookmarked' in announcement ? announcement.isBookmarked : false })}
                     disabled={bookmarkMutation.isPending}
                     className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-500 transition-colors ml-auto"
                 >

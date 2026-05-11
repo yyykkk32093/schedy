@@ -25,7 +25,7 @@ export const albumApi = {
     addPhoto: (albumId: string, data: AddAlbumPhotoRequest) =>
         http<AddAlbumPhotoResponse>(`/v1/albums/${albumId}/photos`, { method: 'POST', json: data }),
 
-    /** 写真削除 */
-    deletePhoto: (photoId: string) =>
-        http<void>(`/v1/albums/photos/${photoId}`, { method: 'DELETE' }),
+    /** 写真削除 (Phase 3 REST 再設計: アルバム配下にネスト) */
+    deletePhoto: (albumId: string, photoId: string) =>
+        http<void>(`/v1/albums/${albumId}/photos/${photoId}`, { method: 'DELETE' }),
 }

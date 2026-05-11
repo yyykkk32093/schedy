@@ -72,8 +72,22 @@ export const communityApi = {
     },
 
     // ---- Masters ----
-    getAllMasters: () =>
-        http<CommunityMastersResponse>('/v1/masters/community'),
+    /**
+     * Phase 3 (REST 再設計): /v1/masters/community を廃止し、
+     * /v1/categories と /v1/participation-levels を並列取得して結合する。
+     */
+    getAllMasters: async (): Promise<CommunityMastersResponse> => {
+        const [categoriesRes, levelsRes] = await Promise.all([
+            http<{ categories: CommunityMastersResponse['categories'] }>('/v1/categories'),
+            http<{ participationLevels: CommunityMastersResponse['participationLevels'] }>(
+                '/v1/participation-levels',
+            ),
+        ])
+        return {
+            categories: categoriesRes.categories,
+            participationLevels: levelsRes.participationLevels,
+        }
+    },
 
     // ---- Phase 2.5: Search & Join ----
     search: (params: SearchCommunitiesParams) => {
@@ -108,12 +122,14 @@ export const communityApi = {
     acceptInvite: (token: string) =>
         http<AcceptInviteResponse>(`/v1/invites/${token}/accept`, { method: 'POST' }),
 
-    // ---- Phase 3 #53: Bookmark ----
+    // ---- Phase 3 #53: Bookmark (Phase 3 REST 再設計でリソース化: /bookmarks) ----
     addBookmark: (communityId: string) =>
-        http<{ bookmarked: boolean }>(`/v1/communities/${communityId}/bookmark`, { method: 'POST' }),
+        http<{ bookmarked: boolean }>(`/v1/communities/${communityId}/bookmarks`, { method: 'POST' }),
 
-    removeBookmark: (communityId: string) =>
-        http<{ bookmarked: boolean }>(`/v1/communities/${communityId}/bookmark`, { method: 'DELETE' }),
+    removeBookmark: async (communityId: string): Promise<{ bookmarked: boolean }> => {
+        await http<void>(`/v1/communities/${communityId}/bookmarks`, { method: 'DELETE' })
+        return { bookmarked: false }
+    },
 
     listBookmarked: () =>
         http<{ communities: Array<{ id: string; name: string; description: string | null; logoUrl: string | null; coverUrl: string | null; joinMethod: string; isPublic: boolean }> }>('/v1/bookmarks/communities'),

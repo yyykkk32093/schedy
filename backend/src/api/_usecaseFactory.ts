@@ -27,8 +27,10 @@ import { ListAnnouncementCommentsUseCase } from '@/application/announcement/usec
 import { ListAnnouncementsUseCase } from '@/application/announcement/usecase/ListAnnouncementsUseCase.js'
 import { MarkAnnouncementAsReadUseCase } from '@/application/announcement/usecase/MarkAnnouncementAsReadUseCase.js'
 import { SearchAnnouncementsUseCase } from '@/application/announcement/usecase/SearchAnnouncementsUseCase.js'
-import { ToggleAnnouncementBookmarkUseCase } from '@/application/announcement/usecase/ToggleAnnouncementBookmarkUseCase.js'
-import { ToggleAnnouncementLikeUseCase } from '@/application/announcement/usecase/ToggleAnnouncementLikeUseCase.js'
+import { BookmarkAnnouncementUseCase } from '@/application/announcement/usecase/BookmarkAnnouncementUseCase.js'
+import { LikeAnnouncementUseCase } from '@/application/announcement/usecase/LikeAnnouncementUseCase.js'
+import { UnbookmarkAnnouncementUseCase } from '@/application/announcement/usecase/UnbookmarkAnnouncementUseCase.js'
+import { UnlikeAnnouncementUseCase } from '@/application/announcement/usecase/UnlikeAnnouncementUseCase.js'
 import { UpdateAnnouncementTxRepositories, UpdateAnnouncementUseCase } from '@/application/announcement/usecase/UpdateAnnouncementUseCase.js'
 import type { AuthMethod } from '@/application/auth/model/AuthMethod.js'
 import {
@@ -810,9 +812,16 @@ export const usecaseFactory = {
         )
     },
 
-    // ---- UBL-1: いいね ----
-    createToggleAnnouncementLikeUseCase() {
-        return new ToggleAnnouncementLikeUseCase(
+    // ---- UBL-1: いいね（Phase 3 で Like / Unlike に分割）----
+    createLikeAnnouncementUseCase() {
+        return new LikeAnnouncementUseCase(
+            new AnnouncementRepositoryImpl(prisma),
+            new AnnouncementLikeRepositoryImpl(prisma),
+        )
+    },
+
+    createUnlikeAnnouncementUseCase() {
+        return new UnlikeAnnouncementUseCase(
             new AnnouncementRepositoryImpl(prisma),
             new AnnouncementLikeRepositoryImpl(prisma),
         )
@@ -851,9 +860,16 @@ export const usecaseFactory = {
         )
     },
 
-    // ---- Phase 3 (3-1): ブックマーク ----
-    createToggleAnnouncementBookmarkUseCase() {
-        return new ToggleAnnouncementBookmarkUseCase(
+    // ---- お知らせブックマーク（Phase 3 で Bookmark / Unbookmark に分割）----
+    createBookmarkAnnouncementUseCase() {
+        return new BookmarkAnnouncementUseCase(
+            new AnnouncementRepositoryImpl(prisma),
+            new AnnouncementBookmarkRepositoryImpl(prisma),
+        )
+    },
+
+    createUnbookmarkAnnouncementUseCase() {
+        return new UnbookmarkAnnouncementUseCase(
             new AnnouncementRepositoryImpl(prisma),
             new AnnouncementBookmarkRepositoryImpl(prisma),
         )
