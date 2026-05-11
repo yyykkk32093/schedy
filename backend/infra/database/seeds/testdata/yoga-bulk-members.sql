@@ -13,7 +13,7 @@ BEGIN;
 --    パスワード: Test1234! (共通ハッシュ)
 -- ============================================================
 
-INSERT INTO "User" ("id", "displayName", "plan", "email", "avatarUrl", "biography", "notificationSetting", "createdAt", "updatedAt")
+INSERT INTO identity.users ("id", "display_name", "plan", "email", "avatar_url", "biography", "notification_setting", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000001001', 'YogaUser001', 'FREE', 'yoga-bulk-001@test.com', NULL, 'ヨガ大量テストユーザー 001', '{}', NOW() - INTERVAL '14 days', NOW()),
   ('e2e00000-0000-4000-a000-000000001002', 'YogaUser002', 'FREE', 'yoga-bulk-002@test.com', NULL, 'ヨガ大量テストユーザー 002', '{}', NOW() - INTERVAL '14 days', NOW()),
@@ -121,7 +121,7 @@ ON CONFLICT ("id") DO NOTHING;
 -- 2. パスワード認証情報（共通パスワード: Test1234!）
 -- ============================================================
 
-INSERT INTO "PasswordCredential" ("userId", "hashedPassword", "createdAt", "updatedAt")
+INSERT INTO auth.password_credentials ("user_id", "hashed_password", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000001001', '$2b$10$/v0yU0NLpEk7tep3BkuWIedxeUksLil3sh6ffw81LmEH.jbdar/Hu', NOW(), NOW()),
   ('e2e00000-0000-4000-a000-000000001002', '$2b$10$/v0yU0NLpEk7tep3BkuWIedxeUksLil3sh6ffw81LmEH.jbdar/Hu', NOW(), NOW()),
@@ -223,13 +223,13 @@ VALUES
   ('e2e00000-0000-4000-a000-000000001098', '$2b$10$/v0yU0NLpEk7tep3BkuWIedxeUksLil3sh6ffw81LmEH.jbdar/Hu', NOW(), NOW()),
   ('e2e00000-0000-4000-a000-000000001099', '$2b$10$/v0yU0NLpEk7tep3BkuWIedxeUksLil3sh6ffw81LmEH.jbdar/Hu', NOW(), NOW()),
   ('e2e00000-0000-4000-a000-000000001100', '$2b$10$/v0yU0NLpEk7tep3BkuWIedxeUksLil3sh6ffw81LmEH.jbdar/Hu', NOW(), NOW())
-ON CONFLICT ("userId") DO NOTHING;
+ON CONFLICT ("user_id") DO NOTHING;
 
 -- ============================================================
 -- 3. AuthSecurityState（100人分）
 -- ============================================================
 
-INSERT INTO "auth_security_states" ("user_id", "auth_method", "last_login_at", "failed_sign_in_count", "created_at", "updated_at")
+INSERT INTO auth.auth_security_states ("user_id", "auth_method", "last_login_at", "failed_sign_in_count", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000001001', 'password', NOW(), 0, NOW(), NOW()),
   ('e2e00000-0000-4000-a000-000000001002', 'password', NOW(), 0, NOW(), NOW()),
@@ -337,7 +337,7 @@ ON CONFLICT ("user_id") DO NOTHING;
 -- 4. 朝ヨガサークルへのメンバーシップ（100人全員 MEMBER）
 -- ============================================================
 
-INSERT INTO "CommunityMembership" ("id", "communityId", "userId", "role", "joinedAt")
+INSERT INTO community.community_memberships ("id", "community_id", "user_id", "role", "joined_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000001201', 'e2e00000-0000-4000-a000-000000000202', 'e2e00000-0000-4000-a000-000000001001', 'MEMBER', NOW() - INTERVAL '14 days'),
   ('e2e00000-0000-4000-a000-000000001202', 'e2e00000-0000-4000-a000-000000000202', 'e2e00000-0000-4000-a000-000000001002', 'MEMBER', NOW() - INTERVAL '14 days'),
@@ -446,15 +446,15 @@ COMMIT;
 -- ============================================================
 -- 確認クエリ
 -- ============================================================
--- SELECT COUNT(*) FROM "CommunityMembership" WHERE "communityId" = 'e2e00000-0000-4000-a000-000000000202';
--- SELECT COUNT(*) FROM "User" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000100%';
+-- SELECT COUNT(*) FROM community.community_memberships WHERE "community_id" = 'e2e00000-0000-4000-a000-000000000202';
+-- SELECT COUNT(*) FROM identity.users WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000100%';
 
 -- ============================================================
 -- 削除用（必要時にコメント解除して実行）
 -- ============================================================
 -- BEGIN;
--- DELETE FROM "CommunityMembership" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000120%';
--- DELETE FROM "PasswordCredential" WHERE "userId" LIKE 'e2e00000-0000-4000-a000-00000000100%';
--- DELETE FROM "auth_security_states" WHERE "user_id" LIKE 'e2e00000-0000-4000-a000-00000000100%';
--- DELETE FROM "User" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000100%';
+-- DELETE FROM community.community_memberships WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000120%';
+-- DELETE FROM auth.password_credentials WHERE "user_id" LIKE 'e2e00000-0000-4000-a000-00000000100%';
+-- DELETE FROM auth.auth_security_states WHERE "user_id" LIKE 'e2e00000-0000-4000-a000-00000000100%';
+-- DELETE FROM identity.users WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000100%';
 -- COMMIT;

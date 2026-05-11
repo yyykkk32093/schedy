@@ -1,11 +1,11 @@
 -- notification.push: FCM プッシュ通知
-INSERT INTO "OutboxRetryPolicy" (
-    "routingKey",
-    "maxRetries",
-    "baseInterval",
-    "maxInterval",
-    "createdAt",
-    "updatedAt"
+INSERT INTO outbox.outbox_retry_policies (
+    "routing_key",
+    "max_retries",
+    "base_interval",
+    "max_interval",
+    "created_at",
+    "updated_at"
 ) VALUES (
     'notification.push',   -- routing key
     5,             -- 最大リトライ回数
@@ -14,21 +14,21 @@ INSERT INTO "OutboxRetryPolicy" (
     NOW(),
     NOW()
 )
-ON CONFLICT ("routingKey") DO UPDATE SET
-    "maxRetries" = EXCLUDED."maxRetries",
-    "baseInterval" = EXCLUDED."baseInterval",
-    "maxInterval" = EXCLUDED."maxInterval",
-    "updatedAt" = NOW();
+ON CONFLICT ("routing_key") DO UPDATE SET
+    "max_retries" = EXCLUDED."max_retries",
+    "base_interval" = EXCLUDED."base_interval",
+    "max_interval" = EXCLUDED."max_interval",
+    "updated_at" = NOW();
 
 
 -- UBL-29: LINE Webhook
-INSERT INTO "OutboxRetryPolicy" (
-    "routingKey",
-    "maxRetries",
-    "baseInterval",
-    "maxInterval",
-    "createdAt",
-    "updatedAt"
+INSERT INTO outbox.outbox_retry_policies (
+    "routing_key",
+    "max_retries",
+    "base_interval",
+    "max_interval",
+    "created_at",
+    "updated_at"
 ) VALUES (
     'webhook.line',
     3,             -- 最大リトライ回数（外部API向けは控えめに）
@@ -37,8 +37,8 @@ INSERT INTO "OutboxRetryPolicy" (
     NOW(),
     NOW()
 )
-ON CONFLICT ("routingKey") DO UPDATE SET
-    "maxRetries" = EXCLUDED."maxRetries",
-    "baseInterval" = EXCLUDED."baseInterval",
-    "maxInterval" = EXCLUDED."maxInterval",
-    "updatedAt" = NOW();
+ON CONFLICT ("routing_key") DO UPDATE SET
+    "max_retries" = EXCLUDED."max_retries",
+    "base_interval" = EXCLUDED."base_interval",
+    "max_interval" = EXCLUDED."max_interval",
+    "updated_at" = NOW();

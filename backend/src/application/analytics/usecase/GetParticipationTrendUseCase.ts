@@ -64,12 +64,12 @@ export class GetParticipationTrendUseCase {
         >`
             SELECT
                 TO_CHAR(s."date", 'YYYY-MM')    AS month,
-                COUNT(DISTINCT p."userId")       AS unique_participants,
+                COUNT(DISTINCT p."user_id")       AS unique_participants,
                 COUNT(p."id")                    AS total_attendances
-            FROM "Schedule" s
-            JOIN "Participation" p
-                ON p."scheduleId" = s."id" AND p."status" = 'ATTENDING'
-            WHERE s."activityId" = ANY(${activityIds})
+            FROM activity.schedules s
+            JOIN activity.participations p
+                ON p."schedule_id" = s."id" AND p."status" = 'ATTENDING'
+            WHERE s."activity_id" = ANY(${activityIds})
               AND s."date" >= ${fromDate}
               AND s."date" <= ${toDate}
             GROUP BY TO_CHAR(s."date", 'YYYY-MM')
@@ -82,13 +82,13 @@ export class GetParticipationTrendUseCase {
         >`
             WITH first_participation AS (
                 SELECT
-                    p."userId",
+                    p."user_id",
                     MIN(s."date") AS first_date
-                FROM "Participation" p
-                JOIN "Schedule" s ON s."id" = p."scheduleId"
-                WHERE s."activityId" = ANY(${activityIds})
+                FROM activity.participations p
+                JOIN activity.schedules s ON s."id" = p."schedule_id"
+                WHERE s."activity_id" = ANY(${activityIds})
                   AND p."status" = 'ATTENDING'
-                GROUP BY p."userId"
+                GROUP BY p."user_id"
             )
             SELECT
                 TO_CHAR(fp.first_date, 'YYYY-MM') AS month,

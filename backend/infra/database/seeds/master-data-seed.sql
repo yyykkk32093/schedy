@@ -10,7 +10,7 @@
 BEGIN;
 
 -- ========== 1. CategoryMaster (~100種類) ==========
-INSERT INTO "CategoryMaster" ("id", "name", "nameEn", "sortOrder", "createdAt")
+INSERT INTO master.category_masters ("id", "name", "name_en", "sort_order", "created_at")
 VALUES
   -- ■ 汎用
   ('cat-sports-general',    'スポーツ全般',             'Sports General',            0,  NOW()),
@@ -130,11 +130,11 @@ VALUES
   ('cat-esports',           'eスポーツ',                'Esports',                   94, NOW())
 ON CONFLICT ("id") DO UPDATE SET
   "name"      = EXCLUDED."name",
-  "nameEn"    = EXCLUDED."nameEn",
-  "sortOrder" = EXCLUDED."sortOrder";
+  "name_en"    = EXCLUDED."name_en",
+  "sort_order" = EXCLUDED."sort_order";
 
 -- ========== 2. ParticipationLevelMaster ==========
-INSERT INTO "ParticipationLevelMaster" ("id", "name", "nameEn", "sortOrder", "createdAt")
+INSERT INTO master.participation_level_masters ("id", "name", "name_en", "sort_order", "created_at")
 VALUES
   ('pl-0', '未経験',     'No Experience',       0, NOW()),
   ('pl-1', 'ビギナー',   'Beginner',            1, NOW()),
@@ -147,13 +147,13 @@ VALUES
   ('pl-8', 'プロレベル', 'Pro / Competitive',   8, NOW())
 ON CONFLICT ("id") DO UPDATE SET
   "name"      = EXCLUDED."name",
-  "nameEn"    = EXCLUDED."nameEn",
-  "sortOrder" = EXCLUDED."sortOrder";
+  "name_en"    = EXCLUDED."name_en",
+  "sort_order" = EXCLUDED."sort_order";
 
 -- ========== 3. CategoryMatchFormat ==========
 -- playersPerGroup: 1組（チーム）あたりの人数
 -- groupsPerCourt:  1コートの同時対戦組数（通常2 = 表裏 or A vs B）
-INSERT INTO "CategoryMatchFormat" ("id", "categoryId", "name", "playersPerGroup", "groupsPerCourt", "sortOrder", "isDefault", "createdAt", "updatedAt")
+INSERT INTO master.category_match_formats ("id", "category_id", "name", "players_per_group", "groups_per_court", "sort_order", "is_default", "created_at", "updated_at")
 VALUES
   -- ■ サッカー
   ('cmf-soccer-11v11',          'cat-soccer',            '11v11',         11, 2, 1, true,  NOW(), NOW()),
@@ -371,20 +371,20 @@ VALUES
   ('cmf-other-2v2',             'cat-other',             '2v2',            2, 2, 1, true,  NOW(), NOW()),
   ('cmf-other-solo',            'cat-other',             '個人',           1, 1, 1, false, NOW(), NOW()),
   ('cmf-sports-general-solo',   'cat-sports-general',    '個人',           1, 1, 1, true,  NOW(), NOW())
-ON CONFLICT ("categoryId", "name") DO UPDATE SET
-  "playersPerGroup" = EXCLUDED."playersPerGroup",
-  "groupsPerCourt"  = EXCLUDED."groupsPerCourt",
-  "sortOrder"       = EXCLUDED."sortOrder",
-  "isDefault"       = EXCLUDED."isDefault",
-  "updatedAt"       = NOW();
+ON CONFLICT ("category_id", "name") DO UPDATE SET
+  "players_per_group" = EXCLUDED."players_per_group",
+  "groups_per_court"  = EXCLUDED."groups_per_court",
+  "sort_order"       = EXCLUDED."sort_order",
+  "is_default"       = EXCLUDED."is_default",
+  "updated_at"       = NOW();
 
 COMMIT;
 
 -- ============================================================
 -- 削除用（必要時のみコメント解除して実行）
 -- ============================================================
--- DELETE FROM "CategoryMatchFormat" WHERE true;
--- DELETE FROM "CommunityParticipationLevel" WHERE true;
--- DELETE FROM "CommunityCategory" WHERE true;
--- DELETE FROM "ParticipationLevelMaster" WHERE true;
--- DELETE FROM "CategoryMaster" WHERE true;
+-- DELETE FROM master.category_match_formats WHERE true;
+-- DELETE FROM community.community_participation_levels WHERE true;
+-- DELETE FROM community.community_categories WHERE true;
+-- DELETE FROM master.participation_level_masters WHERE true;
+-- DELETE FROM master.category_masters WHERE true;

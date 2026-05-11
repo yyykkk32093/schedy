@@ -127,10 +127,10 @@ export class GetCommunityStatsUseCase {
                 TO_CHAR(s."date", 'YYYY-MM') AS month,
                 COUNT(DISTINCT s."id")        AS total_schedules,
                 COUNT(p."id")                 AS total_attending
-            FROM "Schedule" s
-            LEFT JOIN "Participation" p
-                ON p."scheduleId" = s."id"
-            WHERE s."activityId" = ANY(${activityIds})
+            FROM activity.schedules s
+            LEFT JOIN activity.participations p
+                ON p."schedule_id" = s."id"
+            WHERE s."activity_id" = ANY(${activityIds})
             GROUP BY TO_CHAR(s."date", 'YYYY-MM')
             ORDER BY month
         `

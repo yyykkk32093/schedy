@@ -12,7 +12,7 @@ BEGIN;
 -- 0. PlanMaster（プランマスタ）
 -- ============================================================
 
-INSERT INTO "PlanMaster" ("id", "displayName", "description", "monthlyPrice", "oneTimePrice", "revenuecatProductId", "sortOrder", "availableFrom", "availableTo", "createdAt", "updatedAt")
+INSERT INTO master.plan_masters ("id", "display_name", "description", "monthly_price", "one_time_price", "revenuecat_product_id", "sort_order", "available_from", "available_to", "created_at", "updated_at")
 VALUES
   ('FREE',     'Free',     '基本機能が無料で使えるプラン',               NULL, NULL,  NULL,               1, NULL, NULL, NOW(), NOW()),
   ('LITE',     'Lite',     '広告非表示プラン',                          160,  NULL,  'tsunaca_lite',      2, NULL, NULL, NOW(), NOW()),
@@ -24,7 +24,7 @@ ON CONFLICT ("id") DO NOTHING;
 -- 1. テストユーザー（3人）
 -- ============================================================
 
-INSERT INTO "User" ("id", "displayName", "plan", "email", "avatarUrl", "biography", "notificationSetting", "createdAt", "updatedAt")
+INSERT INTO identity.users ("id", "display_name", "plan", "email", "avatar_url", "biography", "notification_setting", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000101', 'Helena', 'PRO', 'helena@test.com', NULL, 'テストユーザー Helena です', '{}', NOW(), NOW()),
   ('e2e00000-0000-4000-a000-000000000102', 'Daniel', 'FREE', 'daniel@test.com', NULL, 'テストユーザー Daniel です', '{}', NOW(), NOW()),
@@ -38,14 +38,14 @@ VALUES
 ON CONFLICT ("id") DO NOTHING;
 
 -- Wave6 Phase 8-A: 運営権限の付与（既存 USER から昇格させる場合の運用 SQL も兼ねる）
-UPDATE "User" SET "system_role" = 'OPERATOR'
+UPDATE identity.users SET "system_role" = 'OPERATOR'
   WHERE "id" = 'e2e00000-0000-4000-a000-000000000201';
-UPDATE "User" SET "system_role" = 'SUPER_ADMIN'
+UPDATE identity.users SET "system_role" = 'SUPER_ADMIN'
   WHERE "id" = 'e2e00000-0000-4000-a000-000000000202';
 
 -- パスワード認証情報
 -- ログインパスワード（全ユーザー共通）: Test1234!
-INSERT INTO "PasswordCredential" ("userId", "hashedPassword", "createdAt", "updatedAt")
+INSERT INTO auth.password_credentials ("user_id", "hashed_password", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000101', '$2b$10$/v0yU0NLpEk7tep3BkuWIedxeUksLil3sh6ffw81LmEH.jbdar/Hu', NOW(), NOW()),
   ('e2e00000-0000-4000-a000-000000000102', '$2b$10$/v0yU0NLpEk7tep3BkuWIedxeUksLil3sh6ffw81LmEH.jbdar/Hu', NOW(), NOW()),
@@ -53,10 +53,10 @@ VALUES
   ('e2e00000-0000-4000-a000-000000000104', '$2b$10$/v0yU0NLpEk7tep3BkuWIedxeUksLil3sh6ffw81LmEH.jbdar/Hu', NOW(), NOW()),
   ('e2e00000-0000-4000-a000-000000000201', '$2b$10$/v0yU0NLpEk7tep3BkuWIedxeUksLil3sh6ffw81LmEH.jbdar/Hu', NOW(), NOW()),
   ('e2e00000-0000-4000-a000-000000000202', '$2b$10$/v0yU0NLpEk7tep3BkuWIedxeUksLil3sh6ffw81LmEH.jbdar/Hu', NOW(), NOW())
-ON CONFLICT ("userId") DO NOTHING;
+ON CONFLICT ("user_id") DO NOTHING;
 
 -- AuthSecurityState
-INSERT INTO "auth_security_states" ("user_id", "auth_method", "last_login_at", "failed_sign_in_count", "created_at", "updated_at")
+INSERT INTO auth.auth_security_states ("user_id", "auth_method", "last_login_at", "failed_sign_in_count", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000101', 'password', NOW(), 0, NOW(), NOW()),
   ('e2e00000-0000-4000-a000-000000000102', 'password', NOW(), 0, NOW(), NOW()),
@@ -71,9 +71,9 @@ ON CONFLICT ("user_id") DO NOTHING;
 -- ============================================================
 
 -- Helena が作成した「週末フットサル」
-INSERT INTO "Community" ("id", "name", "description", "logoUrl", "coverUrl", "grade", "createdBy",
-  "joinMethod", "isPublic", "maxMembers", "activityFrequency", "targetGender", "ageMin", "ageMax", "recommendedLevelMin", "recommendedLevelMax",
-  "createdAt", "updatedAt")
+INSERT INTO community.communities ("id", "name", "description", "logo_url", "cover_url", "grade", "created_by",
+  "join_method", "is_public", "max_members", "activity_frequency", "target_gender", "age_min", "age_max", "recommended_level_min", "recommended_level_max",
+  "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000201', '週末フットサル', '毎週末にフットサルを楽しむコミュニティです 🏃‍♂️⚽', NULL, NULL, 'FREE', 'e2e00000-0000-4000-a000-000000000101',
    'FREE_JOIN', true, 30, '週１回', '{指定なし}', 20, 49, 1, 4,
@@ -81,9 +81,9 @@ VALUES
 ON CONFLICT ("id") DO NOTHING;
 
 -- Daniel が作成した「朝ヨガサークル」
-INSERT INTO "Community" ("id", "name", "description", "logoUrl", "coverUrl", "grade", "createdBy",
-  "joinMethod", "isPublic", "maxMembers", "activityFrequency", "targetGender", "ageMin", "ageMax", "recommendedLevelMin", "recommendedLevelMax",
-  "createdAt", "updatedAt")
+INSERT INTO community.communities ("id", "name", "description", "logo_url", "cover_url", "grade", "created_by",
+  "join_method", "is_public", "max_members", "activity_frequency", "target_gender", "age_min", "age_max", "recommended_level_min", "recommended_level_max",
+  "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000202', '朝ヨガサークル', '朝７時から公園でヨガをしています 🧘‍♀️', NULL, NULL, 'FREE', 'e2e00000-0000-4000-a000-000000000102',
    'APPROVAL', true, 15, '週３回', '{指定なし}', 20, 59, 0, 3,
@@ -91,9 +91,9 @@ VALUES
 ON CONFLICT ("id") DO NOTHING;
 
 -- Sakura が作成した「読書クラブ」
-INSERT INTO "Community" ("id", "name", "description", "logoUrl", "coverUrl", "grade", "createdBy",
-  "joinMethod", "isPublic", "maxMembers", "activityFrequency", "targetGender",
-  "createdAt", "updatedAt")
+INSERT INTO community.communities ("id", "name", "description", "logo_url", "cover_url", "grade", "created_by",
+  "join_method", "is_public", "max_members", "activity_frequency", "target_gender",
+  "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000203', '読書クラブ', '月１回の読書会。今月のテーマ本を語り合おう 📚', NULL, NULL, 'FREE', 'e2e00000-0000-4000-a000-000000000103',
    'INVITATION', false, NULL, '月１回', '{指定なし}',
@@ -104,7 +104,7 @@ ON CONFLICT ("id") DO NOTHING;
 -- 2b. コミュニティ — カテゴリ（中間テーブル）
 -- ============================================================
 
-INSERT INTO "CommunityCategory" ("id", "communityId", "categoryId")
+INSERT INTO community.community_categories ("id", "community_id", "category_id")
 VALUES
   ('e2e00000-0000-4000-a000-000000000211', 'e2e00000-0000-4000-a000-000000000201', 'cat-futsal'),
   ('e2e00000-0000-4000-a000-000000000212',    'e2e00000-0000-4000-a000-000000000202',   'cat-other'),
@@ -115,7 +115,7 @@ ON CONFLICT ("id") DO NOTHING;
 -- 2b-2. コミュニティ — 活動拠点 (CommunityLocation)
 -- ============================================================
 
-INSERT INTO "CommunityLocation" ("id", "communityId", "type", "area", "station", "sortOrder", "createdAt", "updatedAt")
+INSERT INTO community.community_locations ("id", "community_id", "type", "area", "station", "sort_order", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000221', 'e2e00000-0000-4000-a000-000000000202', 'MAIN', '新宿区', '新宿御苑前駅', 0, NOW(), NOW()),
   ('e2e00000-0000-4000-a000-000000000222', 'e2e00000-0000-4000-a000-000000000202', 'SUB',  '渋谷区', '代々木公園駅', 1, NOW(), NOW()),
@@ -131,20 +131,20 @@ ON CONFLICT ("id") DO NOTHING;
 -- 2d. コミュニティ — 活動曜日（値テーブル）
 -- ============================================================
 
-INSERT INTO "CommunityActivityDay" ("id", "communityId", "day")
+INSERT INTO community.community_activity_days ("id", "community_id", "day")
 VALUES
   ('e2e00000-0000-4000-a000-000000000241', 'e2e00000-0000-4000-a000-000000000201', '土'),
   ('e2e00000-0000-4000-a000-000000000242', 'e2e00000-0000-4000-a000-000000000201', '日'),
   ('e2e00000-0000-4000-a000-000000000243',   'e2e00000-0000-4000-a000-000000000202',   '月'),
   ('e2e00000-0000-4000-a000-000000000244',   'e2e00000-0000-4000-a000-000000000202',   '水'),
   ('e2e00000-0000-4000-a000-000000000245',   'e2e00000-0000-4000-a000-000000000202',   '金')
-ON CONFLICT ("communityId", "day") DO NOTHING;
+ON CONFLICT ("community_id", "day") DO NOTHING;
 
 -- ============================================================
 -- 2e. コミュニティ — タグ（値テーブル）
 -- ============================================================
 
-INSERT INTO "CommunityTag" ("id", "communityId", "tag")
+INSERT INTO community.community_tags ("id", "community_id", "tag")
 VALUES
   ('e2e00000-0000-4000-a000-000000000251', 'e2e00000-0000-4000-a000-000000000201', 'フットサル'),
   ('e2e00000-0000-4000-a000-000000000252', 'e2e00000-0000-4000-a000-000000000201', '週末スポーツ'),
@@ -152,14 +152,14 @@ VALUES
   ('e2e00000-0000-4000-a000-000000000254',   'e2e00000-0000-4000-a000-000000000202',   '朝活'),
   ('e2e00000-0000-4000-a000-000000000255',   'e2e00000-0000-4000-a000-000000000203',   '読書'),
   ('e2e00000-0000-4000-a000-000000000256',   'e2e00000-0000-4000-a000-000000000203',   '読書会')
-ON CONFLICT ("communityId", "tag") DO NOTHING;
+ON CONFLICT ("community_id", "tag") DO NOTHING;
 
 -- ============================================================
 -- 3. メンバーシップ（各コミュニティに全員参加）
 -- ============================================================
 
 -- 週末フットサル: Helena=OWNER, Daniel=MEMBER, Sakura=MEMBER
-INSERT INTO "CommunityMembership" ("id", "communityId", "userId", "role", "joinedAt")
+INSERT INTO community.community_memberships ("id", "community_id", "user_id", "role", "joined_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000301', 'e2e00000-0000-4000-a000-000000000201', 'e2e00000-0000-4000-a000-000000000101', 'OWNER',  NOW() - INTERVAL '30 days'),
   ('e2e00000-0000-4000-a000-000000000302', 'e2e00000-0000-4000-a000-000000000201', 'e2e00000-0000-4000-a000-000000000102', 'MEMBER', NOW() - INTERVAL '28 days'),
@@ -167,7 +167,7 @@ VALUES
 ON CONFLICT ("id") DO NOTHING;
 
 -- 朝ヨガサークル: Daniel=OWNER, Helena=ADMIN, Sakura=MEMBER
-INSERT INTO "CommunityMembership" ("id", "communityId", "userId", "role", "joinedAt")
+INSERT INTO community.community_memberships ("id", "community_id", "user_id", "role", "joined_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000304', 'e2e00000-0000-4000-a000-000000000202', 'e2e00000-0000-4000-a000-000000000102', 'OWNER',  NOW() - INTERVAL '20 days'),
   ('e2e00000-0000-4000-a000-000000000305', 'e2e00000-0000-4000-a000-000000000202', 'e2e00000-0000-4000-a000-000000000101', 'ADMIN',  NOW() - INTERVAL '18 days'),
@@ -175,38 +175,38 @@ VALUES
 ON CONFLICT ("id") DO NOTHING;
 
 -- 読書クラブ: Sakura=OWNER, Helena=MEMBER （Danielは未参加）
-INSERT INTO "CommunityMembership" ("id", "communityId", "userId", "role", "joinedAt")
+INSERT INTO community.community_memberships ("id", "community_id", "user_id", "role", "joined_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000307', 'e2e00000-0000-4000-a000-000000000203', 'e2e00000-0000-4000-a000-000000000103', 'OWNER',  NOW() - INTERVAL '15 days'),
   ('e2e00000-0000-4000-a000-000000000308', 'e2e00000-0000-4000-a000-000000000203', 'e2e00000-0000-4000-a000-000000000101', 'MEMBER', NOW() - INTERVAL '10 days')
 ON CONFLICT ("id") DO NOTHING;
 
 -- Phase10: コミュニティ内レベル（0-8）
-UPDATE "CommunityMembership" SET "level" = 7 WHERE "id" = 'e2e00000-0000-4000-a000-000000000301';
-UPDATE "CommunityMembership" SET "level" = 5 WHERE "id" = 'e2e00000-0000-4000-a000-000000000302';
-UPDATE "CommunityMembership" SET "level" = 3 WHERE "id" = 'e2e00000-0000-4000-a000-000000000303';
-UPDATE "CommunityMembership" SET "level" = 6 WHERE "id" = 'e2e00000-0000-4000-a000-000000000304';
-UPDATE "CommunityMembership" SET "level" = 4 WHERE "id" = 'e2e00000-0000-4000-a000-000000000305';
-UPDATE "CommunityMembership" SET "level" = 2 WHERE "id" = 'e2e00000-0000-4000-a000-000000000306';
-UPDATE "CommunityMembership" SET "level" = 4 WHERE "id" = 'e2e00000-0000-4000-a000-000000000307';
-UPDATE "CommunityMembership" SET "level" = 5 WHERE "id" = 'e2e00000-0000-4000-a000-000000000308';
+UPDATE community.community_memberships SET "level" = 7 WHERE "id" = 'e2e00000-0000-4000-a000-000000000301';
+UPDATE community.community_memberships SET "level" = 5 WHERE "id" = 'e2e00000-0000-4000-a000-000000000302';
+UPDATE community.community_memberships SET "level" = 3 WHERE "id" = 'e2e00000-0000-4000-a000-000000000303';
+UPDATE community.community_memberships SET "level" = 6 WHERE "id" = 'e2e00000-0000-4000-a000-000000000304';
+UPDATE community.community_memberships SET "level" = 4 WHERE "id" = 'e2e00000-0000-4000-a000-000000000305';
+UPDATE community.community_memberships SET "level" = 2 WHERE "id" = 'e2e00000-0000-4000-a000-000000000306';
+UPDATE community.community_memberships SET "level" = 4 WHERE "id" = 'e2e00000-0000-4000-a000-000000000307';
+UPDATE community.community_memberships SET "level" = 5 WHERE "id" = 'e2e00000-0000-4000-a000-000000000308';
 
 -- Phase10: カテゴリ別マッチングフォーマット
-INSERT INTO "CategoryMatchFormat" ("id", "categoryId", "name", "playersPerGroup", "groupsPerCourt", "sortOrder", "isDefault", "createdAt", "updatedAt")
+INSERT INTO master.category_match_formats ("id", "category_id", "name", "players_per_group", "groups_per_court", "sort_order", "is_default", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000291', 'cat-futsal', '5v5', 5, 2, 1, true, NOW(), NOW()),
   ('e2e00000-0000-4000-a000-000000000292', 'cat-futsal', '6v6', 6, 2, 2, false, NOW(), NOW()),
   ('e2e00000-0000-4000-a000-000000000293', 'cat-other', '2v2', 2, 2, 1, true, NOW(), NOW())
-ON CONFLICT ("id") DO NOTHING;
+ON CONFLICT ("category_id", "name") DO NOTHING;
 
 -- ============================================================
 -- 4. アクティビティ（各コミュニティに1〜2個）
 -- ============================================================
 
 -- 週末フットサル
-INSERT INTO "Activity" ("id", "communityId", "title", "description", "defaultLocationCustom", "defaultStartTime", "defaultEndTime",
-  "recurrenceRule", "defaultParticipationFee", "defaultVisitorFee", "defaultCapacity", "allowVisitorWaitlist",
-  "createdBy", "createdAt", "updatedAt")
+INSERT INTO activity.activities ("id", "community_id", "title", "description", "default_location_custom", "default_start_time", "default_end_time",
+  "recurrence_rule", "default_participation_fee", "default_visitor_fee", "default_capacity", "allow_visitor_waitlist",
+  "created_by", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000401', 'e2e00000-0000-4000-a000-000000000201', '土曜フットサル', '毎週土曜の定期フットサル', '代々木公園フットサルコート', '10:00', '12:00',
    'FREQ=WEEKLY;BYDAY=SA', 500, 800, 20, true,
@@ -217,9 +217,9 @@ VALUES
 ON CONFLICT ("id") DO NOTHING;
 
 -- 朝ヨガサークル
-INSERT INTO "Activity" ("id", "communityId", "title", "description", "defaultLocationCustom", "defaultStartTime", "defaultEndTime",
-  "recurrenceRule", "defaultParticipationFee", "defaultVisitorFee", "defaultCapacity", "allowVisitorWaitlist",
-  "createdBy", "createdAt", "updatedAt")
+INSERT INTO activity.activities ("id", "community_id", "title", "description", "default_location_custom", "default_start_time", "default_end_time",
+  "recurrence_rule", "default_participation_fee", "default_visitor_fee", "default_capacity", "allow_visitor_waitlist",
+  "created_by", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000403', 'e2e00000-0000-4000-a000-000000000202', 'モーニングヨガ', '朝の公園でリフレッシュヨガ', '新宿御苑', '07:00', '08:00',
    'FREQ=WEEKLY;BYDAY=MO,WE,FR', 0, NULL, NULL, false,
@@ -227,9 +227,9 @@ VALUES
 ON CONFLICT ("id") DO NOTHING;
 
 -- 読書クラブ（繰り返しなし = 単発、オンライン開催）
-INSERT INTO "Activity" ("id", "communityId", "title", "description", "isOnline", "defaultStartTime", "defaultEndTime",
-  "recurrenceRule", "defaultParticipationFee", "defaultVisitorFee", "defaultCapacity", "allowVisitorWaitlist",
-  "createdBy", "createdAt", "updatedAt")
+INSERT INTO activity.activities ("id", "community_id", "title", "description", "is_online", "default_start_time", "default_end_time",
+  "recurrence_rule", "default_participation_fee", "default_visitor_fee", "default_capacity", "allow_visitor_waitlist",
+  "created_by", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000404', 'e2e00000-0000-4000-a000-000000000203', '月例読書会', '今月のテーマ本についてディスカッション', true, '19:00', '21:00',
    NULL, 0, NULL, 15, false,
@@ -241,13 +241,13 @@ ON CONFLICT ("id") DO NOTHING;
 --   Activity 402 (日曜ミニゲーム) → PRIVATE（既定値、非加入ユーザーは 404）
 --   Activity 403 (モーニングヨガ) → PRIVATE（既定値）
 --   Activity 404 (月例読書会)     → 親コミュニティ自体が非公開のため非加入ユーザーは 404
-UPDATE "Activity" SET "visibility" = 'PUBLIC' WHERE "id" = 'e2e00000-0000-4000-a000-000000000401';
+UPDATE activity.activities SET "visibility" = 'PUBLIC' WHERE "id" = 'e2e00000-0000-4000-a000-000000000401';
 
 -- ============================================================
 -- 4-b. スケジュール（各アクティビティの初回日程）
 -- ============================================================
 
-INSERT INTO "Schedule" ("id", "activityId", "date", "startTime", "endTime", "location", "status", "capacity", "participationFee", "visitorFee", "isOnline", "meetingUrl", "createdAt", "updatedAt")
+INSERT INTO activity.schedules ("id", "activity_id", "date", "start_time", "end_time", "location", "status", "capacity", "participation_fee", "visitor_fee", "is_online", "meeting_url", "created_at", "updated_at")
 VALUES
   -- 土曜フットサル（繰り返し: 4週分）
   ('e2e00000-0000-4000-a000-000000000501', 'e2e00000-0000-4000-a000-000000000401', '2026-03-14', '10:00', '12:00', '代々木公園フットサルコート', 'SCHEDULED', 20, 500, 800, false, NULL, NOW(), NOW()),
@@ -272,7 +272,7 @@ ON CONFLICT ("id") DO NOTHING;
 -- ============================================================
 
 -- Helena → 週末フットサル: 3件
-INSERT INTO "Announcement" ("id", "communityId", "authorId", "title", "content", "createdAt", "updatedAt")
+INSERT INTO announcement.announcements ("id", "community_id", "author_id", "title", "content", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000601', 'e2e00000-0000-4000-a000-000000000201', 'e2e00000-0000-4000-a000-000000000101',
    '今週末のフットサルについて',
@@ -291,7 +291,7 @@ VALUES
 ON CONFLICT ("id") DO NOTHING;
 
 -- Daniel → 朝ヨガサークル: 3件
-INSERT INTO "Announcement" ("id", "communityId", "authorId", "title", "content", "createdAt", "updatedAt")
+INSERT INTO announcement.announcements ("id", "community_id", "author_id", "title", "content", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000604', 'e2e00000-0000-4000-a000-000000000202', 'e2e00000-0000-4000-a000-000000000102',
    '明日のヨガは中止です',
@@ -310,7 +310,7 @@ VALUES
 ON CONFLICT ("id") DO NOTHING;
 
 -- Sakura → 読書クラブ: 2件
-INSERT INTO "Announcement" ("id", "communityId", "authorId", "title", "content", "createdAt", "updatedAt")
+INSERT INTO announcement.announcements ("id", "community_id", "author_id", "title", "content", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000607', 'e2e00000-0000-4000-a000-000000000203', 'e2e00000-0000-4000-a000-000000000103',
    '3月のテーマ本が決まりました',
@@ -328,46 +328,46 @@ ON CONFLICT ("id") DO NOTHING;
 -- ============================================================
 
 -- Helena は自分の投稿は既読扱い + ヨガの最新を既読
-INSERT INTO "AnnouncementRead" ("id", "announcementId", "userId", "readAt")
+INSERT INTO announcement.announcement_reads ("id", "announcement_id", "user_id", "read_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000611', 'e2e00000-0000-4000-a000-000000000601', 'e2e00000-0000-4000-a000-000000000101', NOW()),
   ('e2e00000-0000-4000-a000-000000000612', 'e2e00000-0000-4000-a000-000000000602', 'e2e00000-0000-4000-a000-000000000101', NOW()),
   ('e2e00000-0000-4000-a000-000000000613', 'e2e00000-0000-4000-a000-000000000603', 'e2e00000-0000-4000-a000-000000000101', NOW()),
   ('e2e00000-0000-4000-a000-000000000614', 'e2e00000-0000-4000-a000-000000000604',   'e2e00000-0000-4000-a000-000000000101', NOW())
-ON CONFLICT ("announcementId", "userId") DO NOTHING;
+ON CONFLICT ("announcement_id", "user_id") DO NOTHING;
 
 -- Daniel はフットサルの最新1件を既読
-INSERT INTO "AnnouncementRead" ("id", "announcementId", "userId", "readAt")
+INSERT INTO announcement.announcement_reads ("id", "announcement_id", "user_id", "read_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000615', 'e2e00000-0000-4000-a000-000000000601', 'e2e00000-0000-4000-a000-000000000102', NOW()),
   ('e2e00000-0000-4000-a000-000000000616', 'e2e00000-0000-4000-a000-000000000604',   'e2e00000-0000-4000-a000-000000000102', NOW()),
   ('e2e00000-0000-4000-a000-000000000617', 'e2e00000-0000-4000-a000-000000000605',   'e2e00000-0000-4000-a000-000000000102', NOW()),
   ('e2e00000-0000-4000-a000-000000000618', 'e2e00000-0000-4000-a000-000000000606',   'e2e00000-0000-4000-a000-000000000102', NOW())
-ON CONFLICT ("announcementId", "userId") DO NOTHING;
+ON CONFLICT ("announcement_id", "user_id") DO NOTHING;
 
 -- ============================================================
 -- 6b. アナウンスメント — ブックマーク
 -- ============================================================
 
 -- Helena はフットサルの最新＋読書会をブックマーク
-INSERT INTO "AnnouncementBookmark" ("id", "announcementId", "userId", "createdAt")
+INSERT INTO announcement.announcement_bookmarks ("id", "announcement_id", "user_id", "created_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000621', 'e2e00000-0000-4000-a000-000000000601', 'e2e00000-0000-4000-a000-000000000101', NOW()),
   ('e2e00000-0000-4000-a000-000000000622', 'e2e00000-0000-4000-a000-000000000607',   'e2e00000-0000-4000-a000-000000000101', NOW())
-ON CONFLICT ("announcementId", "userId") DO NOTHING;
+ON CONFLICT ("announcement_id", "user_id") DO NOTHING;
 
 -- Daniel はヨガの特別レッスンをブックマーク
-INSERT INTO "AnnouncementBookmark" ("id", "announcementId", "userId", "createdAt")
+INSERT INTO announcement.announcement_bookmarks ("id", "announcement_id", "user_id", "created_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000623', 'e2e00000-0000-4000-a000-000000000605', 'e2e00000-0000-4000-a000-000000000102', NOW())
-ON CONFLICT ("announcementId", "userId") DO NOTHING;
+ON CONFLICT ("announcement_id", "user_id") DO NOTHING;
 
 -- ============================================================
 -- 7. スケジュール参加データ（メイン日程）
 -- ============================================================
 
 -- フットサル土曜 3/15: Helena=参加, Daniel=参加, Sakura=参加
-INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
+INSERT INTO activity.participations ("id", "schedule_id", "user_id", "is_visitor", "responded_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000701', 'e2e00000-0000-4000-a000-000000000501', 'e2e00000-0000-4000-a000-000000000101', false, NOW()),
   ('e2e00000-0000-4000-a000-000000000702', 'e2e00000-0000-4000-a000-000000000501', 'e2e00000-0000-4000-a000-000000000102', false, NOW()),
@@ -375,27 +375,27 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- フットサル土曜 3/15: Payment データ
-INSERT INTO "Payment" ("id", "participationId", "userId", "scheduleId", "amount", "paymentMethod", "status", "displayName", "createdAt", "updatedAt")
+INSERT INTO billing.payments ("id", "participation_id", "user_id", "schedule_id", "amount", "payment_method", "status", "display_name", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000801', 'e2e00000-0000-4000-a000-000000000701', 'e2e00000-0000-4000-a000-000000000101', 'e2e00000-0000-4000-a000-000000000501', 500, 'PAYPAY', 'CONFIRMED', 'Helena', NOW(), NOW()),
   ('e2e00000-0000-4000-a000-000000000802', 'e2e00000-0000-4000-a000-000000000702', 'e2e00000-0000-4000-a000-000000000102', 'e2e00000-0000-4000-a000-000000000501', 500, 'CASH',   'UNPAID',    'Daniel', NOW(), NOW())
 ON CONFLICT DO NOTHING;
 
 -- フットサル土曜 3/22: Helena=参加
-INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
+INSERT INTO activity.participations ("id", "schedule_id", "user_id", "is_visitor", "responded_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000704', 'e2e00000-0000-4000-a000-000000000502', 'e2e00000-0000-4000-a000-000000000101', false, NOW())
 ON CONFLICT DO NOTHING;
 
 -- ヨガ 3/10: Daniel=参加, Sakura=参加
-INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
+INSERT INTO activity.participations ("id", "schedule_id", "user_id", "is_visitor", "responded_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000705', 'e2e00000-0000-4000-a000-000000000508', 'e2e00000-0000-4000-a000-000000000102', false, NOW()),
   ('e2e00000-0000-4000-a000-000000000706', 'e2e00000-0000-4000-a000-000000000508', 'e2e00000-0000-4000-a000-000000000103', false, NOW())
 ON CONFLICT DO NOTHING;
 
 -- 読書会 3/20: Sakura=参加, Helena=参加（オンライン）
-INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
+INSERT INTO activity.participations ("id", "schedule_id", "user_id", "is_visitor", "responded_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000707', 'e2e00000-0000-4000-a000-00000000050c', 'e2e00000-0000-4000-a000-000000000103', false, NOW()),
   ('e2e00000-0000-4000-a000-000000000708', 'e2e00000-0000-4000-a000-00000000050c', 'e2e00000-0000-4000-a000-000000000101', false, NOW())
@@ -406,13 +406,13 @@ ON CONFLICT DO NOTHING;
 -- ============================================================
 
 -- フットサル日曜 3/16 (capacity=16): Sakura がキャンセル待ち（登録ユーザー）
-INSERT INTO "WaitlistEntry" ("id", "scheduleId", "userId", "isVisitor", "registeredAt")
+INSERT INTO activity.waitlist_entries ("id", "schedule_id", "user_id", "is_visitor", "registered_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000901', 'e2e00000-0000-4000-a000-000000000505', 'e2e00000-0000-4000-a000-000000000103', false, NOW())
 ON CONFLICT DO NOTHING;
 
 -- フットサル土曜 3/28: ゲストビジターのキャンセル待ち（userId=NULL, addedBy付き）
-INSERT INTO "WaitlistEntry" ("id", "scheduleId", "userId", "isVisitor", "visitorName", "addedBy", "registeredAt")
+INSERT INTO activity.waitlist_entries ("id", "schedule_id", "user_id", "is_visitor", "visitor_name", "added_by", "registered_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000902', 'e2e00000-0000-4000-a000-000000000503', NULL, true, '田中一郎', 'e2e00000-0000-4000-a000-000000000101', NOW())
 ON CONFLICT DO NOTHING;
@@ -426,7 +426,7 @@ COMMIT;
 BEGIN;
 
 -- Schedule: フットサル 3月分（統計テスト用）
-INSERT INTO "Schedule" ("id", "activityId", "date", "startTime", "endTime", "location", "status", "capacity", "participationFee", "isOnline", "createdAt", "updatedAt")
+INSERT INTO activity.schedules ("id", "activity_id", "date", "start_time", "end_time", "location", "status", "capacity", "participation_fee", "is_online", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-00000000050d', 'e2e00000-0000-4000-a000-000000000401', '2026-03-01', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500, false, NOW(), NOW()),
   ('e2e00000-0000-4000-a000-00000000050e', 'e2e00000-0000-4000-a000-000000000401', '2026-03-08', '19:00', '21:00', 'テスト体育館', 'SCHEDULED', 10, 500, false, NOW(), NOW()),
@@ -434,7 +434,7 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- Participation: Helena, Daniel の参加（CANCELLED は Participation には入れない＝レコードが存在しない）
-INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
+INSERT INTO activity.participations ("id", "schedule_id", "user_id", "is_visitor", "responded_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000709', 'e2e00000-0000-4000-a000-00000000050d', 'e2e00000-0000-4000-a000-000000000101', false, '2026-02-28T10:00:00Z'),
   ('e2e00000-0000-4000-a000-00000000070a', 'e2e00000-0000-4000-a000-00000000050d', 'e2e00000-0000-4000-a000-000000000102', false, '2026-02-28T12:00:00Z'),
@@ -444,7 +444,7 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- Payment: 統計テスト用
-INSERT INTO "Payment" ("id", "participationId", "userId", "scheduleId", "amount", "paymentMethod", "status", "displayName", "createdAt", "updatedAt")
+INSERT INTO billing.payments ("id", "participation_id", "user_id", "schedule_id", "amount", "payment_method", "status", "display_name", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000803', 'e2e00000-0000-4000-a000-000000000709', 'e2e00000-0000-4000-a000-000000000101', 'e2e00000-0000-4000-a000-00000000050d', 500, 'PAYPAY', 'CONFIRMED', 'Helena', '2026-02-28T10:00:00Z', '2026-02-28T10:00:00Z'),
   ('e2e00000-0000-4000-a000-000000000804', 'e2e00000-0000-4000-a000-00000000070a', 'e2e00000-0000-4000-a000-000000000102', 'e2e00000-0000-4000-a000-00000000050d', 500, 'CASH',   'UNPAID',    'Daniel', '2026-02-28T12:00:00Z', '2026-02-28T12:00:00Z'),
@@ -460,24 +460,24 @@ COMMIT;
 BEGIN;
 
 -- ゲストビジター参加データ（userId=NULL）
-INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "visitorName", "addedBy", "respondedAt")
+INSERT INTO activity.participations ("id", "schedule_id", "user_id", "is_visitor", "visitor_name", "added_by", "responded_at")
 VALUES
   ('e2e00000-0000-4000-a000-00000000070e', 'e2e00000-0000-4000-a000-000000000501', NULL, true, '山田太郎', 'e2e00000-0000-4000-a000-000000000101', NOW()),
   ('e2e00000-0000-4000-a000-00000000070f', 'e2e00000-0000-4000-a000-000000000501', NULL, true, '佐藤花子', 'e2e00000-0000-4000-a000-000000000102', NOW())
 ON CONFLICT DO NOTHING;
 
 -- Phase10: ビジターレベル（0-8）
-UPDATE "Participation" SET "visitorLevel" = 4 WHERE "id" = 'e2e00000-0000-4000-a000-00000000070e';
-UPDATE "Participation" SET "visitorLevel" = 2 WHERE "id" = 'e2e00000-0000-4000-a000-00000000070f';
+UPDATE activity.participations SET "visitor_level" = 4 WHERE "id" = 'e2e00000-0000-4000-a000-00000000070e';
+UPDATE activity.participations SET "visitor_level" = 2 WHERE "id" = 'e2e00000-0000-4000-a000-00000000070f';
 
 -- 登録済みビジター参加データ（userId=set, isVisitor=true）
-INSERT INTO "Participation" ("id", "scheduleId", "userId", "isVisitor", "respondedAt")
+INSERT INTO activity.participations ("id", "schedule_id", "user_id", "is_visitor", "responded_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000710', 'e2e00000-0000-4000-a000-000000000502', 'e2e00000-0000-4000-a000-000000000103', true, NOW())
 ON CONFLICT DO NOTHING;
 
 -- ゲストビジターの Payment データ
-INSERT INTO "Payment" ("id", "participationId", "userId", "scheduleId", "amount", "paymentMethod", "status", "displayName", "createdAt", "updatedAt")
+INSERT INTO billing.payments ("id", "participation_id", "user_id", "schedule_id", "amount", "payment_method", "status", "display_name", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000808', 'e2e00000-0000-4000-a000-00000000070e', NULL, 'e2e00000-0000-4000-a000-000000000501', 800, NULL, 'UNPAID', '山田太郎', NOW(), NOW()),
   ('e2e00000-0000-4000-a000-000000000809', 'e2e00000-0000-4000-a000-00000000070f', NULL, 'e2e00000-0000-4000-a000-000000000501', 800, 'CASH', 'CONFIRMED', '佐藤花子', NOW(), NOW()),
@@ -488,7 +488,7 @@ ON CONFLICT DO NOTHING;
 -- 10b. 経費カテゴリ（システムプリセット）
 -- ============================================================
 
-INSERT INTO "ExpenseCategory" ("id", "communityId", "name", "isSystem", "sortOrder", "isActive", "createdAt")
+INSERT INTO support.expense_categories ("id", "community_id", "name", "is_system", "sort_order", "is_active", "created_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000a01',  NULL, '飲み会',       true, 1, true, NOW()),
   ('e2e00000-0000-4000-a000-000000000a02', NULL, '設備利用料',   true, 2, true, NOW()),
@@ -498,7 +498,7 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- フットサルコミュニティ用のカスタムカテゴリ
-INSERT INTO "ExpenseCategory" ("id", "communityId", "name", "isSystem", "sortOrder", "isActive", "createdAt")
+INSERT INTO support.expense_categories ("id", "community_id", "name", "is_system", "sort_order", "is_active", "created_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000a06', 'e2e00000-0000-4000-a000-000000000201', 'ボール購入', false, 10, true, NOW())
 ON CONFLICT DO NOTHING;
@@ -507,7 +507,7 @@ ON CONFLICT DO NOTHING;
 -- 10c. 経費データ（フットサルコミュニティ）
 -- ============================================================
 
-INSERT INTO "Expense" ("id", "communityId", "categoryId", "amount", "description", "date", "createdBy", "createdAt", "updatedAt")
+INSERT INTO support.expenses ("id", "community_id", "category_id", "amount", "description", "date", "created_by", "created_at", "updated_at")
 VALUES
   ('e2e00000-0000-4000-a000-000000000b01', 'e2e00000-0000-4000-a000-000000000201', 'e2e00000-0000-4000-a000-000000000a02', 3000,  'コート利用料 3/15',   '2026-03-15', 'e2e00000-0000-4000-a000-000000000101', NOW(), NOW()),
   ('e2e00000-0000-4000-a000-000000000b02', 'e2e00000-0000-4000-a000-000000000201', 'e2e00000-0000-4000-a000-000000000a02', 3000,  'コート利用料 3/22',   '2026-03-22', 'e2e00000-0000-4000-a000-000000000101', NOW(), NOW()),
@@ -522,25 +522,25 @@ COMMIT;
 -- テストデータ削除用（必要時にコメント解除して実行）
 -- ============================================================
 -- BEGIN;
--- DELETE FROM "Expense" WHERE "id" LIKE 'e2e00000-0000-4000-a000-000000000b%';
--- DELETE FROM "ExpenseCategory" WHERE "id" LIKE 'e2e00000-0000-4000-a000-000000000a%';
--- DELETE FROM "Payment" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000080%';
--- DELETE FROM "WaitlistEntry" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000090%';
--- DELETE FROM "Participation" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000070%';
--- DELETE FROM "Schedule" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000050%';
--- DELETE FROM "AnnouncementBookmark" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000062%';
--- DELETE FROM "AnnouncementRead" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000061%';
--- DELETE FROM "Announcement" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000060%';
--- DELETE FROM "Activity" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000040%';
--- DELETE FROM "CommunityMembership" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000030%';
--- DELETE FROM "CommunityTag" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000025%';
--- DELETE FROM "CommunityActivityDay" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000024%';
--- DELETE FROM "CommunityParticipationLevel" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000023%';
--- DELETE FROM "CommunityCategory" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000021%';
--- DELETE FROM "CommunityLocation" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000022%';
--- DELETE FROM "Community" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000020%';
--- DELETE FROM "PasswordCredential" WHERE "userId" LIKE 'e2e00000-0000-4000-a000-00000000010%';
--- DELETE FROM "auth_security_states" WHERE "user_id" LIKE 'e2e00000-0000-4000-a000-00000000010%';
--- DELETE FROM "User" WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000010%';
--- DELETE FROM "PlanMaster" WHERE "id" IN ('FREE', 'LITE', 'PRO', 'LIFETIME');
+-- DELETE FROM support.expenses WHERE "id" LIKE 'e2e00000-0000-4000-a000-000000000b%';
+-- DELETE FROM support.expense_categories WHERE "id" LIKE 'e2e00000-0000-4000-a000-000000000a%';
+-- DELETE FROM billing.payments WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000080%';
+-- DELETE FROM activity.waitlist_entries WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000090%';
+-- DELETE FROM activity.participations WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000070%';
+-- DELETE FROM activity.schedules WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000050%';
+-- DELETE FROM announcement.announcement_bookmarks WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000062%';
+-- DELETE FROM announcement.announcement_reads WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000061%';
+-- DELETE FROM announcement.announcements WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000060%';
+-- DELETE FROM activity.activities WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000040%';
+-- DELETE FROM community.community_memberships WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000030%';
+-- DELETE FROM community.community_tags WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000025%';
+-- DELETE FROM community.community_activity_days WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000024%';
+-- DELETE FROM community.community_participation_levels WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000023%';
+-- DELETE FROM community.community_categories WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000021%';
+-- DELETE FROM community.community_locations WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000022%';
+-- DELETE FROM community.communities WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000020%';
+-- DELETE FROM auth.password_credentials WHERE "user_id" LIKE 'e2e00000-0000-4000-a000-00000000010%';
+-- DELETE FROM auth.auth_security_states WHERE "user_id" LIKE 'e2e00000-0000-4000-a000-00000000010%';
+-- DELETE FROM identity.users WHERE "id" LIKE 'e2e00000-0000-4000-a000-00000000010%';
+-- DELETE FROM master.plan_masters WHERE "id" IN ('FREE', 'LITE', 'PRO', 'LIFETIME');
 -- COMMIT;

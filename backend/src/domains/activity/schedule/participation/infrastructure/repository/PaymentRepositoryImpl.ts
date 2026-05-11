@@ -122,12 +122,12 @@ export class PaymentRepositoryImpl implements IPaymentRepository {
 
         const rows = await (this.prisma as PrismaClient).$queryRawUnsafe<Array<{ activityId: string; total: bigint }>>(
             `SELECT a."id" AS "activityId", COALESCE(SUM(p."amount"), 0) AS "total"
-            FROM "Payment" p
-            JOIN "Schedule" s ON p."scheduleId" = s."id"
-            JOIN "Activity" a ON s."activityId" = a."id"
-            WHERE a."communityId" = $1
+            FROM billing.payments p
+            JOIN activity.schedules s ON p."schedule_id" = s."id"
+            JOIN activity.activities a ON s."activity_id" = a."id"
+            WHERE a."community_id" = $1
               AND p."status" = 'CONFIRMED'
-              AND a."deletedAt" IS NULL
+              AND a."deleted_at" IS NULL
               ${dateClause}
             GROUP BY a."id"`,
             ...params,
@@ -174,17 +174,17 @@ export class PaymentRepositoryImpl implements IPaymentRepository {
             isVisitor: boolean
         }>>(
             `SELECT
-                p."scheduleId" AS "scheduleId",
+                p."schedule_id" AS "scheduleId",
                 s."date" AS "scheduleDate",
-                s."startTime" AS "scheduleStartTime",
-                p."displayName" AS "displayName",
+                s."start_time" AS "scheduleStartTime",
+                p."display_name" AS "displayName",
                 p."amount" AS "amount",
-                p."userId" AS "userId",
-                COALESCE(pt."isVisitor", false) AS "isVisitor"
-            FROM "Payment" p
-            JOIN "Schedule" s ON p."scheduleId" = s."id"
-            JOIN "Participation" pt ON p."participationId" = pt."id"
-            WHERE s."activityId" = $1
+                p."user_id" AS "userId",
+                COALESCE(pt."is_visitor", false) AS "isVisitor"
+            FROM billing.payments p
+            JOIN activity.schedules s ON p."schedule_id" = s."id"
+            JOIN activity.participations pt ON p."participation_id" = pt."id"
+            WHERE s."activity_id" = $1
               AND p."status" = 'CONFIRMED'
               ${dateClause}
             ORDER BY s."date" DESC, s."startTime" ASC, p."displayName" ASC`,

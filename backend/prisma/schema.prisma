@@ -5,93 +5,103 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["activity", "announcement", "auth", "billing", "community", "identity", "master", "media", "messaging", "notification", "outbox", "support"]
 }
 
 // ---- OutboxEvent テーブル定義 ----
 
 model OutboxEvent {
-  id             String    @id
-  idempotencyKey String    @unique
-  aggregateId    String
-  eventName      String
-  eventType      String
-  routingKey     String
-  payload        Json
-  occurredAt     DateTime
-  publishedAt    DateTime?
-  status         String    @default("PENDING")
+  id             String    @id @map("id")
+  idempotencyKey String    @unique @map("idempotency_key")
+  aggregateId    String    @map("aggregate_id")
+  eventName      String    @map("event_name")
+  eventType      String    @map("event_type")
+  routingKey     String    @map("routing_key")
+  payload        Json      @map("payload")
+  occurredAt     DateTime  @map("occurred_at")
+  publishedAt    DateTime? @map("published_at")
+  status         String    @default("PENDING") @map("status")
 
-  retryCount  Int      @default(0)
-  nextRetryAt DateTime @default(now())
+  retryCount  Int      @default(0) @map("retry_count")
+  nextRetryAt DateTime @default(now()) @map("next_retry_at")
 
   @@index([status, nextRetryAt])
+  @@map("outbox_events")
+  @@schema("outbox")
 }
 
 model OutboxRetryPolicy {
-  routingKey   String @id // Handler に対応する routingKey
-  maxRetries   Int    @default(5) // 最大リトライ回数
-  baseInterval Int    @default(3000) // 初期インターバル（ms）
-  maxInterval  Int    @default(60000) // インターバル上限（ms）
+  routingKey   String @id @map("routing_key") // Handler に対応する routingKey
+  maxRetries   Int    @default(5) @map("max_retries") // 最大リトライ回数
+  baseInterval Int    @default(3000) @map("base_interval") // 初期インターバル（ms）
+  maxInterval  Int    @default(60000) @map("max_interval") // インターバル上限（ms）
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("outbox_retry_policies")
+  @@schema("outbox")
 }
 
 model AuthAuditLog {
-  id         String   @id @default(uuid())
-  action     String // auth.login.success | auth.login.failed | user.registered
-  userId     String
-  authMethod String
-  detail     String?
-  occurredAt DateTime
-  createdAt  DateTime @default(now())
+  id         String   @id @default(uuid()) @map("id")
+  action     String   @map("action") // auth.login.success | auth.login.failed | user.registered
+  userId     String   @map("user_id")
+  authMethod String   @map("auth_method")
+  detail     String?  @map("detail")
+  occurredAt DateTime @map("occurred_at")
+  createdAt  DateTime @default(now()) @map("created_at")
 
   @@index([userId, occurredAt])
+  @@map("auth_audit_logs")
+  @@schema("auth")
 }
 
 model OutboxDeadLetter {
-  id String @id @default(uuid())
+  id String @id @default(uuid()) @map("id")
 
-  outboxEventId String
-  routingKey    String
-  eventType     String
+  outboxEventId String @map("outbox_event_id")
+  routingKey    String @map("routing_key")
+  eventType     String @map("event_type")
 
-  payload        Json
-  errorMessage   String?
-  errorStack     String?
-  errorType      String // IntegrationError.errorType (e.g. HANDLER_NOT_FOUND, HTTP_CLIENT_ERROR)
-  retryCount     Int     @default(0)
-  lastHttpStatus Int? // HttpIntegrationError の statusCode（該当しない場合 null）
+  payload        Json    @map("payload")
+  errorMessage   String? @map("error_message")
+  errorStack     String? @map("error_stack")
+  errorType      String  @map("error_type") // IntegrationError.errorType (e.g. HANDLER_NOT_FOUND, HTTP_CLIENT_ERROR)
+  retryCount     Int     @default(0) @map("retry_count")
+  lastHttpStatus Int?    @map("last_http_status") // HttpIntegrationError の statusCode（該当しない場合 null）
 
-  occurredAt DateTime // 元イベントの発生時刻
-  failedAt   DateTime @default(now())
+  occurredAt DateTime @map("occurred_at") // 元イベントの発生時刻
+  failedAt   DateTime @default(now()) @map("failed_at")
 
   @@index([failedAt])
   @@index([routingKey])
+  @@map("outbox_dead_letters")
+  @@schema("outbox")
 }
 
 model Activity {
-  id                      String    @id @default(uuid())
-  communityId             String
-  title                   String
-  description             String?
-  defaultPlaceId          String? // 候補マスタ参照（Place）。defaultLocationCustom と XOR
-  defaultLocationCustom   String? // 自由入力（候補不一致時）。defaultPlaceId と XOR
-  isOnline                Boolean   @default(false) // オンライン開催フラグ。true 時は会場情報なし
-  defaultStartTime        String? // "HH:mm" format
-  defaultEndTime          String? // "HH:mm" format
-  defaultParticipationFee Int? // デフォルト参加費（繰り返し生成時に引き継ぎ）
-  defaultVisitorFee       Int? // デフォルトビジター費（繰り返し生成時に引き継ぎ）
-  defaultCapacity         Int? // デフォルト定員（繰り返し生成時に引き継ぎ）
-  allowVisitorWaitlist    Boolean   @default(false) // ビジターのキャンセル待ち参加を許可
-  visibility              String    @default("PRIVATE") // 'PUBLIC' | 'PRIVATE' — Wave6 W6-04: アクティビティ公開範囲
-  recurrenceRule          String? // null in Phase 1
-  organizerUserId         String? // 幹事ユーザーID（null = 未定）
-  createdBy               String
-  deletedAt               DateTime?
+  id                      String    @id @default(uuid()) @map("id")
+  communityId             String    @map("community_id")
+  title                   String    @map("title")
+  description             String?   @map("description")
+  defaultPlaceId          String?   @map("default_place_id") // 候補マスタ参照（Place）。defaultLocationCustom と XOR
+  defaultLocationCustom   String?   @map("default_location_custom") // 自由入力（候補不一致時）。defaultPlaceId と XOR
+  isOnline                Boolean   @default(false) @map("is_online") // オンライン開催フラグ。true 時は会場情報なし
+  defaultStartTime        String?   @map("default_start_time") // "HH:mm" format
+  defaultEndTime          String?   @map("default_end_time") // "HH:mm" format
+  defaultParticipationFee Int?      @map("default_participation_fee") // デフォルト参加費（繰り返し生成時に引き継ぎ）
+  defaultVisitorFee       Int?      @map("default_visitor_fee") // デフォルトビジター費（繰り返し生成時に引き継ぎ）
+  defaultCapacity         Int?      @map("default_capacity") // デフォルト定員（繰り返し生成時に引き継ぎ）
+  allowVisitorWaitlist    Boolean   @default(false) @map("allow_visitor_waitlist") // ビジターのキャンセル待ち参加を許可
+  visibility              String    @default("PRIVATE") @map("visibility") // 'PUBLIC' | 'PRIVATE' — Wave6 W6-04: アクティビティ公開範囲
+  recurrenceRule          String?   @map("recurrence_rule") // null in Phase 1
+  organizerUserId         String?   @map("organizer_user_id") // 幹事ユーザーID（null = 未定）
+  createdBy               String    @map("created_by")
+  deletedAt               DateTime? @map("deleted_at")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   community     Community      @relation(fields: [communityId], references: [id])
   defaultPlace  Place?         @relation(fields: [defaultPlaceId], references: [id])
@@ -103,6 +113,8 @@ model Activity {
   @@index([createdBy])
   @@index([organizerUserId])
   @@index([defaultPlaceId])
+  @@map("activities")
+  @@schema("activity")
 }
 
 // Wave6 Phase6 W6-07: 開催場所マスタ（OSM由来）
@@ -110,47 +122,49 @@ model Activity {
 // - normalizedName/normalizedAddress に pg_trgm GIN インデックスを付与（migration内 raw SQL）
 // - usageCount は Activity 保存時にインクリメント
 model Place {
-  id                String  @id @default(uuid())
-  name              String  @db.VarChar(200)
-  address           String  @db.VarChar(500)
-  lat               Float
-  lng               Float
-  normalizedName    String  @db.VarChar(200) // 検索用正規化名（小文字・記号除去）
-  normalizedAddress String  @db.VarChar(500) // 検索用正規化住所
-  category          String? @db.VarChar(50) // OSM由来カテゴリ（sports_centre / community_centre 等）
-  source            String  @db.VarChar(20) // 'osm' 等
-  sourceId          String  @db.VarChar(100) // 'osm:node:123456' / 'osm:way:...' 形式の安定ID
-  usageCount        Int     @default(0)
-  isActive          Boolean @default(true) // false = 最新スナップショットから消えた等で論理削除
+  id                String  @id @default(uuid()) @map("id")
+  name              String  @map("name") @db.VarChar(200)
+  address           String  @map("address") @db.VarChar(500)
+  lat               Float   @map("lat")
+  lng               Float   @map("lng")
+  normalizedName    String  @map("normalized_name") @db.VarChar(200) // 検索用正規化名（小文字・記号除去）
+  normalizedAddress String  @map("normalized_address") @db.VarChar(500) // 検索用正規化住所
+  category          String? @map("category") @db.VarChar(50) // OSM由来カテゴリ（sports_centre / community_centre 等）
+  source            String  @map("source") @db.VarChar(20) // 'osm' 等
+  sourceId          String  @map("source_id") @db.VarChar(100) // 'osm:node:123456' / 'osm:way:...' 形式の安定ID
+  usageCount        Int     @default(0) @map("usage_count")
+  isActive          Boolean @default(true) @map("is_active") // false = 最新スナップショットから消えた等で論理削除
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   activities Activity[]
 
   @@unique([source, sourceId])
   @@index([isActive, usageCount(sort: Desc)])
+  @@map("places")
+  @@schema("activity")
 }
 
 model Schedule {
-  id               String    @id @default(uuid())
-  activityId       String
-  date             DateTime  @db.Date
-  startTime        String // "HH:mm" format
-  endTime          String // "HH:mm" format
-  location         String?
-  note             String?
-  status           String    @default("SCHEDULED") // SCHEDULED | CANCELLED
-  capacity         Int?
-  participationFee Int       @default(0) // 参加費（円）。0 = 無料
-  visitorFee       Int? // ビジター参加費（null = 通常参加費と同額）
-  isOnline         Boolean   @default(false)
-  meetingUrl       String? // オンライン時の会議URL
-  visibility       String? // null = Activity を継承 / 'PUBLIC' | 'PRIVATE' — Wave6 W6-04: スケジュール個別の公開範囲オーバーライド
-  deletedAt        DateTime?
+  id               String    @id @default(uuid()) @map("id")
+  activityId       String    @map("activity_id")
+  date             DateTime  @map("date") @db.Date
+  startTime        String    @map("start_time") // "HH:mm" format
+  endTime          String    @map("end_time") // "HH:mm" format
+  location         String?   @map("location")
+  note             String?   @map("note")
+  status           String    @default("SCHEDULED") @map("status") // SCHEDULED | CANCELLED
+  capacity         Int?      @map("capacity")
+  participationFee Int       @default(0) @map("participation_fee") // 参加費（円）。0 = 無料
+  visitorFee       Int?      @map("visitor_fee") // ビジター参加費（null = 通常参加費と同額）
+  isOnline         Boolean   @default(false) @map("is_online")
+  meetingUrl       String?   @map("meeting_url") // オンライン時の会議URL
+  visibility       String?   @map("visibility") // null = Activity を継承 / 'PUBLIC' | 'PRIVATE' — Wave6 W6-04: スケジュール個別の公開範囲オーバーライド
+  deletedAt        DateTime? @map("deleted_at")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   activity               Activity                @relation(fields: [activityId], references: [id])
   participations         Participation[]
@@ -161,17 +175,19 @@ model Schedule {
 
   @@index([activityId])
   @@index([date])
+  @@map("schedules")
+  @@schema("activity")
 }
 
 model Participation {
-  id           String   @id @default(uuid())
-  scheduleId   String
-  userId       String? // 登録済みユーザーの場合はユーザーID。未登録ビジターの場合はnull
-  isVisitor    Boolean  @default(false)
-  visitorName  String?  @db.VarChar(50) // 未登録ビジターの表示名（isVisitor=true & userId=null 時に必須）
-  visitorLevel Int? // ビジターの競技レベル（0-8）。null の場合はコミュニティ平均を適用
-  addedBy      String? // ビジター追加者のユーザーID
-  respondedAt  DateTime @default(now())
+  id           String   @id @default(uuid()) @map("id")
+  scheduleId   String   @map("schedule_id")
+  userId       String?  @map("user_id") // 登録済みユーザーの場合はユーザーID。未登録ビジターの場合はnull
+  isVisitor    Boolean  @default(false) @map("is_visitor")
+  visitorName  String?  @map("visitor_name") @db.VarChar(50) // 未登録ビジターの表示名（isVisitor=true & userId=null 時に必須）
+  visitorLevel Int?     @map("visitor_level") // ビジターの競技レベル（0-8）。null の場合はコミュニティ平均を適用
+  addedBy      String?  @map("added_by") // ビジター追加者のユーザーID
+  respondedAt  DateTime @default(now()) @map("responded_at")
 
   schedule Schedule  @relation(fields: [scheduleId], references: [id])
   payments Payment[] // Payment との1:N関連（通常1:1だが返金等で複数の可能性）
@@ -179,27 +195,29 @@ model Participation {
   // userId が NOT NULL の場合のみユニーク制約（部分インデックスはマイグレーションSQLで手動定義）
   @@index([scheduleId])
   @@index([userId])
+  @@map("participations")
+  @@schema("activity")
 }
 
 // 決済テーブル — Participation とは独立したライフサイクルを持つ
 // キャンセル後も Payment レコードは残り、返金ステータスを追跡できる
 model Payment {
-  id                    String    @id @default(uuid())
-  scheduleId            String
-  participationId       String? // Participation との紐付け（未登録ビジター含む全参加者を確実に辿れる）
-  userId                String? // 登録済みユーザーの場合のみ設定（高速参照用の補助カラム）
-  paymentMethod         String? // CASH | PAYPAY | CREDIT_CARD | null（未決定=ビジター初期状態「ー」）
-  displayName           String?   @db.VarChar(100) // 支払い時点の表示名スナップショット（登録ユーザー=displayName, ビジター=visitorName）
-  amount                Int // 参加費
-  feeAmount             Int       @default(0) // プラットフォーム手数料
-  status                String    @default("UNPAID") // UNPAID | REPORTED | CONFIRMED | REJECTED | REFUND_PENDING | REFUNDED | NO_REFUND
-  stripePaymentIntentId String?
-  paymentReportedAt     DateTime?
-  paymentConfirmedAt    DateTime?
-  paymentConfirmedBy    String?
+  id                    String    @id @default(uuid()) @map("id")
+  scheduleId            String    @map("schedule_id")
+  participationId       String?   @map("participation_id") // Participation との紐付け（未登録ビジター含む全参加者を確実に辿れる）
+  userId                String?   @map("user_id") // 登録済みユーザーの場合のみ設定（高速参照用の補助カラム）
+  paymentMethod         String?   @map("payment_method") // CASH | PAYPAY | CREDIT_CARD | null（未決定=ビジター初期状態「ー」）
+  displayName           String?   @map("display_name") @db.VarChar(100) // 支払い時点の表示名スナップショット（登録ユーザー=displayName, ビジター=visitorName）
+  amount                Int       @map("amount") // 参加費
+  feeAmount             Int       @default(0) @map("fee_amount") // プラットフォーム手数料
+  status                String    @default("UNPAID") @map("status") // UNPAID | REPORTED | CONFIRMED | REJECTED | REFUND_PENDING | REFUNDED | NO_REFUND
+  stripePaymentIntentId String?   @map("stripe_payment_intent_id")
+  paymentReportedAt     DateTime? @map("payment_reported_at")
+  paymentConfirmedAt    DateTime? @map("payment_confirmed_at")
+  paymentConfirmedBy    String?   @map("payment_confirmed_by")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   schedule      Schedule       @relation(fields: [scheduleId], references: [id])
   participation Participation? @relation(fields: [participationId], references: [id])
@@ -207,43 +225,47 @@ model Payment {
   @@index([scheduleId, userId])
   @@index([participationId])
   @@index([stripePaymentIntentId])
+  @@map("payments")
+  @@schema("billing")
 }
 
 model WaitlistEntry {
-  id           String   @id @default(uuid())
-  scheduleId   String
-  userId       String?
-  isVisitor    Boolean  @default(false)
-  visitorName  String?
-  addedBy      String?
-  registeredAt DateTime @default(now())
+  id           String   @id @default(uuid()) @map("id")
+  scheduleId   String   @map("schedule_id")
+  userId       String?  @map("user_id")
+  isVisitor    Boolean  @default(false) @map("is_visitor")
+  visitorName  String?  @map("visitor_name")
+  addedBy      String?  @map("added_by")
+  registeredAt DateTime @default(now()) @map("registered_at")
 
   schedule Schedule @relation(fields: [scheduleId], references: [id])
 
   // userId が NOT NULL の場合のみユニーク制約（部分インデックスはマイグレーションSQLで手動定義）
   @@index([scheduleId, userId])
   @@index([scheduleId, registeredAt])
+  @@map("waitlist_entries")
+  @@schema("activity")
 }
 
 model User {
-  id                  String    @id @default(uuid())
-  displayName         String?
-  plan                String    @default("FREE")
+  id                  String    @id @default(uuid()) @map("id")
+  displayName         String?   @map("display_name")
+  plan                String    @default("FREE") @map("plan")
   /// プラットフォーム（運営側）権限。テナント内の CommunityMembership.role とは別概念。
   /// 'USER' | 'OPERATOR' | 'SUPER_ADMIN'
   /// USER: 一般利用者 / OPERATOR: 運営オペレーター（問い合わせ対応・ヘルプ管理）/ SUPER_ADMIN: 全権
   systemRole          String    @default("USER") @map("system_role")
-  email               String?   @unique
-  phone               String?
-  avatarUrl           String?
-  biography           String?
-  notificationSetting Json
+  email               String?   @unique @map("email")
+  phone               String?   @map("phone")
+  avatarUrl           String?   @map("avatar_url")
+  biography           String?   @map("biography")
+  notificationSetting Json      @map("notification_setting")
   /// Wave6 Phase 9b-05: 表示言語（'ja' | 'en'）。null = 未設定（クライアントが localStorage / navigator.language で判定）
-  locale              String?
-  deletedAt           DateTime?
+  locale              String?   @map("locale")
+  deletedAt           DateTime? @map("deleted_at")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   passwordCredential PasswordCredential?
   googleCredential   GoogleCredential?
@@ -275,6 +297,9 @@ model User {
 
   // Wave6 Phase10: 組み合わせ結果
   matchingResults MatchingResult[]
+
+  @@map("users")
+  @@schema("identity")
 }
 
 // ============================================================
@@ -282,14 +307,17 @@ model User {
 // ============================================================
 
 model UserWithdrawal {
-  id       String  @id @default(uuid())
-  userId   String  @unique
-  reason   String // 'NOT_USING' | 'FOUND_ALTERNATIVE' | 'HARD_TO_USE' | 'FEE_TOO_HIGH' | 'OTHER'
-  freeText String?
+  id       String  @id @default(uuid()) @map("id")
+  userId   String  @unique @map("user_id")
+  reason   String  @map("reason") // 'NOT_USING' | 'FOUND_ALTERNATIVE' | 'HARD_TO_USE' | 'FEE_TOO_HIGH' | 'OTHER'
+  freeText String? @map("free_text")
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_withdrawals")
+  @@schema("auth")
 }
 
 model AuthSecurityState {
@@ -318,77 +346,90 @@ model AuthSecurityState {
 
   @@index([lockedUntil])
   @@map("auth_security_states")
+  @@schema("auth")
 }
 
 model PasswordCredential {
-  userId         String   @id
-  hashedPassword String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  userId         String   @id @map("user_id")
+  hashedPassword String   @map("hashed_password")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_credentials")
+  @@schema("auth")
 }
 
 model GoogleCredential {
-  userId    String   @unique
-  googleUid String   @unique
-  createdAt DateTime @default(now())
+  userId    String   @unique @map("user_id")
+  googleUid String   @unique @map("google_uid")
+  createdAt DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("google_credentials")
+  @@schema("auth")
 }
 
 model LineCredential {
-  userId    String   @unique
-  lineUid   String   @unique
-  createdAt DateTime @default(now())
+  userId    String   @unique @map("user_id")
+  lineUid   String   @unique @map("line_uid")
+  createdAt DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("line_credentials")
+  @@schema("auth")
 }
 
 model AppleCredential {
-  userId    String   @unique
-  appleUid  String   @unique
-  createdAt DateTime @default(now())
+  userId    String   @unique @map("user_id")
+  appleUid  String   @unique @map("apple_uid")
+  createdAt DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("apple_credentials")
+  @@schema("auth")
 }
 
 // ---- Community ----
 
 model Community {
-  id          String    @id @default(uuid())
-  name        String
-  description String?
-  logoUrl     String?
-  coverUrl    String?
-  parentId    String?
-  depth       Int       @default(0)
-  grade       String    @default("FREE") // 'FREE' | 'PREMIUM'
-  createdBy   String
-  deletedAt   DateTime?
+  id          String    @id @default(uuid()) @map("id")
+  name        String    @map("name")
+  description String?   @map("description")
+  logoUrl     String?   @map("logo_url")
+  coverUrl    String?   @map("cover_url")
+  parentId    String?   @map("parent_id")
+  depth       Int       @default(0) @map("depth")
+  grade       String    @default("FREE") @map("grade") // 'FREE' | 'PREMIUM'
+  createdBy   String    @map("created_by")
+  deletedAt   DateTime? @map("deleted_at")
 
   // ---- Phase 2: Community Profile Fields ----
-  joinMethod          String   @default("FREE_JOIN") // 'FREE_JOIN' | 'APPROVAL' | 'INVITATION'
-  isPublic            Boolean  @default(true)
-  maxMembers          Int?
-  activityFrequency   String?
-  targetGender        String[] @default([]) // GenderTarget VO で型安全を担保
-  ageMin              Int? // Wave5: 対象年齢下限（0-130）
-  ageMax              Int? // Wave5: 対象年齢上限（0-130）
-  recommendedLevelMin Int? // Wave5: 推奨レベル下限（0-8スケール）
-  recommendedLevelMax Int? // Wave5: 推奨レベル上限（0-8スケール）
+  joinMethod          String   @default("FREE_JOIN") @map("join_method") // 'FREE_JOIN' | 'APPROVAL' | 'INVITATION'
+  isPublic            Boolean  @default(true) @map("is_public")
+  maxMembers          Int?     @map("max_members")
+  activityFrequency   String?  @map("activity_frequency")
+  targetGender        String[] @default([]) @map("target_gender") // GenderTarget VO で型安全を担保
+  ageMin              Int?     @map("age_min") // Wave5: 対象年齢下限（0-130）
+  ageMax              Int?     @map("age_max") // Wave5: 対象年齢上限（0-130）
+  recommendedLevelMin Int?     @map("recommended_level_min") // Wave5: 推奨レベル下限（0-8スケール）
+  recommendedLevelMax Int?     @map("recommended_level_max") // Wave5: 推奨レベル上限（0-8スケール）
 
   // UBL-8: Payment settings
-  payPayId              String?
-  enabledPaymentMethods String[] @default(["CASH"])
-  stripeAccountId       String? // Stripe Connect アカウントID（Destination Charges 用）
+  payPayId              String?  @map("pay_pay_id")
+  enabledPaymentMethods String[] @default(["CASH"]) @map("enabled_payment_methods")
+  stripeAccountId       String?  @map("stripe_account_id") // Stripe Connect アカウントID（Destination Charges 用）
 
   // Phase 3: Community Notification Settings
-  reminderEnabled          Boolean @default(true) // スケジュール/支払いリマインダーを送信するか
-  cancellationAlertEnabled Boolean @default(true) // 当日キャンセル時に管理者にアラートを送信するか
+  reminderEnabled          Boolean @default(true) @map("reminder_enabled") // スケジュール/支払いリマインダーを送信するか
+  cancellationAlertEnabled Boolean @default(true) @map("cancellation_alert_enabled") // 当日キャンセル時に管理者にアラートを送信するか
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   parent   Community?  @relation("CommunityHierarchy", fields: [parentId], references: [id])
   children Community[] @relation("CommunityHierarchy")
@@ -426,21 +467,25 @@ model Community {
 
   @@index([createdBy])
   @@index([parentId])
+  @@map("communities")
+  @@schema("community")
 }
 
 model CommunityMembership {
-  id          String    @id @default(uuid())
-  communityId String
-  userId      String
-  role        String    @default("MEMBER") // 'OWNER' | 'ADMIN' | 'MEMBER'
-  level       Int? // メンバーのコミュニティ内レベル（0-8）
-  joinedAt    DateTime  @default(now())
-  leftAt      DateTime?
+  id          String    @id @default(uuid()) @map("id")
+  communityId String    @map("community_id")
+  userId      String    @map("user_id")
+  role        String    @default("MEMBER") @map("role") // 'OWNER' | 'ADMIN' | 'MEMBER'
+  level       Int?      @map("level") // メンバーのコミュニティ内レベル（0-8）
+  joinedAt    DateTime  @default(now()) @map("joined_at")
+  leftAt      DateTime? @map("left_at")
 
   community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
 
   @@unique([communityId, userId])
   @@index([userId])
+  @@map("community_memberships")
+  @@schema("community")
 }
 
 // ============================================================
@@ -448,19 +493,21 @@ model CommunityMembership {
 // ============================================================
 
 model CommunityLocation {
-  id          String  @id @default(uuid())
-  communityId String
-  type        String // 'MAIN' | 'SUB'
-  area        String // 活動エリア名（例: 「渋谷」「新宿」）
-  station     String? // 最寄り駅（任意）
-  sortOrder   Int     @default(0)
+  id          String  @id @default(uuid()) @map("id")
+  communityId String  @map("community_id")
+  type        String  @map("type") // 'MAIN' | 'SUB'
+  area        String  @map("area") // 活動エリア名（例: 「渋谷」「新宿」）
+  station     String? @map("station") // 最寄り駅（任意）
+  sortOrder   Int     @default(0) @map("sort_order")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
 
   @@index([communityId])
+  @@map("community_locations")
+  @@schema("community")
 }
 
 // ============================================================
@@ -468,16 +515,16 @@ model CommunityLocation {
 // ============================================================
 
 model CommunityJoinRequest {
-  id          String    @id @default(uuid())
-  communityId String
-  userId      String
-  status      String    @default("PENDING") // 'PENDING' | 'APPROVED' | 'REJECTED'
-  message     String?
-  reviewedBy  String?
-  reviewedAt  DateTime?
+  id          String    @id @default(uuid()) @map("id")
+  communityId String    @map("community_id")
+  userId      String    @map("user_id")
+  status      String    @default("PENDING") @map("status") // 'PENDING' | 'APPROVED' | 'REJECTED'
+  message     String?   @map("message")
+  reviewedBy  String?   @map("reviewed_by")
+  reviewedAt  DateTime? @map("reviewed_at")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id])
@@ -485,6 +532,8 @@ model CommunityJoinRequest {
   @@unique([communityId, userId, status])
   @@index([communityId])
   @@index([userId])
+  @@map("community_join_requests")
+  @@schema("community")
 }
 
 // ============================================================
@@ -492,16 +541,16 @@ model CommunityJoinRequest {
 // ============================================================
 
 model Announcement {
-  id          String    @id @default(uuid())
-  communityId String
-  authorId    String
-  activityId  String? // Phase3 #4: アクティビティ由来のお知らせ紐付け
-  title       String
-  content     String
-  deletedAt   DateTime?
+  id          String    @id @default(uuid()) @map("id")
+  communityId String    @map("community_id")
+  authorId    String    @map("author_id")
+  activityId  String?   @map("activity_id") // Phase3 #4: アクティビティ由来のお知らせ紐付け
+  title       String    @map("title")
+  content     String    @map("content")
+  deletedAt   DateTime? @map("deleted_at")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   community   Community                @relation(fields: [communityId], references: [id], onDelete: Cascade)
   activity    Activity?                @relation(fields: [activityId], references: [id], onDelete: SetNull)
@@ -515,18 +564,22 @@ model Announcement {
   @@index([communityId])
   @@index([authorId])
   @@index([activityId])
+  @@map("announcements")
+  @@schema("announcement")
 }
 
 model AnnouncementRead {
-  id             String   @id @default(uuid())
-  announcementId String
-  userId         String
-  readAt         DateTime @default(now())
+  id             String   @id @default(uuid()) @map("id")
+  announcementId String   @map("announcement_id")
+  userId         String   @map("user_id")
+  readAt         DateTime @default(now()) @map("read_at")
 
   announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
 
   @@unique([announcementId, userId])
   @@index([userId])
+  @@map("announcement_reads")
+  @@schema("announcement")
 }
 
 // ============================================================
@@ -534,15 +587,17 @@ model AnnouncementRead {
 // ============================================================
 
 model AnnouncementLike {
-  id             String   @id @default(uuid())
-  announcementId String
-  userId         String
-  createdAt      DateTime @default(now())
+  id             String   @id @default(uuid()) @map("id")
+  announcementId String   @map("announcement_id")
+  userId         String   @map("user_id")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
 
   @@unique([announcementId, userId])
   @@index([userId])
+  @@map("announcement_likes")
+  @@schema("announcement")
 }
 
 // ============================================================
@@ -550,16 +605,18 @@ model AnnouncementLike {
 // ============================================================
 
 model AnnouncementComment {
-  id             String   @id @default(uuid())
-  announcementId String
-  userId         String
-  content        String
-  createdAt      DateTime @default(now())
+  id             String   @id @default(uuid()) @map("id")
+  announcementId String   @map("announcement_id")
+  userId         String   @map("user_id")
+  content        String   @map("content")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
 
   @@index([announcementId, createdAt])
   @@index([userId])
+  @@map("announcement_comments")
+  @@schema("announcement")
 }
 
 // ============================================================
@@ -567,19 +624,21 @@ model AnnouncementComment {
 // ============================================================
 
 model AnnouncementAttachment {
-  id             String @id @default(uuid())
-  announcementId String
-  fileUrl        String
-  fileName       String
-  mimeType       String
-  fileSize       Int
-  sortOrder      Int    @default(0)
+  id             String @id @default(uuid()) @map("id")
+  announcementId String @map("announcement_id")
+  fileUrl        String @map("file_url")
+  fileName       String @map("file_name")
+  mimeType       String @map("mime_type")
+  fileSize       Int    @map("file_size")
+  sortOrder      Int    @default(0) @map("sort_order")
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
 
   @@index([announcementId])
+  @@map("announcement_attachments")
+  @@schema("announcement")
 }
 
 // ============================================================
@@ -587,15 +646,17 @@ model AnnouncementAttachment {
 // ============================================================
 
 model AnnouncementBookmark {
-  id             String   @id @default(uuid())
-  announcementId String
-  userId         String
-  createdAt      DateTime @default(now())
+  id             String   @id @default(uuid()) @map("id")
+  announcementId String   @map("announcement_id")
+  userId         String   @map("user_id")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
 
   @@unique([announcementId, userId])
   @@index([userId])
+  @@map("announcement_bookmarks")
+  @@schema("announcement")
 }
 
 // ============================================================
@@ -603,35 +664,39 @@ model AnnouncementBookmark {
 // ============================================================
 
 model Album {
-  id          String  @id @default(uuid())
-  communityId String
-  title       String
-  description String?
-  createdBy   String
+  id          String  @id @default(uuid()) @map("id")
+  communityId String  @map("community_id")
+  title       String  @map("title")
+  description String? @map("description")
+  createdBy   String  @map("created_by")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   community Community    @relation(fields: [communityId], references: [id], onDelete: Cascade)
   photos    AlbumPhoto[]
 
   @@index([communityId])
+  @@map("albums")
+  @@schema("media")
 }
 
 model AlbumPhoto {
-  id         String @id @default(uuid())
-  albumId    String
-  fileUrl    String
-  fileName   String
-  mimeType   String
-  fileSize   Int
-  uploadedBy String
+  id         String @id @default(uuid()) @map("id")
+  albumId    String @map("album_id")
+  fileUrl    String @map("file_url")
+  fileName   String @map("file_name")
+  mimeType   String @map("mime_type")
+  fileSize   Int    @map("file_size")
+  uploadedBy String @map("uploaded_by")
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   album Album @relation(fields: [albumId], references: [id], onDelete: Cascade)
 
   @@index([albumId])
+  @@map("album_photos")
+  @@schema("media")
 }
 
 // ============================================================
@@ -639,59 +704,63 @@ model AlbumPhoto {
 // ============================================================
 
 model PlanFeaturePolicy {
-  id      String  @id @default(uuid())
-  plan    String // 'FREE' | 'LITE' | 'PRO' | 'LIFETIME'
-  feature String // Feature enum の値
-  enabled Boolean @default(false)
+  id      String  @id @default(uuid()) @map("id")
+  plan    String  @map("plan") // 'FREE' | 'LITE' | 'PRO' | 'LIFETIME'
+  feature String  @map("feature") // Feature enum の値
+  enabled Boolean @default(false) @map("enabled")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([plan, feature])
   @@index([plan])
-  @@map("UserFeatureRestriction")
+  @@map("plan_feature_policies")
+  @@schema("master")
 }
 
 model PlanLimitPolicy {
-  id       String @id @default(uuid())
-  plan     String // 'FREE' | 'LITE' | 'PRO' | 'LIFETIME'
-  limitKey String // 'maxJoinCommunities' | 'maxCustomStamps' etc.
-  value    Int // -1 = 無制限
+  id       String @id @default(uuid()) @map("id")
+  plan     String @map("plan") // 'FREE' | 'LITE' | 'PRO' | 'LIFETIME'
+  limitKey String @map("limit_key") // 'maxJoinCommunities' | 'maxCustomStamps' etc.
+  value    Int    @map("value") // -1 = 無制限
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([plan, limitKey])
   @@index([plan])
-  @@map("UserLimitRestriction")
+  @@map("plan_limit_policies")
+  @@schema("master")
 }
 
 model CommunityGradeFeaturePolicy {
-  id      String  @id @default(uuid())
-  grade   String // 'FREE' | 'PREMIUM'
-  feature String // CommunityFeature enum の値
-  enabled Boolean @default(false)
+  id      String  @id @default(uuid()) @map("id")
+  grade   String  @map("grade") // 'FREE' | 'PREMIUM'
+  feature String  @map("feature") // CommunityFeature enum の値
+  enabled Boolean @default(false) @map("enabled")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([grade, feature])
   @@index([grade])
-  @@map("CommunityFeatureRestriction")
+  @@map("community_grade_feature_policies")
+  @@schema("master")
 }
 
 model CommunityGradeLimitPolicy {
-  id       String @id @default(uuid())
-  grade    String // 'FREE' | 'PREMIUM'
-  limitKey String // 'maxMembers' etc.
-  value    Int // -1 = 無制限
+  id       String @id @default(uuid()) @map("id")
+  grade    String @map("grade") // 'FREE' | 'PREMIUM'
+  limitKey String @map("limit_key") // 'maxMembers' etc.
+  value    Int    @map("value") // -1 = 無制限
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([grade, limitKey])
   @@index([grade])
-  @@map("CommunityLimitRestriction")
+  @@map("community_grade_limit_policies")
+  @@schema("master")
 }
 
 // ============================================================
@@ -703,18 +772,20 @@ model CommunityGradeLimitPolicy {
 // ============================================================
 
 model CommunityAuditLog {
-  id          String  @id @default(uuid())
-  communityId String
-  actorUserId String
-  action      String // COMMUNITY_UPDATED | ROLE_CHANGED | MEMBER_REMOVED | OWNER_TRANSFERRED | MEMBER_ADDED
-  field       String? // 変更フィールド名 (e.g. "name", "visibility")
-  before      String? // 変更前値 JSON
-  after       String? // 変更後値 JSON
-  summary     String // 人間可読サマリ (e.g. "コミュニティ名を変更")
+  id          String  @id @default(uuid()) @map("id")
+  communityId String  @map("community_id")
+  actorUserId String  @map("actor_user_id")
+  action      String  @map("action") // COMMUNITY_UPDATED | ROLE_CHANGED | MEMBER_REMOVED | OWNER_TRANSFERRED | MEMBER_ADDED
+  field       String? @map("field") // 変更フィールド名 (e.g. "name", "visibility")
+  before      String? @map("before") // 変更前値 JSON
+  after       String? @map("after") // 変更後値 JSON
+  summary     String  @map("summary") // 人間可読サマリ (e.g. "コミュニティ名を変更")
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([communityId, createdAt])
+  @@map("community_audit_logs")
+  @@schema("community")
 }
 
 // ============================================================
@@ -722,19 +793,21 @@ model CommunityAuditLog {
 // ============================================================
 
 model ParticipationAuditLog {
-  id            String    @id @default(uuid())
-  scheduleId    String
-  userId        String
-  action        String // JOINED | CANCELLED | REMOVED_BY_ADMIN
-  cancelledAt   DateTime? // キャンセル日時（当日キャンセル判定用）
-  paymentMethod String? // キャンセル時点のスナップショット
-  paymentStatus String? // キャンセル時点のスナップショット
-  createdAt     DateTime  @default(now())
+  id            String    @id @default(uuid()) @map("id")
+  scheduleId    String    @map("schedule_id")
+  userId        String    @map("user_id")
+  action        String    @map("action") // JOINED | CANCELLED | REMOVED_BY_ADMIN
+  cancelledAt   DateTime? @map("cancelled_at") // キャンセル日時（当日キャンセル判定用）
+  paymentMethod String?   @map("payment_method") // キャンセル時点のスナップショット
+  paymentStatus String?   @map("payment_status") // キャンセル時点のスナップショット
+  createdAt     DateTime  @default(now()) @map("created_at")
 
   schedule Schedule @relation(fields: [scheduleId], references: [id])
 
   @@index([scheduleId, createdAt])
   @@index([userId, createdAt])
+  @@map("participation_audit_logs")
+  @@schema("activity")
 }
 
 // ============================================================
@@ -742,14 +815,16 @@ model ParticipationAuditLog {
 // ============================================================
 
 model WaitlistAuditLog {
-  id         String   @id @default(uuid())
-  scheduleId String
-  userId     String
-  action     String // JOINED | CANCELLED | PROMOTED
-  createdAt  DateTime @default(now())
+  id         String   @id @default(uuid()) @map("id")
+  scheduleId String   @map("schedule_id")
+  userId     String   @map("user_id")
+  action     String   @map("action") // JOINED | CANCELLED | PROMOTED
+  createdAt  DateTime @default(now()) @map("created_at")
 
   @@index([scheduleId, createdAt])
   @@index([userId, createdAt])
+  @@map("waitlist_audit_logs")
+  @@schema("activity")
 }
 
 // ============================================================
@@ -757,42 +832,46 @@ model WaitlistAuditLog {
 // ============================================================
 
 model InviteToken {
-  id          String   @id @default(uuid())
-  communityId String
-  token       String   @unique @default(uuid())
-  createdBy   String
-  expiresAt   DateTime
-  maxUses     Int? // null = 無制限
-  currentUses Int      @default(0)
+  id          String   @id @default(uuid()) @map("id")
+  communityId String   @map("community_id")
+  token       String   @unique @default(uuid()) @map("token")
+  createdBy   String   @map("created_by")
+  expiresAt   DateTime @map("expires_at")
+  maxUses     Int?     @map("max_uses") // null = 無制限
+  currentUses Int      @default(0) @map("current_uses")
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   usages InviteTokenUsage[]
 
   @@index([communityId])
   @@index([token])
+  @@map("invite_tokens")
+  @@schema("community")
 }
 
 model InviteTokenUsage {
-  id      String   @id @default(uuid())
-  tokenId String
-  userId  String
-  usedAt  DateTime @default(now())
+  id      String   @id @default(uuid()) @map("id")
+  tokenId String   @map("token_id")
+  userId  String   @map("user_id")
+  usedAt  DateTime @default(now()) @map("used_at")
 
   token InviteToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
 
   @@unique([tokenId, userId])
   @@index([tokenId])
+  @@map("invite_token_usages")
+  @@schema("community")
 }
 
 model ChatChannel {
-  id          String  @id @default(uuid())
-  type        String // COMMUNITY | ACTIVITY | DM
-  communityId String? @unique
-  activityId  String? @unique
+  id          String  @id @default(uuid()) @map("id")
+  type        String  @map("type") // COMMUNITY | ACTIVITY | DM
+  communityId String? @unique @map("community_id")
+  activityId  String? @unique @map("activity_id")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   community        Community?         @relation(fields: [communityId], references: [id], onDelete: Cascade)
   activity         Activity?          @relation(fields: [activityId], references: [id], onDelete: Cascade)
@@ -801,20 +880,22 @@ model ChatChannel {
   channelReadState ChannelReadState[]
 
   @@index([type])
+  @@map("chat_channels")
+  @@schema("messaging")
 }
 
 model Message {
-  id              String  @id @default(uuid())
-  channelId       String
-  senderId        String
-  parentMessageId String?
-  content         String
-  mentions        Json    @default("[]") // UserId[]
-  isPinned        Boolean @default(false)
-  deletedBy       String? // Phase3 #19: ソフトデリート（削除したユーザーのID）
+  id              String  @id @default(uuid()) @map("id")
+  channelId       String  @map("channel_id")
+  senderId        String  @map("sender_id")
+  parentMessageId String? @map("parent_message_id")
+  content         String  @map("content")
+  mentions        Json    @default("[]") @map("mentions") // UserId[]
+  isPinned        Boolean @default(false) @map("is_pinned")
+  deletedBy       String? @map("deleted_by") // Phase3 #19: ソフトデリート（削除したユーザーのID）
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   channel     ChatChannel         @relation(fields: [channelId], references: [id], onDelete: Cascade)
   sender      User                @relation("UserMessages", fields: [senderId], references: [id])
@@ -826,33 +907,39 @@ model Message {
   @@index([channelId, createdAt])
   @@index([parentMessageId])
   @@index([senderId])
+  @@map("messages")
+  @@schema("messaging")
 }
 
 model MessageAttachment {
-  id        String @id @default(uuid())
-  messageId String
-  fileUrl   String
-  fileName  String
-  fileSize  Int
-  mimeType  String
+  id        String @id @default(uuid()) @map("id")
+  messageId String @map("message_id")
+  fileUrl   String @map("file_url")
+  fileName  String @map("file_name")
+  fileSize  Int    @map("file_size")
+  mimeType  String @map("mime_type")
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([messageId])
+  @@map("message_attachments")
+  @@schema("messaging")
 }
 
 model DMParticipant {
-  id        String   @id @default(uuid())
-  channelId String
-  userId    String
-  joinedAt  DateTime @default(now())
+  id        String   @id @default(uuid()) @map("id")
+  channelId String   @map("channel_id")
+  userId    String   @map("user_id")
+  joinedAt  DateTime @default(now()) @map("joined_at")
 
   channel ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
   @@unique([channelId, userId])
   @@index([userId])
+  @@map("dm_participants")
+  @@schema("messaging")
 }
 
 // ============================================================
@@ -860,26 +947,28 @@ model DMParticipant {
 // ============================================================
 
 model Stamp {
-  id              String @id @default(uuid())
-  createdByUserId String
-  name            String
-  imageUrl        String
+  id              String @id @default(uuid()) @map("id")
+  createdByUserId String @map("created_by_user_id")
+  name            String @map("name")
+  imageUrl        String @map("image_url")
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   reactions MessageReaction[]
 
   @@index([createdByUserId])
+  @@map("stamps")
+  @@schema("messaging")
 }
 
 model MessageReaction {
-  id        String  @id @default(uuid())
-  messageId String
-  userId    String
-  stampId   String? // Phase3 #18: nullable化（emojiリアクション時はnull）
-  emoji     String? // Phase3 #18: ネイティブ絵文字リアクション（stampId使用時はnull）
+  id        String  @id @default(uuid()) @map("id")
+  messageId String  @map("message_id")
+  userId    String  @map("user_id")
+  stampId   String? @map("stamp_id") // Phase3 #18: nullable化（emojiリアクション時はnull）
+  emoji     String? @map("emoji") // Phase3 #18: ネイティブ絵文字リアクション（stampId使用時はnull）
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   stamp   Stamp?  @relation(fields: [stampId], references: [id], onDelete: Cascade)
@@ -889,6 +978,8 @@ model MessageReaction {
   @@index([messageId])
   @@index([stampId])
   @@index([userId])
+  @@map("message_reactions")
+  @@schema("messaging")
 }
 
 // ============================================================
@@ -896,19 +987,21 @@ model MessageReaction {
 // ============================================================
 
 model Notification {
-  id            String  @id @default(uuid())
-  userId        String
-  type          String // MENTION | DM | ANNOUNCEMENT | WAITLIST_PROMOTED | etc.
-  title         String
-  body          String?
-  referenceId   String? // 関連エンティティのID
-  referenceType String? // MESSAGE | ANNOUNCEMENT | SCHEDULE | etc.
-  metadata      Json? // 通知種別ごとの構造化メタデータ（Discriminated Union by type）
-  isRead        Boolean @default(false)
+  id            String  @id @default(uuid()) @map("id")
+  userId        String  @map("user_id")
+  type          String  @map("type") // MENTION | DM | ANNOUNCEMENT | WAITLIST_PROMOTED | etc.
+  title         String  @map("title")
+  body          String? @map("body")
+  referenceId   String? @map("reference_id") // 関連エンティティのID
+  referenceType String? @map("reference_type") // MESSAGE | ANNOUNCEMENT | SCHEDULE | etc.
+  metadata      Json?   @map("metadata") // 通知種別ごとの構造化メタデータ（Discriminated Union by type）
+  isRead        Boolean @default(false) @map("is_read")
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([userId, isRead, createdAt])
+  @@map("notifications")
+  @@schema("notification")
 }
 
 // ============================================================
@@ -916,14 +1009,16 @@ model Notification {
 // ============================================================
 
 model DeviceToken {
-  id        String   @id @default(uuid())
-  userId    String
-  token     String   @unique // FCM registration token
-  platform  String // 'ios' | 'android' | 'web'
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String   @id @default(uuid()) @map("id")
+  userId    String   @map("user_id")
+  token     String   @unique @map("token") // FCM registration token
+  platform  String   @map("platform") // 'ios' | 'android' | 'web'
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([userId])
+  @@map("device_tokens")
+  @@schema("notification")
 }
 
 // ============================================================
@@ -931,61 +1026,69 @@ model DeviceToken {
 // ============================================================
 
 model CategoryMaster {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  nameEn    String
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
+  id        String   @id @default(uuid()) @map("id")
+  name      String   @unique @map("name")
+  nameEn    String   @map("name_en")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
 
   communityCategories CommunityCategory[]
   matchFormats        CategoryMatchFormat[]
 
   @@index([sortOrder])
+  @@map("category_masters")
+  @@schema("master")
 }
 
 model CategoryMatchFormat {
-  id              String   @id @default(uuid())
-  categoryId      String
-  name            String
-  playersPerGroup Int // 1組あたりの人数（シングルス=1, ダブルス=2）
-  groupsPerCourt  Int      @default(2) // 1コートの同時対戦組数（通常2）
-  sortOrder       Int      @default(0)
-  isDefault       Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id              String   @id @default(uuid()) @map("id")
+  categoryId      String   @map("category_id")
+  name            String   @map("name")
+  playersPerGroup Int      @map("players_per_group") // 1組あたりの人数（シングルス=1, ダブルス=2）
+  groupsPerCourt  Int      @default(2) @map("groups_per_court") // 1コートの同時対戦組数（通常2）
+  sortOrder       Int      @default(0) @map("sort_order")
+  isDefault       Boolean  @default(false) @map("is_default")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   category CategoryMaster @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@unique([categoryId, name])
   @@index([categoryId, sortOrder])
+  @@map("category_match_formats")
+  @@schema("master")
 }
 
 model MatchingResult {
-  id         String   @id @default(uuid())
-  scheduleId String   @unique
-  mode       String // RANDOM | MIXED_LEVEL | SAME_LEVEL
-  params     Json
-  rounds     Json
-  createdBy  String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id         String   @id @default(uuid()) @map("id")
+  scheduleId String   @unique @map("schedule_id")
+  mode       String   @map("mode") // RANDOM | MIXED_LEVEL | SAME_LEVEL
+  params     Json     @map("params")
+  rounds     Json     @map("rounds")
+  createdBy  String   @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [createdBy], references: [id])
 
   @@index([createdBy])
+  @@map("matching_results")
+  @@schema("support")
 }
 
 model ParticipationLevelMaster {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  nameEn    String
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
+  id        String   @id @default(uuid()) @map("id")
+  name      String   @unique @map("name")
+  nameEn    String   @map("name_en")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
 
   communityLevels CommunityParticipationLevel[]
 
   @@index([sortOrder])
+  @@map("participation_level_masters")
+  @@schema("master")
 }
 
 // ============================================================
@@ -993,27 +1096,31 @@ model ParticipationLevelMaster {
 // ============================================================
 
 model CommunityCategory {
-  id          String @id @default(uuid())
-  communityId String
-  categoryId  String
+  id          String @id @default(uuid()) @map("id")
+  communityId String @map("community_id")
+  categoryId  String @map("category_id")
 
   community Community      @relation(fields: [communityId], references: [id], onDelete: Cascade)
   category  CategoryMaster @relation(fields: [categoryId], references: [id])
 
   @@unique([communityId, categoryId])
   @@index([categoryId])
+  @@map("community_categories")
+  @@schema("community")
 }
 
 model CommunityParticipationLevel {
-  id          String @id @default(uuid())
-  communityId String
-  levelId     String
+  id          String @id @default(uuid()) @map("id")
+  communityId String @map("community_id")
+  levelId     String @map("level_id")
 
   community Community                @relation(fields: [communityId], references: [id], onDelete: Cascade)
   level     ParticipationLevelMaster @relation(fields: [levelId], references: [id])
 
   @@unique([communityId, levelId])
   @@index([levelId])
+  @@map("community_participation_levels")
+  @@schema("community")
 }
 
 // ============================================================
@@ -1021,25 +1128,29 @@ model CommunityParticipationLevel {
 // ============================================================
 
 model CommunityActivityDay {
-  id          String @id @default(uuid())
-  communityId String
-  day         String // 月, 火, 水, 木, 金, 土, 日
+  id          String @id @default(uuid()) @map("id")
+  communityId String @map("community_id")
+  day         String @map("day") // 月, 火, 水, 木, 金, 土, 日
 
   community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
 
   @@unique([communityId, day])
   @@index([communityId])
+  @@map("community_activity_days")
+  @@schema("community")
 }
 
 model CommunityTag {
-  id          String @id @default(uuid())
-  communityId String
-  tag         String
+  id          String @id @default(uuid()) @map("id")
+  communityId String @map("community_id")
+  tag         String @map("tag")
 
   community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
 
   @@unique([communityId, tag])
   @@index([communityId])
+  @@map("community_tags")
+  @@schema("community")
 }
 
 // ============================================================
@@ -1047,17 +1158,17 @@ model CommunityTag {
 // ============================================================
 
 model Poll {
-  id               String    @id @default(uuid())
-  communityId      String
-  announcementId   String?
-  question         String
-  isMultipleChoice Boolean   @default(false)
-  deadline         DateTime?
-  createdBy        String
-  deletedAt        DateTime?
+  id               String    @id @default(uuid()) @map("id")
+  communityId      String    @map("community_id")
+  announcementId   String?   @map("announcement_id")
+  question         String    @map("question")
+  isMultipleChoice Boolean   @default(false) @map("is_multiple_choice")
+  deadline         DateTime? @map("deadline")
+  createdBy        String    @map("created_by")
+  deletedAt        DateTime? @map("deleted_at")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   community    Community     @relation(fields: [communityId], references: [id], onDelete: Cascade)
   announcement Announcement? @relation(fields: [announcementId], references: [id], onDelete: Cascade)
@@ -1066,32 +1177,38 @@ model Poll {
   @@index([communityId])
   @@index([announcementId])
   @@index([createdBy])
+  @@map("polls")
+  @@schema("announcement")
 }
 
 model PollOption {
-  id        String @id @default(uuid())
-  pollId    String
-  text      String
-  sortOrder Int    @default(0)
+  id        String @id @default(uuid()) @map("id")
+  pollId    String @map("poll_id")
+  text      String @map("text")
+  sortOrder Int    @default(0) @map("sort_order")
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
   votes PollVote[]
 
   @@index([pollId])
+  @@map("poll_options")
+  @@schema("announcement")
 }
 
 model PollVote {
-  id           String   @id @default(uuid())
-  pollOptionId String
-  userId       String
-  votedAt      DateTime @default(now())
+  id           String   @id @default(uuid()) @map("id")
+  pollOptionId String   @map("poll_option_id")
+  userId       String   @map("user_id")
+  votedAt      DateTime @default(now()) @map("voted_at")
 
   pollOption PollOption @relation(fields: [pollOptionId], references: [id], onDelete: Cascade)
 
   @@unique([pollOptionId, userId])
   @@index([userId])
+  @@map("poll_votes")
+  @@schema("announcement")
 }
 
 // ============================================================
@@ -1099,20 +1216,22 @@ model PollVote {
 // ============================================================
 
 model CommunityWebhookConfig {
-  id          String  @id @default(uuid())
-  communityId String
-  service     String // 'LINE'（将来: 'SLACK' | 'DISCORD'）
-  webhookUrl  String
-  enabled     Boolean @default(true)
-  createdBy   String
+  id          String  @id @default(uuid()) @map("id")
+  communityId String  @map("community_id")
+  service     String  @map("service") // 'LINE'（将来: 'SLACK' | 'DISCORD'）
+  webhookUrl  String  @map("webhook_url")
+  enabled     Boolean @default(true) @map("enabled")
+  createdBy   String  @map("created_by")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
 
   @@unique([communityId, service])
   @@index([communityId])
+  @@map("community_webhook_configs")
+  @@schema("community")
 }
 
 // ============================================================
@@ -1120,16 +1239,18 @@ model CommunityWebhookConfig {
 // ============================================================
 
 model CommunityBookmark {
-  id          String @id @default(uuid())
-  communityId String
-  userId      String
+  id          String @id @default(uuid()) @map("id")
+  communityId String @map("community_id")
+  userId      String @map("user_id")
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
 
   @@unique([communityId, userId])
   @@index([userId])
+  @@map("community_bookmarks")
+  @@schema("community")
 }
 
 // ============================================================
@@ -1137,19 +1258,21 @@ model CommunityBookmark {
 // ============================================================
 
 model ExpenseCategory {
-  id          String  @id @default(uuid())
-  communityId String? // null = システム共通プリセット
-  name        String
-  isSystem    Boolean @default(false) // true = プリセット（削除不可）
-  sortOrder   Int     @default(0)
-  isActive    Boolean @default(true)
+  id          String  @id @default(uuid()) @map("id")
+  communityId String? @map("community_id") // null = システム共通プリセット
+  name        String  @map("name")
+  isSystem    Boolean @default(false) @map("is_system") // true = プリセット（削除不可）
+  sortOrder   Int     @default(0) @map("sort_order")
+  isActive    Boolean @default(true) @map("is_active")
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   community Community? @relation(fields: [communityId], references: [id], onDelete: Cascade)
   expenses  Expense[]
 
   @@index([communityId])
+  @@map("expense_categories")
+  @@schema("support")
 }
 
 // ============================================================
@@ -1157,16 +1280,16 @@ model ExpenseCategory {
 // ============================================================
 
 model Expense {
-  id          String   @id @default(uuid())
-  communityId String
-  categoryId  String
-  amount      Int
-  description String?
-  date        DateTime @db.Date
-  createdBy   String
+  id          String   @id @default(uuid()) @map("id")
+  communityId String   @map("community_id")
+  categoryId  String   @map("category_id")
+  amount      Int      @map("amount")
+  description String?  @map("description")
+  date        DateTime @map("date") @db.Date
+  createdBy   String   @map("created_by")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   community Community       @relation(fields: [communityId], references: [id], onDelete: Cascade)
   category  ExpenseCategory @relation(fields: [categoryId], references: [id])
@@ -1175,6 +1298,8 @@ model Expense {
   @@index([communityId])
   @@index([categoryId])
   @@index([createdBy])
+  @@map("expenses")
+  @@schema("support")
 }
 
 // ============================================================
@@ -1182,21 +1307,23 @@ model Expense {
 // ============================================================
 
 model PlanMaster {
-  id                  String    @id // 'FREE' | 'LITE' | 'PRO' | 'LIFETIME'
-  displayName         String // UI表示名
-  description         String?
-  monthlyPrice        Int? // 月額（円）。null = 無料 or 買い切り
-  oneTimePrice        Int? // 買い切り価格（円）。LIFETIME のみ
-  revenuecatProductId String? // RevenueCat の product_id
-  sortOrder           Int       @default(0) // 表示順
-  availableFrom       DateTime? // 販売開始日（null = 制限なし）
-  availableTo         DateTime? // 販売終了日（null = 制限なし）
+  id                  String    @id @map("id") // 'FREE' | 'LITE' | 'PRO' | 'LIFETIME'
+  displayName         String    @map("display_name") // UI表示名
+  description         String?   @map("description")
+  monthlyPrice        Int?      @map("monthly_price") // 月額（円）。null = 無料 or 買い切り
+  oneTimePrice        Int?      @map("one_time_price") // 買い切り価格（円）。LIFETIME のみ
+  revenuecatProductId String?   @map("revenuecat_product_id") // RevenueCat の product_id
+  sortOrder           Int       @default(0) @map("sort_order") // 表示順
+  availableFrom       DateTime? @map("available_from") // 販売開始日（null = 制限なし）
+  availableTo         DateTime? @map("available_to") // 販売終了日（null = 制限なし）
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([sortOrder])
   @@index([availableFrom, availableTo])
+  @@map("plan_masters")
+  @@schema("master")
 }
 
 // ============================================================
@@ -1204,16 +1331,18 @@ model PlanMaster {
 // ============================================================
 
 model ChannelReadState {
-  id         String   @id @default(uuid())
-  channelId  String
-  userId     String
-  lastReadAt DateTime @default(now())
+  id         String   @id @default(uuid()) @map("id")
+  channelId  String   @map("channel_id")
+  userId     String   @map("user_id")
+  lastReadAt DateTime @default(now()) @map("last_read_at")
 
   channel ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
   user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([channelId, userId])
   @@index([userId])
+  @@map("channel_read_states")
+  @@schema("messaging")
 }
 
 // ============================================================
@@ -1223,48 +1352,49 @@ model ChannelReadState {
 
 /// 問い合わせカテゴリマスタ（Phase 7 のヘルプカテゴリと relatedHelpCategorySlug で紐付け）
 model InquiryCategoryMaster {
-  id                      String  @id @default(uuid())
+  id                      String  @id @default(uuid()) @map("id")
   /// URL/参照用の一意キー（例: 'login_trouble', 'billing', 'general'）
-  slug                    String  @unique
+  slug                    String  @unique @map("slug")
   /// i18n ラベル: { "ja": "ログイン・登録の不具合", "en": "Login / Sign-up issue" }
-  labelI18n               Json
+  labelI18n               Json    @map("label_i18n")
   /// Phase 7 ヘルプカテゴリの slug 参照（紐付けがない場合は null）
-  relatedHelpCategorySlug String?
-  sortOrder               Int     @default(0)
-  isActive                Boolean @default(true)
+  relatedHelpCategorySlug String? @map("related_help_category_slug")
+  sortOrder               Int     @default(0) @map("sort_order")
+  isActive                Boolean @default(true) @map("is_active")
   /// 匿名ルート（/contact/anonymous）専用カテゴリかどうか
   /// true の場合、認証ルート (/contact) のカテゴリ選択肢に含めない
-  isAnonymousOnly         Boolean @default(false)
+  isAnonymousOnly         Boolean @default(false) @map("is_anonymous_only")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   inquiries Inquiry[]
 
   @@index([isActive, sortOrder])
-  @@map("InquiryCategory")
+  @@map("inquiry_category_masters")
+  @@schema("master")
 }
 
 /// 問い合わせスレッド本体
 model Inquiry {
-  id             String    @id @default(uuid())
+  id             String    @id @default(uuid()) @map("id")
   /// 認証ユーザー問い合わせの場合に設定。匿名問い合わせの場合 null
-  userId         String?
+  userId         String?   @map("user_id")
   /// 匿名問い合わせ時の連絡先メール（運営返信先）。認証ユーザーの場合 null
-  contactEmail   String?
-  categoryId     String
-  title          String    @db.VarChar(200)
+  contactEmail   String?   @map("contact_email")
+  categoryId     String    @map("category_id")
+  title          String    @map("title") @db.VarChar(200)
   /// OPEN | IN_PROGRESS | RESOLVED | CLOSED
-  status         String    @default("OPEN")
+  status         String    @default("OPEN") @map("status")
   /// マイページに表示される最終更新時刻（運営返信／ユーザー追記で更新）
-  lastActivityAt DateTime  @default(now())
+  lastActivityAt DateTime  @default(now()) @map("last_activity_at")
   /// RESOLVED 遷移時刻（180日経過で添付削除ジョブの判定に使用）
-  resolvedAt     DateTime?
+  resolvedAt     DateTime? @map("resolved_at")
   /// Wave6 Phase 9b-16: 担当オペレーター（SystemAdmin ユーザー）。null = 未割当
-  assigneeUserId String?
+  assigneeUserId String?   @map("assignee_user_id")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   user     User?                 @relation("UserInquiries", fields: [userId], references: [id])
   category InquiryCategoryMaster @relation(fields: [categoryId], references: [id])
@@ -1275,71 +1405,79 @@ model Inquiry {
   @@index([status, lastActivityAt(sort: Desc)])
   @@index([categoryId])
   @@index([assigneeUserId, status])
+  @@map("inquiries")
+  @@schema("support")
 }
 
 /// 問い合わせスレッド内の個別メッセージ（初回送信＋運営返信＋ユーザー追記）
 model InquiryMessage {
-  id           String   @id @default(uuid())
-  inquiryId    String
+  id           String   @id @default(uuid()) @map("id")
+  inquiryId    String   @map("inquiry_id")
   /// 'USER' | 'OPERATOR' — 投稿者種別
-  authorType   String
+  authorType   String   @map("author_type")
   /// authorType=OPERATOR の場合の運営担当者ユーザー ID。匿名や USER 投稿は null
-  authorUserId String?
-  body         String   @db.Text
-  createdAt    DateTime @default(now())
+  authorUserId String?  @map("author_user_id")
+  body         String   @map("body") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
 
   inquiry     Inquiry             @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
   attachments InquiryAttachment[]
 
   @@index([inquiryId, createdAt])
   @@index([authorUserId])
+  @@map("inquiry_messages")
+  @@schema("support")
 }
 
 /// 問い合わせメッセージへの添付（画像/動画/PDF/テキスト）
 model InquiryAttachment {
-  id         String    @id @default(uuid())
-  messageId  String
-  storageKey String    @unique
-  fileName   String    @db.VarChar(255)
-  mimeType   String    @db.VarChar(100)
-  sizeBytes  Int
+  id         String    @id @default(uuid()) @map("id")
+  messageId  String    @map("message_id")
+  storageKey String    @unique @map("storage_key")
+  fileName   String    @map("file_name") @db.VarChar(255)
+  mimeType   String    @map("mime_type") @db.VarChar(100)
+  sizeBytes  Int       @map("size_bytes")
   /// 'PENDING' | 'CLEAN' | 'INFECTED' | 'ERROR'
-  scanStatus String    @default("PENDING")
-  scannedAt  DateTime?
+  scanStatus String    @default("PENDING") @map("scan_status")
+  scannedAt  DateTime? @map("scanned_at")
   /// RESOLVED 後の保持期間ジョブで S3 から削除されたかどうか（メタは残す）
-  isPurged   Boolean   @default(false)
-  purgedAt   DateTime?
+  isPurged   Boolean   @default(false) @map("is_purged")
+  purgedAt   DateTime? @map("purged_at")
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   message InquiryMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([messageId])
   @@index([scanStatus])
   @@index([isPurged])
+  @@map("inquiry_attachments")
+  @@schema("support")
 }
 
 /// Phase 7 / 9b-01: ヘルプ記事フィードバック（役立った/役立たなかった）
 /// 認証ユーザーは [userId, articleSlug] で一意（再投票は upsert で上書き）。
 /// 匿名（userId=null）は upsert できないため、複数行が積まれる（IP rate-limit で抑制）。
 model HelpFeedback {
-  id           String  @id @default(uuid())
+  id           String  @id @default(uuid()) @map("id")
   /// ヘルプ記事のslug
-  articleSlug  String  @db.VarChar(200)
+  articleSlug  String  @map("article_slug") @db.VarChar(200)
   /// カテゴリslug（集計時のドメイン軸グルーピング用、9b-04 で使用）
-  categorySlug String  @db.VarChar(100)
+  categorySlug String  @map("category_slug") @db.VarChar(100)
   /// 認証ユーザーの場合のみ。匿名フィードバックは null
-  userId       String?
+  userId       String? @map("user_id")
   /// true=役立った / false=役立たなかった
-  helpful      Boolean
+  helpful      Boolean @map("helpful")
   /// 任意フリーテキスト（最大500字）
-  comment      String? @db.VarChar(500)
+  comment      String? @map("comment") @db.VarChar(500)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([userId, articleSlug])
   @@index([articleSlug, createdAt])
   @@index([categorySlug, createdAt])
   @@index([userId, createdAt])
+  @@map("help_feedbacks")
+  @@schema("support")
 }

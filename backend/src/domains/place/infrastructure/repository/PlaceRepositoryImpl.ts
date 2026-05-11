@@ -19,17 +19,17 @@ type PrismaClientLike = PrismaClient | Prisma.TransactionClient
  *   prefix(0.5) + contains(0.2) + log10(1+usage)*0.1 + (1/len)*0.05
  */
 const SEARCH_SQL_FALLBACK = `
-SELECT "id", "name", "address", "lat", "lng", "normalizedName", "normalizedAddress",
-       "category", "source", "sourceId", "usageCount", "isActive",
+SELECT "id", "name", "address", "lat", "lng", "normalized_name" AS "normalizedName", "normalized_address" AS "normalizedAddress",
+       "category", "source", "source_id" AS "sourceId", "usage_count" AS "usageCount", "is_active" AS "isActive",
        (
-           CASE WHEN "normalizedName" LIKE $1 THEN 0.5 ELSE 0 END
-         + CASE WHEN "normalizedName" LIKE $2 THEN 0.2 ELSE 0 END
-         + (LOG(10, 1 + "usageCount"::numeric)) * 0.1
-         + (1.0 / GREATEST(1, LENGTH("normalizedName"))) * 0.05
+           CASE WHEN "normalized_name" LIKE $1 THEN 0.5 ELSE 0 END
+         + CASE WHEN "normalized_name" LIKE $2 THEN 0.2 ELSE 0 END
+         + (LOG(10, 1 + "usage_count"::numeric)) * 0.1
+         + (1.0 / GREATEST(1, LENGTH("normalized_name"))) * 0.05
        ) AS "score"
-FROM "Place"
-WHERE "isActive" = TRUE
-  AND ("normalizedName" LIKE $1 OR "normalizedName" LIKE $2)
+FROM activity.places
+WHERE "is_active" = TRUE
+  AND ("normalized_name" LIKE $1 OR "normalized_name" LIKE $2)
 ORDER BY "score" DESC
 LIMIT $3
 `
