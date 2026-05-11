@@ -1,32 +1,12 @@
-import { prisma } from '@/_sharedTech/db/client.js'
-import { AppendMatchingRoundsUseCase } from '@/application/matching/usecase/AppendMatchingRoundsUseCase.js'
-import { DeleteMatchingResultUseCase } from '@/application/matching/usecase/DeleteMatchingResultUseCase.js'
-import { GenerateMatchingUseCase } from '@/application/matching/usecase/GenerateMatchingUseCase.js'
-import { GetMatchingResultUseCase } from '@/application/matching/usecase/GetMatchingResultUseCase.js'
-import { ListCategoryMatchFormatsUseCase } from '@/application/matching/usecase/ListCategoryMatchFormatsUseCase.js'
-import { ListParticipantLevelsUseCase } from '@/application/matching/usecase/ListParticipantLevelsUseCase.js'
-import { UpdateFixedPairsUseCase } from '@/application/matching/usecase/UpdateFixedPairsUseCase.js'
-import { UpdateMemberLevelUseCase, UpdateVisitorLevelUseCase } from '@/application/matching/usecase/UpdateLevelsUseCase.js'
-import { UpdateMatchingRoundUseCase } from '@/application/matching/usecase/UpdateMatchingRoundUseCase.js'
+import { usecaseFactory } from '@/api/_usecaseFactory.js'
 import type { NextFunction, Request, Response } from 'express'
-
-const generateUseCase = new GenerateMatchingUseCase(prisma)
-const getUseCase = new GetMatchingResultUseCase(prisma)
-const appendUseCase = new AppendMatchingRoundsUseCase(prisma)
-const deleteUseCase = new DeleteMatchingResultUseCase(prisma)
-const listFormatsUseCase = new ListCategoryMatchFormatsUseCase(prisma)
-const listParticipantLevelsUseCase = new ListParticipantLevelsUseCase(prisma)
-const updateMemberLevelUseCase = new UpdateMemberLevelUseCase(prisma)
-const updateVisitorLevelUseCase = new UpdateVisitorLevelUseCase(prisma)
-const updateFixedPairsUseCase = new UpdateFixedPairsUseCase(prisma)
-const updateMatchingRoundUseCase = new UpdateMatchingRoundUseCase(prisma)
 
 export const matchingController = {
     async generate(req: Request, res: Response, next: NextFunction) {
         try {
             const { id: scheduleId } = req.params
             const userId = req.user!.userId
-            const result = await generateUseCase.execute({
+            const result = await usecaseFactory.createGenerateMatchingUseCase().execute({
                 scheduleId,
                 userId,
                 mode: req.body.mode,
@@ -50,7 +30,7 @@ export const matchingController = {
         try {
             const { id: scheduleId } = req.params
             const userId = req.user!.userId
-            const result = await getUseCase.execute({ scheduleId, userId })
+            const result = await usecaseFactory.createGetMatchingResultUseCase().execute({ scheduleId, userId })
             res.status(200).json(result)
         } catch (err) {
             next(err)
@@ -61,7 +41,7 @@ export const matchingController = {
         try {
             const { id: scheduleId } = req.params
             const userId = req.user!.userId
-            const result = await appendUseCase.execute({
+            const result = await usecaseFactory.createAppendMatchingRoundsUseCase().execute({
                 scheduleId,
                 userId,
                 addRounds: req.body.addRounds,
@@ -76,7 +56,7 @@ export const matchingController = {
         try {
             const { id: scheduleId } = req.params
             const userId = req.user!.userId
-            await deleteUseCase.execute({ scheduleId, userId })
+            await usecaseFactory.createDeleteMatchingResultUseCase().execute({ scheduleId, userId })
             res.status(204).send()
         } catch (err) {
             next(err)
@@ -86,7 +66,7 @@ export const matchingController = {
     async listCategoryMatchFormats(req: Request, res: Response, next: NextFunction) {
         try {
             const { communityId } = req.params
-            const result = await listFormatsUseCase.execute({ communityId })
+            const result = await usecaseFactory.createListCategoryMatchFormatsUseCase().execute({ communityId })
             res.status(200).json(result)
         } catch (err) {
             next(err)
@@ -97,7 +77,7 @@ export const matchingController = {
         try {
             const { id: scheduleId } = req.params
             const userId = req.user!.userId
-            const result = await listParticipantLevelsUseCase.execute({ scheduleId, userId })
+            const result = await usecaseFactory.createListParticipantLevelsUseCase().execute({ scheduleId, userId })
             res.status(200).json(result)
         } catch (err) {
             next(err)
@@ -108,7 +88,7 @@ export const matchingController = {
         try {
             const { communityId, userId: targetUserId } = req.params
             const actorUserId = req.user!.userId
-            await updateMemberLevelUseCase.execute({
+            await usecaseFactory.createUpdateMemberLevelMatchingUseCase().execute({
                 communityId,
                 targetUserId,
                 actorUserId,
@@ -124,7 +104,7 @@ export const matchingController = {
         try {
             const { participationId } = req.params
             const actorUserId = req.user!.userId
-            await updateVisitorLevelUseCase.execute({
+            await usecaseFactory.createUpdateVisitorLevelUseCase().execute({
                 participationId,
                 actorUserId,
                 level: req.body.level,
@@ -139,7 +119,7 @@ export const matchingController = {
         try {
             const { id: scheduleId } = req.params
             const userId = req.user!.userId
-            await updateFixedPairsUseCase.execute({
+            await usecaseFactory.createUpdateFixedPairsUseCase().execute({
                 scheduleId,
                 userId,
                 fixedPairs: req.body.fixedPairs,
@@ -154,7 +134,7 @@ export const matchingController = {
         try {
             const { id: scheduleId, roundNo } = req.params
             const userId = req.user!.userId
-            await updateMatchingRoundUseCase.execute({
+            await usecaseFactory.createUpdateMatchingRoundUseCase().execute({
                 scheduleId,
                 userId,
                 roundNo: Number(roundNo),

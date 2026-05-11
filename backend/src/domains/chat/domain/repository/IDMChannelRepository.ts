@@ -19,6 +19,9 @@ export interface IDMChannelRepository {
 
     /** DM チャンネルから参加者を物理削除 */
     removeParticipant(channelId: string, userId: string): Promise<void>
+
+    /** 指定ユーザーがDMチャンネルの参加者か */
+    isParticipant(channelId: string, userId: string): Promise<boolean>
 }
 
 export interface DMChannelDTO {

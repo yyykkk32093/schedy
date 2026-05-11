@@ -1,4 +1,4 @@
-import { prisma } from '@/_sharedTech/db/client.js'
+import { usecaseFactory } from '@/api/_usecaseFactory.js'
 
 /**
  * Wave6 Phase 8-B: 問い合わせ関連の副作用通知サービス。
@@ -68,44 +68,9 @@ export async function notifyUserOfOperatorReply(
     // Wave6 Phase 9b-15: Notification 挿入と OutboxEvent (notification.push) を同一 TX で書き込み、
     // PushNotificationIntegrationHandler が FCM 経由で配信する。
     // ローカル/CI で firebase-admin 未設定の場合は handler 側で no-op となる。
-    const { randomUUID } = await import('crypto')
-    const notificationId = randomUUID()
-    const now = new Date()
-
-    await prisma.$transaction(async (tx) => {
-        await tx.notification.create({
-            data: {
-                id: notificationId,
-                userId: input.userId,
-                type: 'INQUIRY_REPLY',
-                title: '運営から返信がありました',
-                body: input.inquiryTitle,
-                referenceId: input.inquiryId,
-                referenceType: 'INQUIRY',
-                metadata: { inquiryId: input.inquiryId },
-            },
-        })
-
-        await tx.outboxEvent.create({
-            data: {
-                id: randomUUID(),
-                idempotencyKey: `notification:${notificationId}`,
-                aggregateId: input.userId,
-                eventName: 'NotificationCreated',
-                eventType: 'notification.inquiry_reply',
-                routingKey: 'notification.push',
-                payload: {
-                    notificationId,
-                    targetUserId: input.userId,
-                    type: 'INQUIRY_REPLY',
-                    title: '運営から返信がありました',
-                    body: input.inquiryTitle,
-                    referenceId: input.inquiryId,
-                    referenceType: 'INQUIRY',
-                    metadata: { inquiryId: input.inquiryId },
-                },
-                occurredAt: now,
-            },
-        })
+    await usecaseFactory.createSendInquiryReplyNotificationUseCase().execute({
+        userId: input.userId,
+        inquiryId: input.inquiryId,
+        inquiryTitle: input.inquiryTitle,
     })
 }

@@ -11,4 +11,6 @@ export interface IScheduleRepository {
     saveMany(schedules: Schedule[]): Promise<void>
     /** 複数スケジュールを一括削除（参加者ゼロの場合のみ使用） */
     deleteMany(ids: string[]): Promise<void>
+    /** Phase 2 [202603_08]: featureGateMiddleware 用 — 紐づくコミュニティの grade を取得。 */
+    findCommunityGrade(scheduleId: string): Promise<{ grade: string } | null>
 }

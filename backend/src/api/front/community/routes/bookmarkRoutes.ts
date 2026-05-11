@@ -1,4 +1,4 @@
-import { prisma } from '@/_sharedTech/db/client.js'
+import { usecaseFactory } from '@/api/_usecaseFactory.js'
 import { authMiddleware } from '@/api/middleware/authMiddleware.js'
 import { Router } from 'express'
 
@@ -10,11 +10,7 @@ router.post('/v1/communities/:id/bookmark', authMiddleware, async (req, res, nex
         const { id: communityId } = req.params
         const userId = req.user!.userId
 
-        await prisma.communityBookmark.upsert({
-            where: { communityId_userId: { communityId, userId } },
-            update: {},
-            create: { communityId, userId },
-        })
+        await usecaseFactory.createAddCommunityBookmarkUseCase().execute({ communityId, userId })
 
         res.status(201).json({ bookmarked: true })
     } catch (err) {
@@ -28,9 +24,7 @@ router.delete('/v1/communities/:id/bookmark', authMiddleware, async (req, res, n
         const { id: communityId } = req.params
         const userId = req.user!.userId
 
-        await prisma.communityBookmark.deleteMany({
-            where: { communityId, userId },
-        })
+        await usecaseFactory.createRemoveCommunityBookmarkUseCase().execute({ communityId, userId })
 
         res.status(200).json({ bookmarked: false })
     } catch (err) {
@@ -43,27 +37,9 @@ router.get('/v1/bookmarks/communities', authMiddleware, async (req, res, next) =
     try {
         const userId = req.user!.userId
 
-        const bookmarks = await prisma.communityBookmark.findMany({
-            where: { userId },
-            include: {
-                community: {
-                    select: {
-                        id: true,
-                        name: true,
-                        description: true,
-                        logoUrl: true,
-                        coverUrl: true,
-                        joinMethod: true,
-                        isPublic: true,
-                    },
-                },
-            },
-            orderBy: { createdAt: 'desc' },
-        })
+        const result = await usecaseFactory.createListBookmarkedCommunitiesUseCase().execute({ userId })
 
-        res.status(200).json({
-            communities: bookmarks.map(b => b.community),
-        })
+        res.status(200).json(result)
     } catch (err) {
         next(err)
     }

@@ -3,7 +3,7 @@
 -- CategoryMaster / ParticipationLevelMaster / CategoryMatchFormat
 -- ============================================================
 -- 実行:
---   cd backend && PGPASSWORD=app_password psql -h localhost -p 5432 -U app_user -d reserve_manage \
+--   cd backend && PGPASSWORD=app_password psql -h localhost -p 5432 -U app_user -d tsunaca \
 --     -f infra/database/seeds/master-data-seed.sql
 -- ============================================================
 

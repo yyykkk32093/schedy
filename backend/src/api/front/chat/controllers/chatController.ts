@@ -1,4 +1,3 @@
-import { prisma } from '@/_sharedTech/db/client.js'
 import { usecaseFactory } from '@/api/_usecaseFactory.js'
 import type { NextFunction, Request, Response } from 'express'
 
@@ -13,10 +12,10 @@ export const chatController = {
             const userId = req.user!.userId
 
             // メンバーシップ確認（API 層の責務）
-            const membership = await prisma.communityMembership.findUnique({
-                where: { communityId_userId: { communityId, userId } },
-            })
-            if (!membership || membership.leftAt) {
+            const membership = await usecaseFactory
+                .createCommunityMembershipRepository()
+                .findByCommunityAndUser(communityId, userId)
+            if (!membership || !membership.isActive()) {
                 res.status(403).json({ code: 'FORBIDDEN', message: 'コミュニティメンバーではありません' })
                 return
             }
@@ -34,18 +33,19 @@ export const chatController = {
             const { activityId } = req.params
             const userId = req.user!.userId
 
-            // アクティビティ存在確認
-            const activity = await prisma.activity.findUnique({ where: { id: activityId } })
-            if (!activity || activity.deletedAt) {
+            // アクティビティ存在確認（findById は論理削除済みを除外）
+            const activity = await usecaseFactory.createActivityRepository().findById(activityId)
+            if (!activity) {
                 res.status(404).json({ code: 'NOT_FOUND', message: 'アクティビティが見つかりません' })
                 return
             }
+            const communityIdValue = activity.getCommunityId().getValue()
 
             // メンバーシップ確認
-            const membership = await prisma.communityMembership.findUnique({
-                where: { communityId_userId: { communityId: activity.communityId, userId } },
-            })
-            if (!membership || membership.leftAt) {
+            const membership = await usecaseFactory
+                .createCommunityMembershipRepository()
+                .findByCommunityAndUser(communityIdValue, userId)
+            if (!membership || !membership.isActive()) {
                 res.status(403).json({ code: 'FORBIDDEN', message: 'コミュニティメンバーではありません' })
                 return
             }
@@ -126,10 +126,7 @@ export const chatController = {
             const { content, parentMessageId, mentions } = req.body
 
             // ユーザー情報取得（WS broadcast ペイロード用）
-            const user = await prisma.user.findUnique({
-                where: { id: userId },
-                select: { displayName: true, avatarUrl: true },
-            })
+            const user = await usecaseFactory.createUserRepository().findChatSenderProfile(userId)
 
             const useCase = usecaseFactory.createSendMessageUseCase()
             const result = await useCase.execute({

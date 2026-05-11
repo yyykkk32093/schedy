@@ -1,4 +1,3 @@
-import { prisma } from '@/_sharedTech/db/client.js'
 import { usecaseFactory } from '@/api/_usecaseFactory.js'
 import type { NextFunction, Request, Response } from 'express'
 
@@ -81,11 +80,10 @@ export const communityController = {
             const result = await useCase.execute({ userId })
 
             // Phase 3 #53: ブックマーク状態を付与
-            const bookmarks = await prisma.communityBookmark.findMany({
-                where: { userId },
-                select: { communityId: true },
-            })
-            const bookmarkedIds = new Set(bookmarks.map(b => b.communityId))
+            const bookmarkedCommunityIds = await usecaseFactory
+                .createCommunityBookmarkRepository()
+                .findCommunityIdsByUserId(userId)
+            const bookmarkedIds = new Set(bookmarkedCommunityIds)
 
             const communities = result.communities.map(c => ({
                 ...c,

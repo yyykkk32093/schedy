@@ -146,13 +146,13 @@ brew services start postgresql@14
 createuser -s $(whoami) || echo "ユーザーはすでに存在しています👌"
 
 # 4️⃣ データベース作成
-createdb reserve_manage || echo "DBはすでに存在しています👌"
+createdb tsunaca || echo "DBはすでに存在しています👌"
 
 # 5️⃣ PostgreSQLに接続（CLIへ）
 psql postgres <<'SQL'
--- reserve_manage の所有者・権限を設定
-ALTER DATABASE reserve_manage OWNER TO $(whoami);
-GRANT ALL PRIVILEGES ON DATABASE reserve_manage TO $(whoami);
+-- tsunaca の所有者・権限を設定
+ALTER DATABASE tsunaca OWNER TO $(whoami);
+GRANT ALL PRIVILEGES ON DATABASE tsunaca TO $(whoami);
 GRANT ALL PRIVILEGES ON SCHEMA public TO $(whoami);
 -- 任意でパスワード設定（Prismaで必要になることがある）
 ALTER ROLE $(whoami) WITH PASSWORD 'password';
@@ -163,7 +163,7 @@ SQL
 psql -l
 
 # 7️⃣ .env.local（アプリ用設定ファイル）に追記
-echo 'DATABASE_URL="postgresql://'"$(whoami)"':password@localhost:5432/reserve_manage?schema=public"' > src/env/.env.local
+echo 'DATABASE_URL="postgresql://'"$(whoami)"':password@localhost:5432/tsunaca?schema=public"' > src/env/.env.local
 echo "✅ .env.local を作成しました！"
 
 # 8️⃣ Prismaマイグレーション（DBにスキーマを反映）
@@ -171,7 +171,7 @@ cd backend
 pnpm prisma migrate dev --name init_outbox
 
 # ✅ 完了！
-# テーブル確認: psql reserve_manage -> \dt
+# テーブル確認: psql tsunaca -> \dt
 # 停止したいとき: brew services stop postgresql@14
 
 
@@ -201,13 +201,13 @@ END $$;
 -- アプリ専用DB作成（存在しなければ）
 DO $$
 BEGIN
-   IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'reserve_manage') THEN
-      CREATE DATABASE reserve_manage OWNER app_user;
+   IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'tsunaca') THEN
+      CREATE DATABASE tsunaca OWNER app_user;
    END IF;
 END $$;
 
 -- 権限付与
-GRANT ALL PRIVILEGES ON DATABASE reserve_manage TO app_user;
+GRANT ALL PRIVILEGES ON DATABASE tsunaca TO app_user;
 
 \q
 SQL
@@ -215,7 +215,7 @@ SQL
 # 3️⃣ .env.local の作成（AWSでも共通で使える）
 mkdir -p src/env
 cat <<'EOF' > src/env/.env.local
-DATABASE_URL="postgresql://app_user:app_password@localhost:5432/reserve_manage?schema=public"
+DATABASE_URL="postgresql://app_user:app_password@localhost:5432/tsunaca?schema=public"
 EOF
 echo "✅ .env.local を作成しました！（ユーザー: app_user）"
 
@@ -224,15 +224,15 @@ cd backend
 pnpm prisma migrate dev --name init_outbox
 
 # ✅ 完了
-# テーブル確認: psql -U app_user reserve_manage -> \dt
+# テーブル確認: psql -U app_user tsunaca -> \dt
 # サービス停止: brew services stop postgresql@14
 
 
 # テーブル一覧
-psql -U app_user -d reserve_manage -c "\dt"
+psql -U app_user -d tsunaca -c "\dt"
 
 # Prisma 管理テーブル確認
-psql -U app_user -d reserve_manage -c "SELECT * FROM _prisma_migrations;"
+psql -U app_user -d tsunaca -c "SELECT * FROM _prisma_migrations;"
 
 その「core / supporting / generic をディレクトリとして明示的に切るか？」って、実はDDD導入の成熟度でよく議論になるポイントです。
 

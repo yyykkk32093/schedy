@@ -1,5 +1,5 @@
-import { prisma } from '@/_sharedTech/db/client.js'
 import { featureGateService } from '@/_sharedTech/featureGate/featureGateServiceInstance.js'
+import { usecaseFactory } from '@/api/_usecaseFactory.js'
 import type { CommunityFeatureType, CommunityLimitKeyType } from '@/domains/_sharedDomains/featureGate/CommunityFeature.js'
 import type { UserFeatureType, UserLimitKeyType } from '@/domains/_sharedDomains/featureGate/UserFeature.js'
 import type { NextFunction, Request, Response } from 'express'
@@ -18,7 +18,7 @@ export function requireFeature(feature: UserFeatureType) {
             return
         }
 
-        const user = await prisma.user.findUnique({ where: { id: userId }, select: { plan: true } })
+        const user = await usecaseFactory.createUserRepository().findPlan(userId)
         if (!user) {
             res.status(404).json({ code: 'USER_NOT_FOUND', message: 'ユーザーが見つかりません' })
             return
@@ -61,7 +61,7 @@ export function requireLimit(
             return
         }
 
-        const user = await prisma.user.findUnique({ where: { id: userId }, select: { plan: true } })
+        const user = await usecaseFactory.createUserRepository().findPlan(userId)
         if (!user) {
             res.status(404).json({ code: 'USER_NOT_FOUND', message: 'ユーザーが見つかりません' })
             return
@@ -110,10 +110,7 @@ export function requireCommunityFeature(
             return
         }
 
-        const community = await prisma.community.findUnique({
-            where: { id: communityId },
-            select: { grade: true },
-        })
+        const community = await usecaseFactory.createCommunityRepository().findGrade(communityId)
         if (!community) {
             res.status(404).json({ code: 'COMMUNITY_NOT_FOUND', message: 'コミュニティが見つかりません' })
             return
@@ -148,10 +145,7 @@ export function requireCommunityLimit(
             return
         }
 
-        const community = await prisma.community.findUnique({
-            where: { id: communityId },
-            select: { grade: true },
-        })
+        const community = await usecaseFactory.createCommunityRepository().findGrade(communityId)
         if (!community) {
             res.status(404).json({ code: 'COMMUNITY_NOT_FOUND', message: 'コミュニティが見つかりません' })
             return
@@ -198,17 +192,13 @@ export function requireScheduleCommunityFeature(
             return
         }
 
-        const schedule = await prisma.schedule.findUnique({
-            where: { id: scheduleId },
-            select: { activity: { select: { community: { select: { grade: true } } } } },
-        })
+        const schedule = await usecaseFactory.createScheduleRepository().findCommunityGrade(scheduleId)
         if (!schedule) {
             res.status(404).json({ code: 'SCHEDULE_NOT_FOUND', message: 'スケジュールが見つかりません' })
             return
         }
 
-        const grade = schedule.activity.community.grade
-        const enabled = await featureGateService.canUseCommunity(grade, feature)
+        const enabled = await featureGateService.canUseCommunity(schedule.grade, feature)
         if (!enabled) {
             res.status(403).json({
                 code: 'COMMUNITY_FEATURE_RESTRICTED',
@@ -236,23 +226,13 @@ export function requireParticipationCommunityFeature(
             return
         }
 
-        const participation = await prisma.participation.findUnique({
-            where: { id: participationId },
-            select: {
-                schedule: {
-                    select: {
-                        activity: { select: { community: { select: { grade: true } } } },
-                    },
-                },
-            },
-        })
+        const participation = await usecaseFactory.createParticipationRepository().findCommunityGrade(participationId)
         if (!participation) {
             res.status(404).json({ code: 'PARTICIPATION_NOT_FOUND', message: '参加情報が見つかりません' })
             return
         }
 
-        const grade = participation.schedule.activity.community.grade
-        const enabled = await featureGateService.canUseCommunity(grade, feature)
+        const enabled = await featureGateService.canUseCommunity(participation.grade, feature)
         if (!enabled) {
             res.status(403).json({
                 code: 'COMMUNITY_FEATURE_RESTRICTED',

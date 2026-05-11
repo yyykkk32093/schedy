@@ -113,4 +113,6 @@ export interface ICommunityRepository {
     findChildrenIds(parentId: string): Promise<string[]>
     /** 子コミュニティ一覧（詳細付き）。viewerUserId が null の場合 bookmarked は常に false 。 */
     findChildrenWithDetails(parentId: string, viewerUserId: string | null): Promise<SubCommunityListItem[]>
+    /** Phase 2 [202603_08]: featureGateMiddleware 用 — grade のみ取得。 */
+    findGrade(id: string): Promise<{ grade: string } | null>
 }

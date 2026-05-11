@@ -1,4 +1,4 @@
-import { prisma } from '@/_sharedTech/db/client.js'
+import { usecaseFactory } from '@/api/_usecaseFactory.js'
 import type { NextFunction, Request, Response } from 'express'
 
 /**
@@ -25,23 +25,20 @@ export function requireSystemAdmin(
             return
         }
 
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { systemRole: true, deletedAt: true },
-        })
+        const view = await usecaseFactory.createUserRepository().findSystemAuthorization(userId)
 
-        if (!user || user.deletedAt) {
+        if (!view || view.isDeleted) {
             res.status(404).json({ code: 'NOT_FOUND', message: 'Not Found' })
             return
         }
 
-        if (!(roles as readonly string[]).includes(user.systemRole)) {
+        if (!(roles as readonly string[]).includes(view.systemRole)) {
             // 列挙防止のため 404 を返す
             res.status(404).json({ code: 'NOT_FOUND', message: 'Not Found' })
             return
         }
 
-        req.user!.systemRole = user.systemRole
+        req.user!.systemRole = view.systemRole as 'OPERATOR' | 'SUPER_ADMIN' | 'USER'
         next()
     }
 }

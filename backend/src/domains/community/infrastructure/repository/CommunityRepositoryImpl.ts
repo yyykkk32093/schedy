@@ -20,6 +20,14 @@ export class CommunityRepositoryImpl implements ICommunityRepository {
         return row ? this.toDomain(row) : null
     }
 
+    async findGrade(id: string): Promise<{ grade: string } | null> {
+        const row = await this.prisma.community.findUnique({
+            where: { id },
+            select: { grade: true },
+        })
+        return row ? { grade: row.grade } : null
+    }
+
     async findsByCreatedBy(createdBy: string): Promise<Community[]> {
         const rows = await this.prisma.community.findMany({
             where: { createdBy, deletedAt: null },

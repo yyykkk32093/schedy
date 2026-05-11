@@ -1,6 +1,6 @@
+import type { IRestrictionRepository } from '@/domains/_sharedDomains/domain/repository/IRestrictionRepository.js'
 import type { CommunityFeatureType, CommunityLimitKeyType } from '@/domains/_sharedDomains/featureGate/CommunityFeature.js'
 import type { UserFeatureType, UserLimitKeyType } from '@/domains/_sharedDomains/featureGate/UserFeature.js'
-import { PrismaClient } from '@prisma/client'
 
 /**
  * FeatureGateService — DB → インメモリキャッシュ → 判定
@@ -22,7 +22,7 @@ export class FeatureGateService {
     private readonly cacheTTLMs: number
 
     constructor(
-        private readonly prisma: PrismaClient,
+        private readonly restrictionRepository: IRestrictionRepository,
         cacheTTLMs: number = 5 * 60 * 1000, // default 5 minutes
     ) {
         this.cacheTTLMs = cacheTTLMs
@@ -148,10 +148,10 @@ export class FeatureGateService {
     async refreshCache(): Promise<void> {
         const [userFeatures, userLimits, communityFeatures, communityLimits] =
             await Promise.all([
-                this.prisma.userFeatureRestriction.findMany(),
-                this.prisma.userLimitRestriction.findMany(),
-                this.prisma.communityFeatureRestriction.findMany(),
-                this.prisma.communityLimitRestriction.findMany(),
+                this.restrictionRepository.findPlanFeaturePolicies(),
+                this.restrictionRepository.findPlanLimitPolicies(),
+                this.restrictionRepository.findCommunityGradeFeaturePolicies(),
+                this.restrictionRepository.findCommunityGradeLimitPolicies(),
             ])
 
         const newUserFeatureCache = new Map<string, boolean>()

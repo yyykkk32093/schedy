@@ -8,7 +8,8 @@ import { featureGateService } from '@/_sharedTech/featureGate/featureGateService
 import { JwtTokenService } from '@/_sharedTech/security/JwtTokenService.js'
 import { addUserToBlacklist } from '@/api/middleware/userBlacklist.js'
 import { DomainEventFlusher } from '@/application/_sharedApplication/event/DomainEventFlusher.js'
-import { NotificationRepositoryImpl } from '@/application/_sharedApplication/notification/NotificationRepositoryImpl.js'
+import { NotificationReadRepositoryImpl, NotificationRepositoryImpl } from '@/application/_sharedApplication/notification/NotificationRepositoryImpl.js'
+import type { NotificationTxRepositories } from '@/application/_sharedApplication/notification/NotificationService.js'
 import { NotificationService } from '@/application/_sharedApplication/notification/NotificationService.js'
 import { PrismaUnitOfWork } from '@/application/_sharedApplication/uow/PrismaUnitOfWork.js'
 import { CreateActivityTxRepositories, CreateActivityUseCase } from '@/application/activity/usecase/CreateActivityUseCase.js'
@@ -44,6 +45,11 @@ import { ListAvailablePlansUseCase } from '@/application/billing/usecase/ListAva
 import { AcceptInviteTxRepositories, AcceptInviteUseCase } from '@/application/community/usecase/AcceptInviteUseCase.js'
 import { AddMemberTxRepositories, AddMemberUseCase } from '@/application/community/usecase/AddMemberUseCase.js'
 import { ChangeMemberRoleTxRepositories, ChangeMemberRoleUseCase } from '@/application/community/usecase/ChangeMemberRoleUseCase.js'
+import {
+    AddCommunityBookmarkUseCase,
+    ListBookmarkedCommunitiesUseCase,
+    RemoveCommunityBookmarkUseCase,
+} from '@/application/community/usecase/CommunityBookmarkUseCases.js'
 import { CreateCommunityTxRepositories, CreateCommunityUseCase } from '@/application/community/usecase/CreateCommunityUseCase.js'
 import { CreateSubCommunityTxRepositories, CreateSubCommunityUseCase } from '@/application/community/usecase/CreateSubCommunityUseCase.js'
 import { FindCommunityUseCase } from '@/application/community/usecase/FindCommunityUseCase.js'
@@ -53,14 +59,19 @@ import { JoinCommunityTxRepositories, JoinCommunityUseCase } from '@/application
 import { LeaveCommunityTxRepositories, LeaveCommunityUseCase } from '@/application/community/usecase/LeaveCommunityUseCase.js'
 import { ListCommunitiesUseCase } from '@/application/community/usecase/ListCommunitiesUseCase.js'
 import { ListCommunityAuditLogsUseCase } from '@/application/community/usecase/ListCommunityAuditLogsUseCase.js'
+import { ListCommunityLocationsUseCase } from '@/application/community/usecase/ListCommunityLocationsUseCase.js'
+import { ListCommunityTagsUseCase } from '@/application/community/usecase/ListCommunityTagsUseCase.js'
 import { ListMembersUseCase } from '@/application/community/usecase/ListMembersUseCase.js'
 import { ListSubCommunitiesUseCase } from '@/application/community/usecase/ListSubCommunitiesUseCase.js'
 import { RemoveMemberTxRepositories, RemoveMemberUseCase } from '@/application/community/usecase/RemoveMemberUseCase.js'
+import { ReplaceCommunityLocationsUseCase, type ReplaceCommunityLocationsTxRepositories } from '@/application/community/usecase/ReplaceCommunityLocationsUseCase.js'
+import { ReplaceCommunityTagsUseCase, type ReplaceCommunityTagsTxRepositories } from '@/application/community/usecase/ReplaceCommunityTagsUseCase.js'
 import { RequestJoinCommunityTxRepositories, RequestJoinCommunityUseCase } from '@/application/community/usecase/RequestJoinCommunityUseCase.js'
 import { SearchCommunitiesUseCase } from '@/application/community/usecase/SearchCommunitiesUseCase.js'
 import { SoftDeleteCommunityTxRepositories, SoftDeleteCommunityUseCase } from '@/application/community/usecase/SoftDeleteCommunityUseCase.js'
 import { UpdateCommunityTxRepositories, UpdateCommunityUseCase } from '@/application/community/usecase/UpdateCommunityUseCase.js'
 import { UpdateMemberLevelTxRepositories, UpdateMemberLevelUseCase } from '@/application/community/usecase/UpdateMemberLevelUseCase.js'
+import { SendInquiryReplyNotificationUseCase } from '@/application/inquiry/usecase/SendInquiryReplyNotificationUseCase.js'
 import { AddGuestVisitorTxRepositories, AddGuestVisitorUseCase } from '@/application/participation/usecase/AddGuestVisitorUseCase.js'
 import { AddRegisteredVisitorTxRepositories, AddRegisteredVisitorUseCase } from '@/application/participation/usecase/AddRegisteredVisitorUseCase.js'
 import { AttendScheduleTxRepositories, AttendScheduleUseCase } from '@/application/participation/usecase/AttendScheduleUseCase.js'
@@ -130,6 +141,7 @@ import { GetUserProfileUseCase } from '@/application/user/usecase/GetUserProfile
 import { SignUpUserTxRepositories, SignUpUserUseCase } from '@/application/user/usecase/SignUpUserUseCase.js'
 import { UpdateUserProfileUseCase } from '@/application/user/usecase/UpdateUserProfileUseCase.js'
 import { UuidGenerator } from '@/domains/_sharedDomains/infrastructure/id/UuidGenerator.js'
+import { MasterRepositoryImpl } from '@/domains/_sharedDomains/infrastructure/repository/MasterRepositoryImpl.js'
 import { ActivityRepositoryImpl } from '@/domains/activity/infrastructure/repository/ActivityRepositoryImpl.js'
 import { ScheduleRepositoryImpl } from '@/domains/activity/schedule/infrastructure/repository/ScheduleRepositoryImpl.js'
 import { ParticipationRepositoryImpl } from '@/domains/activity/schedule/participation/infrastructure/repository/ParticipationRepositoryImpl.js'
@@ -149,12 +161,18 @@ import { LineCredentialRepositoryImpl } from '@/domains/auth/oauth/infrastructur
 import { PasswordCredentialRepositoryImpl } from '@/domains/auth/password/infrastructure/repository/PasswordCredentialRepositoryImpl.js'
 import { AuthSecurityStateRepositoryImpl } from '@/domains/auth/security/infrastructure/repository/AuthSecurityStateRepositoryImpl.js'
 import { CommunityAuditLogRepositoryImpl } from '@/domains/community/auditLog/infrastructure/repository/CommunityAuditLogRepositoryImpl.js'
+import { CommunityBookmarkRepositoryImpl } from '@/domains/community/infrastructure/repository/CommunityBookmarkRepositoryImpl.js'
+import { CommunityLocationRepositoryImpl } from '@/domains/community/infrastructure/repository/CommunityLocationRepositoryImpl.js'
 import { CommunityMembershipRepositoryImpl } from '@/domains/community/infrastructure/repository/CommunityMembershipRepositoryImpl.js'
 import { CommunityRepositoryImpl } from '@/domains/community/infrastructure/repository/CommunityRepositoryImpl.js'
+import { CommunityTagRepositoryImpl } from '@/domains/community/infrastructure/repository/CommunityTagRepositoryImpl.js'
 import { InviteTokenRepositoryImpl } from '@/domains/community/invite/infrastructure/repository/InviteTokenRepositoryImpl.js'
+import { HelpFeedbackRepositoryImpl } from '@/domains/help/infrastructure/repository/HelpFeedbackRepositoryImpl.js'
+import { InquiryRepositoryImpl } from '@/domains/inquiry/infrastructure/repository/InquiryRepositoryImpl.js'
 import { PlaceRepositoryImpl } from '@/domains/place/infrastructure/repository/PlaceRepositoryImpl.js'
 import { PollRepositoryImpl } from '@/domains/poll/infrastructure/repository/PollRepositoryImpl.js'
 import { PollVoteRepositoryImpl } from '@/domains/poll/infrastructure/repository/PollVoteRepositoryImpl.js'
+import { StampRepositoryImpl } from '@/domains/stamp/infrastructure/repository/StampRepositoryImpl.js'
 import { CommunityWebhookConfigRepositoryImpl } from '@/domains/webhook/infrastructure/repository/CommunityWebhookConfigRepositoryImpl.js'
 
 import { ParticipationAuditLogRepositoryImpl } from '@/domains/activity/schedule/participation/infrastructure/repository/ParticipationAuditLogRepositoryImpl.js'
@@ -185,6 +203,8 @@ import { ExpenseCategoryRepositoryImpl } from '@/domains/expense/infrastructure/
 import { ExpenseRepositoryImpl } from '@/domains/expense/infrastructure/repository/ExpenseRepositoryImpl.js'
 
 import { AddReactionUseCase } from '@/application/chat/usecase/AddReactionUseCase.js'
+import { CheckChannelAccessUseCase } from '@/application/chat/usecase/CheckChannelAccessUseCase.js'
+import { ConfirmMessageAttachmentUseCase } from '@/application/chat/usecase/ConfirmMessageAttachmentUseCase.js'
 import { CreateDMChannelTxRepositories, CreateDMChannelUseCase } from '@/application/chat/usecase/CreateDMChannelUseCase.js'
 import { DeleteMessageUseCase } from '@/application/chat/usecase/DeleteMessageUseCase.js'
 import { GetCommunityChannelTreeUseCase } from '@/application/chat/usecase/GetCommunityChannelTreeUseCase.js'
@@ -198,7 +218,17 @@ import { ListMyChannelsUseCase } from '@/application/chat/usecase/ListMyChannels
 import { MarkChannelReadUseCase } from '@/application/chat/usecase/MarkChannelReadUseCase.js'
 import { RemoveReactionUseCase } from '@/application/chat/usecase/RemoveReactionUseCase.js'
 import { SearchChannelMessagesUseCase } from '@/application/chat/usecase/SearchChannelMessagesUseCase.js'
+import { SendMentionNotificationUseCase } from '@/application/chat/usecase/SendMentionNotificationUseCase.js'
 import { SendMessageUseCase } from '@/application/chat/usecase/SendMessageUseCase.js'
+import { AppendMatchingRoundsUseCase } from '@/application/matching/usecase/AppendMatchingRoundsUseCase.js'
+import { DeleteMatchingResultUseCase } from '@/application/matching/usecase/DeleteMatchingResultUseCase.js'
+import { GenerateMatchingUseCase } from '@/application/matching/usecase/GenerateMatchingUseCase.js'
+import { GetMatchingResultUseCase } from '@/application/matching/usecase/GetMatchingResultUseCase.js'
+import { ListCategoryMatchFormatsUseCase } from '@/application/matching/usecase/ListCategoryMatchFormatsUseCase.js'
+import { ListParticipantLevelsUseCase } from '@/application/matching/usecase/ListParticipantLevelsUseCase.js'
+import { UpdateFixedPairsUseCase } from '@/application/matching/usecase/UpdateFixedPairsUseCase.js'
+import { UpdateMemberLevelUseCase as MatchingUpdateMemberLevelUseCase, UpdateVisitorLevelUseCase } from '@/application/matching/usecase/UpdateLevelsUseCase.js'
+import { UpdateMatchingRoundUseCase } from '@/application/matching/usecase/UpdateMatchingRoundUseCase.js'
 import { ChatChannelRepositoryImpl } from '@/domains/chat/infrastructure/repository/ChatChannelRepositoryImpl.js'
 import { DMChannelRepositoryImpl } from '@/domains/chat/infrastructure/repository/DMChannelRepositoryImpl.js'
 import { MessageReactionRepositoryImpl } from '@/domains/chat/infrastructure/repository/MessageReactionRepositoryImpl.js'
@@ -429,6 +459,37 @@ export const usecaseFactory = {
         return new ListMembersUseCase(
             new CommunityMembershipRepositoryImpl(prisma),
             new UserRepositoryImpl(prisma),
+        )
+    },
+
+    createListCommunityLocationsUseCase() {
+        return new ListCommunityLocationsUseCase(
+            new CommunityMembershipRepositoryImpl(prisma),
+            new CommunityLocationRepositoryImpl(prisma),
+        )
+    },
+
+    createReplaceCommunityLocationsUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<ReplaceCommunityLocationsTxRepositories>((tx) => ({
+            membership: new CommunityMembershipRepositoryImpl(tx),
+            location: new CommunityLocationRepositoryImpl(tx),
+        }))
+        return new ReplaceCommunityLocationsUseCase(unitOfWork)
+    },
+
+    createListCommunityTagsUseCase() {
+        return new ListCommunityTagsUseCase(new CommunityTagRepositoryImpl(prisma))
+    },
+
+    createReplaceCommunityTagsUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<ReplaceCommunityTagsTxRepositories>((tx) => ({
+            membership: new CommunityMembershipRepositoryImpl(tx),
+            tag: new CommunityTagRepositoryImpl(tx),
+        }))
+        return new ReplaceCommunityTagsUseCase(
+            unitOfWork,
+            new CommunityRepositoryImpl(prisma),
+            featureGateService,
         )
     },
 
@@ -1309,6 +1370,31 @@ export const usecaseFactory = {
         )
     },
 
+    createConfirmMessageAttachmentUseCase(storageService: import('@/_sharedTech/storage/IFileStorageService.js').IFileStorageService) {
+        return new ConfirmMessageAttachmentUseCase(
+            new MessageRepositoryImpl(prisma),
+            storageService,
+        )
+    },
+
+    createCheckChannelAccessUseCase() {
+        return new CheckChannelAccessUseCase(
+            new ChatChannelRepositoryImpl(prisma),
+            new DMChannelRepositoryImpl(prisma),
+            new ActivityRepositoryImpl(prisma),
+            new CommunityMembershipRepositoryImpl(prisma),
+        )
+    },
+
+    createSendMentionNotificationUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<NotificationTxRepositories>((tx) => ({
+            notification: new NotificationRepositoryImpl(tx),
+            outbox: new OutboxRepository(tx),
+        }))
+        const notificationService = new NotificationService(RealtimeEmitterBootstrap.getEmitter())
+        return new SendMentionNotificationUseCase(unitOfWork, notificationService)
+    },
+
     // ================================================================
     // DM / Channel — W4-09
     // ================================================================
@@ -1341,5 +1427,116 @@ export const usecaseFactory = {
 
     createMarkChannelReadUseCase() {
         return new MarkChannelReadUseCase(prisma)
+    },
+
+    /**
+     * リポジトリ直アクセス用: middleware など UseCase を介さず権限チェックを行う箇所向け。
+     * UseCase ではないため、純粋な参照系のみで利用すること。
+     */
+    createUserRepository() {
+        return new UserRepositoryImpl(prisma)
+    },
+
+    createCommunityRepository() {
+        return new CommunityRepositoryImpl(prisma)
+    },
+
+    createCommunityMembershipRepository() {
+        return new CommunityMembershipRepositoryImpl(prisma)
+    },
+
+    createActivityRepository() {
+        return new ActivityRepositoryImpl(prisma)
+    },
+
+    createMasterRepository() {
+        return new MasterRepositoryImpl(prisma)
+    },
+
+    createNotificationReadRepository() {
+        return new NotificationReadRepositoryImpl(prisma)
+    },
+
+    createHelpFeedbackRepository() {
+        return new HelpFeedbackRepositoryImpl(prisma)
+    },
+
+    createInquiryRepository() {
+        return new InquiryRepositoryImpl(prisma)
+    },
+
+    createStampRepository() {
+        return new StampRepositoryImpl(prisma)
+    },
+
+    createScheduleRepository() {
+        return new ScheduleRepositoryImpl(prisma)
+    },
+
+    createParticipationRepository() {
+        return new ParticipationRepositoryImpl(prisma)
+    },
+
+    createCommunityBookmarkRepository() {
+        return new CommunityBookmarkRepositoryImpl(prisma)
+    },
+
+    // ============================================================
+    // Community Bookmark
+    // ============================================================
+    createAddCommunityBookmarkUseCase() {
+        return new AddCommunityBookmarkUseCase(new CommunityBookmarkRepositoryImpl(prisma))
+    },
+    createRemoveCommunityBookmarkUseCase() {
+        return new RemoveCommunityBookmarkUseCase(new CommunityBookmarkRepositoryImpl(prisma))
+    },
+    createListBookmarkedCommunitiesUseCase() {
+        return new ListBookmarkedCommunitiesUseCase(new CommunityBookmarkRepositoryImpl(prisma))
+    },
+
+    // ============================================================
+    // Matching
+    // ============================================================
+    createGenerateMatchingUseCase() {
+        return new GenerateMatchingUseCase(prisma)
+    },
+    createGetMatchingResultUseCase() {
+        return new GetMatchingResultUseCase(prisma)
+    },
+    createAppendMatchingRoundsUseCase() {
+        return new AppendMatchingRoundsUseCase(prisma)
+    },
+    createDeleteMatchingResultUseCase() {
+        return new DeleteMatchingResultUseCase(prisma)
+    },
+    createListCategoryMatchFormatsUseCase() {
+        return new ListCategoryMatchFormatsUseCase(prisma)
+    },
+    createListParticipantLevelsUseCase() {
+        return new ListParticipantLevelsUseCase(prisma)
+    },
+    createUpdateMemberLevelMatchingUseCase() {
+        return new MatchingUpdateMemberLevelUseCase(prisma)
+    },
+    createUpdateVisitorLevelUseCase() {
+        return new UpdateVisitorLevelUseCase(prisma)
+    },
+    createUpdateFixedPairsUseCase() {
+        return new UpdateFixedPairsUseCase(prisma)
+    },
+    createUpdateMatchingRoundUseCase() {
+        return new UpdateMatchingRoundUseCase(prisma)
+    },
+
+    // ============================================================
+    // Inquiry
+    // ============================================================
+    createSendInquiryReplyNotificationUseCase() {
+        const unitOfWork = new PrismaUnitOfWork<NotificationTxRepositories>((tx) => ({
+            notification: new NotificationRepositoryImpl(tx),
+            outbox: new OutboxRepository(tx),
+        }))
+        const notificationService = new NotificationService(RealtimeEmitterBootstrap.getEmitter())
+        return new SendInquiryReplyNotificationUseCase(unitOfWork, notificationService)
     },
 }

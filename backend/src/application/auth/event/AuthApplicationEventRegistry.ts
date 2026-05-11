@@ -1,7 +1,7 @@
 // src/application/auth/event/AuthApplicationEventRegistry.ts
 
 import { ApplicationEventBus } from '@/application/_sharedApplication/event/ApplicationEventBus.js'
-import { AuthSecurityStateRepositoryImpl } from '@/domains/auth/security/infrastructure/repository/AuthSecurityStateRepositoryImpl.js'
+import type { IAuthSecurityStateRepository } from '@/domains/auth/security/domain/repository/IAuthSecurityStateRepository.js'
 import { UpdateAuthSecurityStateOnLoginFailedSubscriber } from './subscriber/UpdateAuthSecurityStateOnLoginFailedSubscriber.js'
 import { UpdateAuthSecurityStateOnLoginSucceededSubscriber } from './subscriber/UpdateAuthSecurityStateOnLoginSucceededSubscriber.js'
 import { UserLoginFailedSubscriber } from './subscriber/UserLoginFailedSubscriber.js'
@@ -14,8 +14,9 @@ import { UserLoginSucceededSubscriber } from './subscriber/UserLoginSucceededSub
  */
 export function registerAuthApplicationSubscribers(params: {
     appEventBus: ApplicationEventBus
+    authSecurityStateRepository: IAuthSecurityStateRepository
 }) {
-    const { appEventBus } = params
+    const { appEventBus, authSecurityStateRepository } = params
 
     // ログなど（副作用）
     appEventBus.subscribe(new UserLoginSucceededSubscriber())
@@ -23,14 +24,10 @@ export function registerAuthApplicationSubscribers(params: {
 
     // 軽い投影（ベストエフォート）
     appEventBus.subscribe(
-        new UpdateAuthSecurityStateOnLoginSucceededSubscriber(
-            new AuthSecurityStateRepositoryImpl()
-        )
+        new UpdateAuthSecurityStateOnLoginSucceededSubscriber(authSecurityStateRepository)
     )
 
     appEventBus.subscribe(
-        new UpdateAuthSecurityStateOnLoginFailedSubscriber(
-            new AuthSecurityStateRepositoryImpl()
-        )
+        new UpdateAuthSecurityStateOnLoginFailedSubscriber(authSecurityStateRepository)
     )
 }

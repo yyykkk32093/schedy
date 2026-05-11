@@ -1,5 +1,5 @@
-import { prisma } from '@/_sharedTech/db/client.js'
 import { featureGateService } from '@/_sharedTech/featureGate/featureGateServiceInstance.js'
+import { usecaseFactory } from '@/api/_usecaseFactory.js'
 import { authMiddleware } from '@/api/middleware/authMiddleware.js'
 import { requireCommunityFeature } from '@/api/middleware/featureGateMiddleware.js'
 import { validateBody } from '@/api/middleware/validateBody.js'
@@ -36,19 +36,14 @@ async function requireAutoScheduleIfRecurrenceUpdate(req: Request, res: Response
     }
 
     const activityId = req.params.id
-    const activity = await prisma.activity.findUnique({
-        where: { id: activityId },
-        select: { communityId: true },
-    })
+    const activity = await usecaseFactory.createActivityRepository().findById(activityId)
     if (!activity) {
         res.status(404).json({ code: 'NOT_FOUND', message: 'アクティビティが見つかりません' })
         return
     }
+    const communityIdValue = activity.getCommunityId().getValue()
 
-    const community = await prisma.community.findUnique({
-        where: { id: activity.communityId },
-        select: { grade: true },
-    })
+    const community = await usecaseFactory.createCommunityRepository().findGrade(communityIdValue)
     if (!community) {
         res.status(404).json({ code: 'COMMUNITY_NOT_FOUND', message: 'コミュニティが見つかりません' })
         return

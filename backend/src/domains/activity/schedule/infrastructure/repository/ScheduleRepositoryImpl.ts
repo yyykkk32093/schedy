@@ -134,6 +134,14 @@ export class ScheduleRepositoryImpl implements IScheduleRepository {
         })
     }
 
+    async findCommunityGrade(scheduleId: string): Promise<{ grade: string } | null> {
+        const row = await this.prisma.schedule.findUnique({
+            where: { id: scheduleId },
+            select: { activity: { select: { community: { select: { grade: true } } } } },
+        })
+        return row ? { grade: row.activity.community.grade } : null
+    }
+
     private toDomain(row: PrismaSchedule): Schedule {
         return Schedule.reconstruct({
             id: ScheduleId.reconstruct(row.id),

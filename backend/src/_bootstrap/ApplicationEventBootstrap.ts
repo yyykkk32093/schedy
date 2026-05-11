@@ -2,6 +2,7 @@
 import { ApplicationEventBus } from '@/application/_sharedApplication/event/ApplicationEventBus.js'
 import { registerAuthApplicationSubscribers } from '@/application/auth/event/AuthApplicationEventRegistry.js'
 import { registerUserApplicationSubscribers } from '@/application/user/event/UserApplicationEventRegistry.js'
+import { AuthSecurityStateRepositoryImpl } from '@/domains/auth/security/infrastructure/repository/AuthSecurityStateRepositoryImpl.js'
 
 export class ApplicationEventBootstrap {
     private static appEventBus: ApplicationEventBus | null = null
@@ -18,6 +19,7 @@ export class ApplicationEventBootstrap {
 
         registerAuthApplicationSubscribers({
             appEventBus,
+            authSecurityStateRepository: new AuthSecurityStateRepositoryImpl(),
         })
 
         registerUserApplicationSubscribers({

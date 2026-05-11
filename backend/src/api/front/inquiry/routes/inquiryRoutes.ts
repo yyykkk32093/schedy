@@ -38,11 +38,9 @@ router.get('/v1/inquiries/categories', inquiryController.listCategories)
 // ── 匿名問い合わせ作成（未認証） ──
 router.post('/v1/inquiries/anonymous', anonymousLimiter, inquiryController.createAnonymous)
 
-// ── 認証ユーザー向け ──
-router.post('/v1/inquiries', authMiddleware, authLimiter, inquiryController.create)
-router.get('/v1/inquiries', authMiddleware, inquiryController.listMine)
-router.get('/v1/inquiries/:id', authMiddleware, inquiryController.findMineById)
-router.post('/v1/inquiries/:id/messages', authMiddleware, authLimiter, inquiryController.addMyMessage)
+// ── Phase 1 [202603_08]: ユーザー側エンドポイントはフロント未使用のため削除済み
+// (POST /v1/inquiries, GET /v1/inquiries, GET /v1/inquiries/:id, POST /v1/inquiries/:id/messages)
+// ユーザー履歴 UI が必要になれば再実装する
 
 // ── 運営側（Phase 8-C） ──
 router.get('/v1/admin/inquiries', authMiddleware, requireSystemAdmin(), adminInquiryController.list)

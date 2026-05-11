@@ -17,21 +17,41 @@
 | 8   | BE ディレクトリ構成                        | DDD 思想は良好。命名統一と責務定義が必要                      | 🟡 Medium                        | [08_directory-structure.md](./08_directory-structure.md) |
 | 9   | BE RESTful 評価                            | 全体 Good。`masters/*` 解体と命名統一が必要                   | 🟡 Medium                        | [09_restful-assessment.md](./09_restful-assessment.md)   |
 
-## 推奨実施順序
+## 実装計画（確定版）
 
-### Wave A: 即時着手（リスク小・効果大）
-1. **[7] INDEX 補強** — マスタ・FK の INDEX 追加（migration 1〜2 本）
-2. **[6] DDD 違反の Lint 化** — 新規違反の発生を防止
-3. **[5] 未使用 API 削除＋ DeviceToken 対処方針決定** — Push 通知が機能していない件はプロダクト判断必要
+→ **[10_implementation-plan.md](./10_implementation-plan.md)** に Phase 構成・確定事項・検証戦略をまとめている。
 
-### Wave B: 計画的に実施（中規模リファクタ）
-4. **[6] DDD 違反の段階解消** — Help/Inquiry → Stamp/Notification → Middleware → Analytics
-5. **[8] ディレクトリ構成の命名統一・規約化** — Wave B と並行
-6. **[9] API 命名規則ガイドライン整備** — `/v2/` 設計と並行可能
+### 方針サマリ
+- **理想駆動**: 動いていないシステムなので移行コストを考慮せず、理想形に直接到達
+- **本案件で全 Phase 対応**: 9 評価項目すべてを 1 案件で完遂
+- **Phase 単位で順次 PR**: 中間状態を許容しつつロールバック容易性を確保
+- **REST は v1 を直接破壊変更**（v2 並走なし、フロント同時更新）
 
-### Wave C: 大規模変更（メンテ枠が必要）
-7. **[1] DB 名変更** + **[4] PostgreSQL 慣習化** + **[3] マスタ命名統一** をまとめて 1 メンテ枠で実施
-8. **[2] スキーマ分離** — 上記完了後、必要性を再評価
+### Phase 構成（実施順）
+
+| Phase | 内容                                        | 対応項目              |
+| ----- | ------------------------------------------- | --------------------- |
+| 0     | 規約整備 + ESLint 防御線                    | [6][8][9]             |
+| 1     | 不要 API・モデル削除                        | [5]                   |
+| 2     | DDD 違反解消（Lint 違反全件解消）           | [6]                   |
+| 3     | REST API 再設計（v1 破壊変更）              | [9] + [3] master 解体 |
+| 4     | スキーマ分割 + 命名統一 + 物理名 snake_case | [2][3][4]             |
+| 5     | Index 補強                                  | [7]                   |
+| 6     | DB 名変更（reserve_manage → tsunaca）       | [1]                   |
+| 7     | ディレクトリ統一 + Webhook 分離             | [8]                   |
+
+### 主要な確定事項
+
+| 論点               | 決定                                                                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| DeviceToken        | 凍結（コード残置 + TODO）                                                                                                                   |
+| ユーザー側 Inquiry | 削除                                                                                                                                        |
+| Master 命名        | 3 層（XxxMaster / XxxPolicy / suffix なし）                                                                                                 |
+| PG 物理名          | snake_case + 複数形（Prisma 論理名は維持）                                                                                                  |
+| スキーマ分割       | 12 schema（identity / auth / master / outbox / community / activity / messaging / announcement / media / notification / billing / support） |
+| Analytics          | Repository 押し込み（純粋 DDD）                                                                                                             |
+| Lint               | ESLint でレイヤ間 import 規則強制                                                                                                           |
+| Webhook            | webhookConfig（設定）+ integration/{stripe,revenuecat,fcm}（受信）に分離                                                                    |
 
 ## 共通テーマ・気付き
 

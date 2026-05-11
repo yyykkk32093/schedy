@@ -47,13 +47,13 @@ DB → Prisma（逆方向）に同期
 
 🗄 2. psql での基本確認コマンド
 🔹 テーブル一覧確認
-psql reserve_manage -c '\dt'
+psql tsunaca -c '\dt'
 
 🔹 スキーマ一覧確認
-psql reserve_manage -c '\dn'
+psql tsunaca -c '\dn'
 
 🔹 特定テーブルの構造
-psql reserve_manage -c '\d "OutboxEvent";'
+psql tsunaca -c '\d "OutboxEvent";'
 
 🚀 3. Outbox Worker 起動
 🔹 1. ビルド

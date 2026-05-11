@@ -1,13 +1,10 @@
-import { prisma } from '@/_sharedTech/db/client.js'
+import { usecaseFactory } from '@/api/_usecaseFactory.js'
 import type { NextFunction, Request, Response } from 'express'
 
 export const masterController = {
     async getCategories(_req: Request, res: Response, next: NextFunction) {
         try {
-            const categories = await prisma.categoryMaster.findMany({
-                orderBy: { sortOrder: 'asc' },
-                select: { id: true, name: true, nameEn: true, sortOrder: true },
-            })
+            const categories = await usecaseFactory.createMasterRepository().findCategories()
             res.status(200).json({ categories })
         } catch (err) {
             next(err)
@@ -16,10 +13,7 @@ export const masterController = {
 
     async getParticipationLevels(_req: Request, res: Response, next: NextFunction) {
         try {
-            const levels = await prisma.participationLevelMaster.findMany({
-                orderBy: { sortOrder: 'asc' },
-                select: { id: true, name: true, nameEn: true, sortOrder: true },
-            })
+            const levels = await usecaseFactory.createMasterRepository().findParticipationLevels()
             res.status(200).json({ participationLevels: levels })
         } catch (err) {
             next(err)
@@ -28,15 +22,10 @@ export const masterController = {
 
     async getAllMasters(_req: Request, res: Response, next: NextFunction) {
         try {
+            const masterRepo = usecaseFactory.createMasterRepository()
             const [categories, participationLevels] = await Promise.all([
-                prisma.categoryMaster.findMany({
-                    orderBy: { sortOrder: 'asc' },
-                    select: { id: true, name: true, nameEn: true, sortOrder: true },
-                }),
-                prisma.participationLevelMaster.findMany({
-                    orderBy: { sortOrder: 'asc' },
-                    select: { id: true, name: true, nameEn: true, sortOrder: true },
-                }),
+                masterRepo.findCategories(),
+                masterRepo.findParticipationLevels(),
             ])
             res.status(200).json({ categories, participationLevels })
         } catch (err) {

@@ -1,10 +1,15 @@
 import { AppSecretsLoader } from '@/_sharedTech/config/AppSecretsLoader.js';
-import { prisma } from '@/_sharedTech/db/client.js';
 import type { IFileStorageService } from '@/_sharedTech/storage/IFileStorageService.js';
 import { S3FileStorageService } from '@/_sharedTech/storage/S3FileStorageService.js';
+import { usecaseFactory } from '@/api/_usecaseFactory.js';
 import { authMiddleware } from '@/api/middleware/authMiddleware.js';
 import { validateBody } from '@/api/middleware/validateBody.js';
 import { attachmentConfirmSchema, attachmentPresignedUrlSchema, presignedUrlSchema, uploadConfirmSchema } from '@/api/schemas/index.js';
+import {
+    AttachmentNotOwnerError,
+    AttachmentObjectMissingError,
+    MessageNotFoundError,
+} from '@/application/chat/usecase/ConfirmMessageAttachmentUseCase.js';
 import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 
@@ -152,35 +157,30 @@ router.post(
                 return;
             }
 
-            // メッセージ存在確認 & 送信者確認
-            const message = await prisma.message.findUnique({ where: { id: messageId } });
-            if (!message || message.channelId !== channelId) {
-                res.status(404).json({ code: 'NOT_FOUND', message: 'メッセージが見つかりません' });
-                return;
+            let attachment;
+            try {
+                attachment = await usecaseFactory
+                    .createConfirmMessageAttachmentUseCase(storageService)
+                    .execute({
+                        userId,
+                        channelId,
+                        messageId,
+                        key,
+                        fileName: fileName ?? null,
+                        mimeType: mimeType ?? null,
+                        fileSize: fileSize ?? null,
+                    });
+            } catch (e) {
+                if (e instanceof MessageNotFoundError || e instanceof AttachmentObjectMissingError) {
+                    res.status(404).json({ code: e.code, message: e.message });
+                    return;
+                }
+                if (e instanceof AttachmentNotOwnerError) {
+                    res.status(403).json({ code: e.code, message: e.message });
+                    return;
+                }
+                throw e;
             }
-            if (message.senderId !== userId) {
-                res.status(403).json({ code: 'FORBIDDEN', message: '自分のメッセージにのみ添付できます' });
-                return;
-            }
-
-            // S3 オブジェクト存在確認
-            const exists = await storageService.objectExists(key);
-            if (!exists) {
-                res.status(404).json({ code: 'NOT_FOUND', message: 'アップロードされたファイルが見つかりません' });
-                return;
-            }
-
-            const fileUrl = storageService.getPublicUrl(key);
-
-            const attachment = await prisma.messageAttachment.create({
-                data: {
-                    messageId,
-                    fileUrl,
-                    fileName: fileName ?? 'unknown',
-                    mimeType: mimeType ?? 'application/octet-stream',
-                    fileSize: fileSize ?? 0,
-                },
-            });
 
             // WebSocket 通知
             const io = req.app.get('io');

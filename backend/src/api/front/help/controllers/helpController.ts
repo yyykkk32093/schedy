@@ -8,7 +8,7 @@
  * 認証ユーザーは [userId, articleSlug] で upsert（再投票上書き）。匿名は insert のみ（rate-limit で抑制）。
  * Phase 9b-17 で `/v1/help/subscribe` および HelpSubscription は撤去済み。
  */
-import { prisma } from '@/_sharedTech/db/client.js'
+import { usecaseFactory } from '@/api/_usecaseFactory.js'
 import type { Request, Response } from 'express'
 import { z } from 'zod'
 
@@ -30,31 +30,21 @@ export const helpController = {
         const userId = req.user?.userId ?? null
 
         try {
+            const repo = usecaseFactory.createHelpFeedbackRepository()
             if (userId) {
-                await prisma.helpFeedback.upsert({
-                    where: { userId_articleSlug: { userId, articleSlug } },
-                    create: {
-                        userId,
-                        articleSlug,
-                        categorySlug,
-                        helpful,
-                        comment: comment ?? null,
-                    },
-                    update: {
-                        helpful,
-                        comment: comment ?? null,
-                        categorySlug,
-                    },
+                await repo.upsertByUser({
+                    userId,
+                    articleSlug,
+                    categorySlug,
+                    helpful,
+                    comment: comment ?? null,
                 })
             } else {
-                await prisma.helpFeedback.create({
-                    data: {
-                        userId: null,
-                        articleSlug,
-                        categorySlug,
-                        helpful,
-                        comment: comment ?? null,
-                    },
+                await repo.createAnonymous({
+                    articleSlug,
+                    categorySlug,
+                    helpful,
+                    comment: comment ?? null,
                 })
             }
             res.status(200).json({ ok: true })
@@ -82,11 +72,7 @@ export const adminHelpFeedbackController = {
      */
     async summary(_req: Request, res: Response) {
         try {
-            const grouped = await prisma.helpFeedback.groupBy({
-                by: ['categorySlug', 'articleSlug', 'helpful'],
-                _count: { _all: true },
-                _max: { createdAt: true },
-            })
+            const grouped = await usecaseFactory.createHelpFeedbackRepository().groupBySummary()
 
             const map = new Map<string, AdminFeedbackSummaryRow>()
             for (const g of grouped) {
@@ -102,11 +88,11 @@ export const adminHelpFeedbackController = {
                         helpfulRate: 0,
                         lastFeedbackAt: null,
                     } satisfies AdminFeedbackSummaryRow)
-                const count = g._count._all
+                const count = g.count
                 cur.total += count
                 if (g.helpful) cur.helpfulCount += count
                 else cur.notHelpfulCount += count
-                const t = g._max.createdAt
+                const t = g.lastCreatedAt
                 if (t && (!cur.lastFeedbackAt || t.toISOString() > cur.lastFeedbackAt)) {
                     cur.lastFeedbackAt = t.toISOString()
                 }
@@ -135,18 +121,7 @@ export const adminHelpFeedbackController = {
      */
     async exportCsv(_req: Request, res: Response) {
         try {
-            const rows = await prisma.helpFeedback.findMany({
-                orderBy: { createdAt: 'desc' },
-                select: {
-                    articleSlug: true,
-                    categorySlug: true,
-                    helpful: true,
-                    comment: true,
-                    userId: true,
-                    createdAt: true,
-                    updatedAt: true,
-                },
-            })
+            const rows = await usecaseFactory.createHelpFeedbackRepository().findAllForExport()
 
             const header = [
                 'articleSlug',

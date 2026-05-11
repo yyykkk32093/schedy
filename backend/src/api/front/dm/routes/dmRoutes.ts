@@ -4,7 +4,7 @@ import { requireFeature } from '@/api/middleware/featureGateMiddleware.js';
 import { validateBody } from '@/api/middleware/validateBody.js';
 import { createDMSchema } from '@/api/schemas/index.js';
 import { UserFeature } from '@/domains/_sharedDomains/featureGate/UserFeature.js';
-import { DMParticipantNotFoundError } from '@/domains/chat/infrastructure/repository/DMChannelRepositoryImpl.js';
+import { DMParticipantNotFoundError } from '@/domains/chat/domain/error/DMParticipantNotFoundError.js';
 import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 

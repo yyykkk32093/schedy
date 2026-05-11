@@ -65,6 +65,9 @@ model OutboxDeadLetter {
 
   occurredAt DateTime // 元イベントの発生時刻
   failedAt   DateTime @default(now())
+
+  @@index([failedAt])
+  @@index([routingKey])
 }
 
 model Activity {
@@ -635,7 +638,7 @@ model AlbumPhoto {
 // FeatureGate — 機能制限テーブル (memo.md §6)
 // ============================================================
 
-model UserFeatureRestriction {
+model PlanFeaturePolicy {
   id      String  @id @default(uuid())
   plan    String // 'FREE' | 'LITE' | 'PRO' | 'LIFETIME'
   feature String // Feature enum の値
@@ -646,9 +649,10 @@ model UserFeatureRestriction {
 
   @@unique([plan, feature])
   @@index([plan])
+  @@map("UserFeatureRestriction")
 }
 
-model UserLimitRestriction {
+model PlanLimitPolicy {
   id       String @id @default(uuid())
   plan     String // 'FREE' | 'LITE' | 'PRO' | 'LIFETIME'
   limitKey String // 'maxJoinCommunities' | 'maxCustomStamps' etc.
@@ -659,9 +663,10 @@ model UserLimitRestriction {
 
   @@unique([plan, limitKey])
   @@index([plan])
+  @@map("UserLimitRestriction")
 }
 
-model CommunityFeatureRestriction {
+model CommunityGradeFeaturePolicy {
   id      String  @id @default(uuid())
   grade   String // 'FREE' | 'PREMIUM'
   feature String // CommunityFeature enum の値
@@ -672,9 +677,10 @@ model CommunityFeatureRestriction {
 
   @@unique([grade, feature])
   @@index([grade])
+  @@map("CommunityFeatureRestriction")
 }
 
-model CommunityLimitRestriction {
+model CommunityGradeLimitPolicy {
   id       String @id @default(uuid())
   grade    String // 'FREE' | 'PREMIUM'
   limitKey String // 'maxMembers' etc.
@@ -685,6 +691,7 @@ model CommunityLimitRestriction {
 
   @@unique([grade, limitKey])
   @@index([grade])
+  @@map("CommunityLimitRestriction")
 }
 
 // ============================================================
@@ -880,6 +887,8 @@ model MessageReaction {
   @@unique([messageId, userId, stampId])
   @@unique([messageId, userId, emoji])
   @@index([messageId])
+  @@index([stampId])
+  @@index([userId])
 }
 
 // ============================================================
@@ -930,6 +939,8 @@ model CategoryMaster {
 
   communityCategories CommunityCategory[]
   matchFormats        CategoryMatchFormat[]
+
+  @@index([sortOrder])
 }
 
 model CategoryMatchFormat {
@@ -973,6 +984,8 @@ model ParticipationLevelMaster {
   createdAt DateTime @default(now())
 
   communityLevels CommunityParticipationLevel[]
+
+  @@index([sortOrder])
 }
 
 // ============================================================
@@ -1015,6 +1028,7 @@ model CommunityActivityDay {
   community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
 
   @@unique([communityId, day])
+  @@index([communityId])
 }
 
 model CommunityTag {
@@ -1025,6 +1039,7 @@ model CommunityTag {
   community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
 
   @@unique([communityId, tag])
+  @@index([communityId])
 }
 
 // ============================================================
@@ -1179,6 +1194,9 @@ model PlanMaster {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+  @@index([availableFrom, availableTo])
 }
 
 // ============================================================
@@ -1204,7 +1222,7 @@ model ChannelReadState {
 // ============================================================
 
 /// 問い合わせカテゴリマスタ（Phase 7 のヘルプカテゴリと relatedHelpCategorySlug で紐付け）
-model InquiryCategory {
+model InquiryCategoryMaster {
   id                      String  @id @default(uuid())
   /// URL/参照用の一意キー（例: 'login_trouble', 'billing', 'general'）
   slug                    String  @unique
@@ -1224,6 +1242,7 @@ model InquiryCategory {
   inquiries Inquiry[]
 
   @@index([isActive, sortOrder])
+  @@map("InquiryCategory")
 }
 
 /// 問い合わせスレッド本体
@@ -1247,9 +1266,9 @@ model Inquiry {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user     User?            @relation("UserInquiries", fields: [userId], references: [id])
-  category InquiryCategory  @relation(fields: [categoryId], references: [id])
-  assignee User?            @relation("InquiryAssignee", fields: [assigneeUserId], references: [id])
+  user     User?                 @relation("UserInquiries", fields: [userId], references: [id])
+  category InquiryCategoryMaster @relation(fields: [categoryId], references: [id])
+  assignee User?                 @relation("InquiryAssignee", fields: [assigneeUserId], references: [id])
   messages InquiryMessage[]
 
   @@index([userId, lastActivityAt(sort: Desc)])
@@ -1273,6 +1292,7 @@ model InquiryMessage {
   attachments InquiryAttachment[]
 
   @@index([inquiryId, createdAt])
+  @@index([authorUserId])
 }
 
 /// 問い合わせメッセージへの添付（画像/動画/PDF/テキスト）
@@ -1321,4 +1341,5 @@ model HelpFeedback {
   @@unique([userId, articleSlug])
   @@index([articleSlug, createdAt])
   @@index([categorySlug, createdAt])
+  @@index([userId, createdAt])
 }

@@ -1,11 +1,6 @@
-import { prisma } from '@/_sharedTech/db/client.js'
-import { logger } from '@/_sharedTech/logger/logger.js'
-import { usecaseFactory } from '@/api/_usecaseFactory.js'
-import { SocketIoRealtimeEmitter } from '@/api/ws/SocketIoRealtimeEmitter.js'
-import { NotificationRepositoryImpl } from '@/application/_sharedApplication/notification/NotificationRepositoryImpl.js'
-import { NotificationService } from '@/application/_sharedApplication/notification/NotificationService.js'
-import { OutboxRepository } from '@/integration/outbox/repository/OutboxRepository.js'
-import type { Server, Socket } from 'socket.io'
+import { logger } from '@/_sharedTech/logger/logger.js';
+import { usecaseFactory } from '@/api/_usecaseFactory.js';
+import type { Server, Socket } from 'socket.io';
 
 interface AuthenticatedSocket extends Socket {
     user: { userId: string; email: string }
@@ -26,45 +21,13 @@ export function registerSocketHandlers(io: Server): void {
         // ----- channel:join -----
         socket.on('channel:join', async (channelId: string) => {
             try {
-                // メンバーシップ確認（チャンネルにアクセス権があるか）
-                const channel = await prisma.chatChannel.findUnique({
-                    where: { id: channelId },
-                    select: { type: true, communityId: true, activityId: true },
-                })
+                const access = await usecaseFactory
+                    .createCheckChannelAccessUseCase()
+                    .execute({ channelId, userId })
 
-                if (!channel) {
-                    socket.emit('error', { code: 'CHANNEL_NOT_FOUND', message: 'チャンネルが見つかりません' })
+                if (!access.granted) {
+                    socket.emit('error', { code: access.code, message: access.message })
                     return
-                }
-
-                // DM の場合は DMParticipant を確認
-                if (channel.type === 'DM') {
-                    const participant = await prisma.dMParticipant.findUnique({
-                        where: { channelId_userId: { channelId, userId } },
-                    })
-                    if (!participant) {
-                        socket.emit('error', { code: 'FORBIDDEN', message: 'このDMにアクセスする権限がありません' })
-                        return
-                    }
-                } else {
-                    // COMMUNITY / ACTIVITY の場合はコミュニティメンバーシップを確認
-                    let communityId = channel.communityId
-                    if (channel.type === 'ACTIVITY' && channel.activityId) {
-                        const activity = await prisma.activity.findUnique({
-                            where: { id: channel.activityId },
-                            select: { communityId: true },
-                        })
-                        communityId = activity?.communityId ?? null
-                    }
-                    if (communityId) {
-                        const membership = await prisma.communityMembership.findUnique({
-                            where: { communityId_userId: { communityId, userId } },
-                        })
-                        if (!membership || membership.leftAt) {
-                            socket.emit('error', { code: 'FORBIDDEN', message: 'このチャンネルにアクセスする権限がありません' })
-                            return
-                        }
-                    }
                 }
 
                 socket.join(`channel:${channelId}`)
@@ -92,10 +55,7 @@ export function registerSocketHandlers(io: Server): void {
                 const { channelId, content, parentMessageId, mentions } = data
 
                 // ユーザー情報取得（broadcast ペイロード用）
-                const user = await prisma.user.findUnique({
-                    where: { id: userId },
-                    select: { displayName: true, avatarUrl: true },
-                })
+                const user = await usecaseFactory.createUserRepository().findChatSenderProfile(userId)
 
                 const useCase = usecaseFactory.createSendMessageUseCase()
                 const result = await useCase.execute({
@@ -148,32 +108,18 @@ export function registerSocketHandlers(io: Server): void {
                     })
                 }
 
-                // メンション通知（NotificationService 経由で統一）
+                // メンション通知（UseCase 経由で統一）
                 if (mentions && mentions.length > 0) {
-                    const emitter = new SocketIoRealtimeEmitter(io)
-                    const notificationService = new NotificationService(emitter)
-
+                    const sendMention = usecaseFactory.createSendMentionNotificationUseCase()
                     for (const mentionedUserId of mentions) {
                         if (mentionedUserId === userId) continue // 自分自身は除外
-                        await prisma.$transaction(async (tx) => {
-                            const repos = {
-                                notification: new NotificationRepositoryImpl(tx),
-                                outbox: new OutboxRepository(tx),
-                            }
-                            await notificationService.prepareNotification(repos, {
-                                userId: mentionedUserId,
-                                type: 'MENTION',
-                                title: 'メンションされました',
-                                body: content.trim().substring(0, 100),
-                                referenceId: result.message.id,
-                                referenceType: 'MESSAGE',
-                                metadata: {
-                                    channelId,
-                                    senderName: user?.displayName ?? undefined,
-                                },
-                            })
+                        await sendMention.execute({
+                            mentionedUserId,
+                            senderDisplayName: user?.displayName ?? null,
+                            channelId,
+                            messageId: result.message.id,
+                            contentPreview: content.trim().substring(0, 100),
                         })
-                        notificationService.flush()
                     }
                 }
 

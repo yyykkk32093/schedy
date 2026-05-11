@@ -26,6 +26,9 @@ export interface IMessageRepository {
 
     /** スレッド返信数を取得 */
     countReplies(parentMessageId: string): Promise<number>
+
+    /** メッセージ添付ファイルを保存 */
+    saveAttachment(params: SaveAttachmentParams): Promise<MessageAttachmentDto>
 }
 
 // ── Params ──
@@ -96,6 +99,14 @@ export interface MessageListItemDto {
 
 export interface MessageAttachmentDto {
     id: string
+    fileUrl: string
+    fileName: string
+    mimeType: string
+    fileSize: number
+}
+
+export interface SaveAttachmentParams {
+    messageId: string
     fileUrl: string
     fileName: string
     mimeType: string

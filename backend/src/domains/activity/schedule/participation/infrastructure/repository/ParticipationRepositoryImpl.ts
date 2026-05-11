@@ -103,6 +103,20 @@ export class ParticipationRepositoryImpl implements IParticipationRepository {
             .filter((name): name is string => name !== null)
     }
 
+    async findCommunityGrade(participationId: string): Promise<{ grade: string } | null> {
+        const row = await this.prisma.participation.findUnique({
+            where: { id: participationId },
+            select: {
+                schedule: {
+                    select: {
+                        activity: { select: { community: { select: { grade: true } } } },
+                    },
+                },
+            },
+        })
+        return row ? { grade: row.schedule.activity.community.grade } : null
+    }
+
     private toDomain(row: PrismaParticipation): Participation {
         return Participation.reconstruct({
             id: row.id,

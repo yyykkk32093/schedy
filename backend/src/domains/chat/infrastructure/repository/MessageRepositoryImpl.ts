@@ -3,8 +3,10 @@ import type {
     IMessageRepository,
     ListByChannelParams,
     ListRepliesParams,
+    MessageAttachmentDto,
     MessageListItemDto,
     MessageRow,
+    SaveAttachmentParams,
     SaveMessageParams,
     SearchByChannelParams,
 } from '../../domain/repository/IMessageRepository.js'
@@ -135,9 +137,28 @@ export class MessageRepositoryImpl implements IMessageRepository {
         return this.prisma.message.count({ where: { parentMessageId } })
     }
 
+    async saveAttachment(params: SaveAttachmentParams): Promise<MessageAttachmentDto> {
+        const row = await this.prisma.messageAttachment.create({
+            data: {
+                messageId: params.messageId,
+                fileUrl: params.fileUrl,
+                fileName: params.fileName,
+                mimeType: params.mimeType,
+                fileSize: params.fileSize,
+            },
+        })
+        return {
+            id: row.id,
+            fileUrl: row.fileUrl,
+            fileName: row.fileName,
+            mimeType: row.mimeType,
+            fileSize: row.fileSize,
+        }
+    }
+
     // ── Private mapping ──
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     private toListItemDto(m: any, _currentUserId: string): MessageListItemDto {
         const latestReplyRaw = m.replies?.[0] ?? null
 
@@ -180,7 +201,7 @@ export class MessageRepositoryImpl implements IMessageRepository {
         }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     private toReplyDto(m: any, _currentUserId: string): MessageListItemDto {
         return {
             id: m.id,

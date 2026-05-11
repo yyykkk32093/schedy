@@ -3,7 +3,7 @@
 -- テストユーザー3人 + コミュニティ + アクティビティ + スケジュール
 -- + 参加 / キャンセル待ち / アナウンスメント / ブックマーク
 -- ============================================================
--- 実行: cd backend && PGPASSWORD=app_password psql -h localhost -p 5432 -U app_user -d reserve_manage -f infra/database/seeds/testdata/e2e-seed-data.sql
+-- 実行: cd backend && PGPASSWORD=app_password psql -h localhost -p 5432 -U app_user -d tsunaca -f infra/database/seeds/testdata/e2e-seed-data.sql
 -- 削除: 末尾のDELETE文をコメント解除して実行
 
 BEGIN;

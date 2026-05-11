@@ -1,3 +1,4 @@
+import { DMParticipantNotFoundError } from '@/domains/chat/domain/error/DMParticipantNotFoundError.js'
 import type {
     DMChannelDTO,
     DMChannelListItem,
@@ -103,11 +104,12 @@ export class DMChannelRepositoryImpl implements IDMChannelRepository {
             where: { id: participant.id },
         })
     }
-}
 
-export class DMParticipantNotFoundError extends Error {
-    constructor(channelId: string, userId: string) {
-        super(`DM participant not found: channelId=${channelId}, userId=${userId}`)
-        this.name = 'DMParticipantNotFoundError'
+    async isParticipant(channelId: string, userId: string): Promise<boolean> {
+        const row = await this.db.dMParticipant.findFirst({
+            where: { channelId, userId },
+            select: { id: true },
+        })
+        return row !== null
     }
 }

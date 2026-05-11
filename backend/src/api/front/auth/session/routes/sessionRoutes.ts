@@ -1,5 +1,5 @@
-import { prisma } from '@/_sharedTech/db/client.js'
 import { featureGateService } from '@/_sharedTech/featureGate/featureGateServiceInstance.js'
+import { usecaseFactory } from '@/api/_usecaseFactory.js'
 import { authMiddleware } from '@/api/middleware/authMiddleware.js'
 import { clearAuthCookie } from '@/api/middleware/cookieUtils.js'
 import { Router } from 'express'
@@ -28,17 +28,7 @@ router.post('/v1/auth/logout', (_req, res) => {
 router.get('/v1/auth/me', authMiddleware, async (req, res) => {
     const userId = req.user!.userId
 
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-            id: true,
-            plan: true,
-            displayName: true,
-            email: true,
-            avatarUrl: true,
-            systemRole: true,
-        },
-    })
+    const user = await usecaseFactory.createUserRepository().findAuthMeView(userId)
 
     if (!user) {
         res.status(404).json({ code: 'USER_NOT_FOUND', message: 'ユーザーが見つかりません' })

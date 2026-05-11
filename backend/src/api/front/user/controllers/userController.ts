@@ -1,6 +1,5 @@
 import type { NextFunction, Request, Response } from 'express'
 
-import { prisma } from '@/_sharedTech/db/client.js'
 import { usecaseFactory } from '@/api/_usecaseFactory.js'
 import { z } from 'zod/v4'
 
@@ -81,7 +80,7 @@ export const userController = {
     async getLocale(req: Request, res: Response, next: NextFunction) {
         try {
             const userId = req.user!.userId
-            const u = await prisma.user.findUnique({ where: { id: userId }, select: { locale: true } })
+            const u = await usecaseFactory.createUserRepository().findLocale(userId)
             res.status(200).json({ locale: u?.locale ?? null })
         } catch (err) {
             next(err)
@@ -93,7 +92,7 @@ export const userController = {
             const userId = req.user!.userId
             const schema = z.object({ locale: z.enum(['ja', 'en']).nullable() })
             const { locale } = schema.parse(req.body)
-            await prisma.user.update({ where: { id: userId }, data: { locale } })
+            await usecaseFactory.createUserRepository().updateLocale(userId, locale)
             res.status(200).json({ locale })
         } catch (err) {
             next(err)

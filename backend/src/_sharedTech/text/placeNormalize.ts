@@ -25,6 +25,7 @@ const KANJI_DIGIT_MAP: Record<string, string> = {
 function toHalfWidth(s: string): string {
     return s
         .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
+        // eslint-disable-next-line no-irregular-whitespace
         .replace(/　/g, ' ')
 }
 

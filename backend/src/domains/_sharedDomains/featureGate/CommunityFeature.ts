@@ -1,6 +1,6 @@
 /**
  * コミュニティグレード別 機能ON/OFF 制限 — CommunityFeature enum
- * DB テーブル: CommunityFeatureRestriction.feature に対応
+ * DB テーブル: CommunityGradeFeaturePolicy.feature に対応
  */
 export const CommunityFeature = {
     /** 副管理者（ADMIN）設定 */
@@ -34,7 +34,7 @@ export type CommunityFeatureType =
 
 /**
  * コミュニティグレード別 数量上限 — CommunityLimitKey enum
- * DB テーブル: CommunityLimitRestriction.limitKey に対応
+ * DB テーブル: CommunityGradeLimitPolicy.limitKey に対応
  */
 export const CommunityLimitKey = {
     /** メンバー上限 */

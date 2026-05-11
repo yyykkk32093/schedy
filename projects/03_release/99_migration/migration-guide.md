@@ -119,7 +119,7 @@ docker compose up -d
 cd backend
 sleep 3
 env $(grep -v '^#' env/.env.local | grep -v '^$' | xargs) pnpm prisma migrate deploy
-PGPASSWORD=app_password psql -h localhost -p 5432 -U app_user -d reserve_manage \
+PGPASSWORD=app_password psql -h localhost -p 5432 -U app_user -d tsunaca \
   -f infra/database/seeds/testdata/e2e-seed-data.sql
 ```
 

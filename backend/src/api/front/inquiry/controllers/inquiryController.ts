@@ -1,11 +1,11 @@
-import { prisma } from '@/_sharedTech/db/client.js'
+import { usecaseFactory } from '@/api/_usecaseFactory.js'
 import { z } from 'zod'
 
 /**
  * Wave6 Phase 8-B 暫定実装メモ:
- * 既存 DDD レイヤ（UseCase / Repository / Domain）に従わず、Controller から Prisma を直接呼ぶ簡潔実装。
+ * 既存 DDD レイヤ（UseCase / Repository / Domain）に従わず、Controller から薄い Repository のみを呼ぶ簡潔実装。
  * 理由: スレッドモデルが独立しており、ドメインロジックがほぼ CRUD+状態遷移のみのため。
- * 後続 Wave で UseCase / Repository に分離する（バックログ I-11 を参照）。
+ * 後続 Wave で UseCase / Domain Model に分離する（バックログ I-11 を参照）。
  */
 
 // ============================================================
@@ -58,7 +58,7 @@ export const createAnonymousInquirySchema = createInquirySchema.extend({
 // ============================================================
 
 async function findCategoryBySlug(slug: string) {
-    return prisma.inquiryCategory.findUnique({ where: { slug } })
+    return usecaseFactory.createInquiryRepository().findCategoryBySlug(slug)
 }
 
 function serializeInquiry(inq: {
@@ -118,204 +118,8 @@ export const inquiryController = {
     async listCategories(req: Request, res: Response, next: NextFunction) {
         try {
             const includeAnonymous = req.query.includeAnonymous === 'true'
-            const cats = await prisma.inquiryCategory.findMany({
-                where: {
-                    isActive: true,
-                    ...(includeAnonymous ? {} : { isAnonymousOnly: false }),
-                },
-                orderBy: { sortOrder: 'asc' },
-                select: {
-                    id: true,
-                    slug: true,
-                    labelI18n: true,
-                    relatedHelpCategorySlug: true,
-                    isAnonymousOnly: true,
-                },
-            })
+            const cats = await usecaseFactory.createInquiryRepository().listCategories({ includeAnonymous })
             res.status(200).json({ categories: cats })
-        } catch (err) {
-            next(err)
-        }
-    },
-
-    /** POST /v1/inquiries — 認証ユーザーが問い合わせを作成 */
-    async create(req: Request, res: Response, next: NextFunction) {
-        try {
-            const userId = req.user!.userId
-            const input = createInquirySchema.parse(req.body)
-
-            const category = await findCategoryBySlug(input.categorySlug)
-            if (!category || !category.isActive || category.isAnonymousOnly) {
-                res.status(400).json({ code: 'INVALID_CATEGORY', message: 'カテゴリが不正です' })
-                return
-            }
-
-            const created = await prisma.inquiry.create({
-                data: {
-                    userId,
-                    categoryId: category.id,
-                    title: input.title,
-                    status: 'OPEN',
-                    messages: {
-                        create: {
-                            authorType: 'USER',
-                            authorUserId: userId,
-                            body: input.body,
-                            attachments: {
-                                create: input.attachmentKeys.map((a) => ({
-                                    storageKey: a.storageKey,
-                                    fileName: a.fileName,
-                                    mimeType: a.mimeType,
-                                    sizeBytes: a.sizeBytes,
-                                    // ClamAV スキャンは非同期ジョブで CLEAN/INFECTED を更新する想定
-                                    scanStatus: 'PENDING',
-                                })),
-                            },
-                        },
-                    },
-                },
-                include: {
-                    category: true,
-                    messages: {
-                        include: { attachments: true },
-                        orderBy: { createdAt: 'asc' },
-                    },
-                },
-            })
-
-            // 副作用: 運営への Slack 通知（失敗しても問い合わせ作成は成功させる）
-            notifyOperatorsOfNewInquiry({
-                inquiryId: created.id,
-                title: created.title,
-                categoryLabel: category.labelI18n as Record<string, string>,
-                isAnonymous: false,
-            }).catch((err) =>
-                console.warn('[inquiry] Slack 通知失敗（無視して継続）:', err),
-            )
-
-            res.status(201).json(serializeInquiry(created))
-        } catch (err) {
-            next(err)
-        }
-    },
-
-    /** GET /v1/inquiries — 自分の問い合わせ一覧 */
-    async listMine(req: Request, res: Response, next: NextFunction) {
-        try {
-            const userId = req.user!.userId
-            const items = await prisma.inquiry.findMany({
-                where: { userId },
-                orderBy: { lastActivityAt: 'desc' },
-                take: 50,
-                include: {
-                    category: { select: { slug: true, labelI18n: true } },
-                },
-            })
-            res.status(200).json({
-                inquiries: items.map((it) => ({
-                    id: it.id,
-                    title: it.title,
-                    status: it.status,
-                    lastActivityAt: it.lastActivityAt.toISOString(),
-                    createdAt: it.createdAt.toISOString(),
-                    category: { slug: it.category.slug, labelI18n: it.category.labelI18n },
-                })),
-            })
-        } catch (err) {
-            next(err)
-        }
-    },
-
-    /** GET /v1/inquiries/:id — 自分の問い合わせ詳細（スレッド全体） */
-    async findMineById(req: Request, res: Response, next: NextFunction) {
-        try {
-            const userId = req.user!.userId
-            const { id } = req.params
-            const inq = await prisma.inquiry.findFirst({
-                where: { id, userId }, // 他人の Inquiry は触れない
-                include: {
-                    category: true,
-                    messages: {
-                        include: { attachments: true },
-                        orderBy: { createdAt: 'asc' },
-                    },
-                },
-            })
-            if (!inq) {
-                res.status(404).json({ code: 'NOT_FOUND', message: 'Not Found' })
-                return
-            }
-            res.status(200).json(serializeInquiry(inq))
-        } catch (err) {
-            next(err)
-        }
-    },
-
-    /** POST /v1/inquiries/:id/messages — 自分の問い合わせに追記 */
-    async addMyMessage(req: Request, res: Response, next: NextFunction) {
-        try {
-            const userId = req.user!.userId
-            const { id } = req.params
-            const input = addMessageSchema.parse(req.body)
-
-            const inq = await prisma.inquiry.findFirst({
-                where: { id, userId },
-                select: { id: true, status: true },
-            })
-            if (!inq) {
-                res.status(404).json({ code: 'NOT_FOUND', message: 'Not Found' })
-                return
-            }
-            if (inq.status === 'CLOSED') {
-                res.status(400).json({
-                    code: 'INQUIRY_CLOSED',
-                    message: 'この問い合わせは終了しています',
-                })
-                return
-            }
-
-            const message = await prisma.inquiryMessage.create({
-                data: {
-                    inquiryId: id,
-                    authorType: 'USER',
-                    authorUserId: userId,
-                    body: input.body,
-                    attachments: {
-                        create: input.attachmentKeys.map((a) => ({
-                            storageKey: a.storageKey,
-                            fileName: a.fileName,
-                            mimeType: a.mimeType,
-                            sizeBytes: a.sizeBytes,
-                            scanStatus: 'PENDING',
-                        })),
-                    },
-                },
-                include: { attachments: true },
-            })
-
-            // RESOLVED でユーザー追記が来た場合は OPEN に戻す（運営側で再対応が必要）
-            const newStatus = inq.status === 'RESOLVED' ? 'OPEN' : inq.status
-            await prisma.inquiry.update({
-                where: { id },
-                data: {
-                    lastActivityAt: new Date(),
-                    status: newStatus,
-                },
-            })
-
-            res.status(201).json({
-                id: message.id,
-                authorType: message.authorType,
-                body: message.body,
-                createdAt: message.createdAt.toISOString(),
-                attachments: message.attachments.map((a) => ({
-                    id: a.id,
-                    fileName: a.fileName,
-                    mimeType: a.mimeType,
-                    sizeBytes: a.sizeBytes,
-                    scanStatus: a.scanStatus,
-                })),
-            })
         } catch (err) {
             next(err)
         }
@@ -344,41 +148,17 @@ export const inquiryController = {
                 return
             }
 
-            const created = await prisma.inquiry.create({
-                data: {
-                    userId: null,
-                    contactEmail: input.contactEmail,
-                    categoryId: category.id,
-                    title: input.title,
-                    status: 'OPEN',
-                    messages: {
-                        create: {
-                            authorType: 'USER',
-                            body: input.body,
-                            attachments: {
-                                create: input.attachmentKeys.map((a) => ({
-                                    storageKey: a.storageKey,
-                                    fileName: a.fileName,
-                                    mimeType: a.mimeType,
-                                    sizeBytes: a.sizeBytes,
-                                    scanStatus: 'PENDING',
-                                })),
-                            },
-                        },
-                    },
-                },
-                include: {
-                    category: true,
-                    messages: {
-                        include: { attachments: true },
-                        orderBy: { createdAt: 'asc' },
-                    },
-                },
+            const created = await usecaseFactory.createInquiryRepository().createAnonymousInquiry({
+                contactEmail: input.contactEmail,
+                categoryId: category.id,
+                title: input.title,
+                body: input.body,
+                attachments: input.attachmentKeys,
             })
 
             notifyOperatorsOfNewInquiry({
                 inquiryId: created.id,
-                title: created.title,
+                title: input.title,
                 categoryLabel: category.labelI18n as Record<string, string>,
                 isAnonymous: true,
             }).catch((err) =>
@@ -410,26 +190,12 @@ export const adminInquiryController = {
             const assigneeFilter = req.query.assignee as string | undefined
             const operatorUserId = req.user?.userId
 
-            const assigneeWhere =
-                assigneeFilter === 'me' && operatorUserId
-                    ? { assigneeUserId: operatorUserId }
-                    : assigneeFilter === 'unassigned'
-                        ? { assigneeUserId: null }
-                        : {}
-
-            const items = await prisma.inquiry.findMany({
-                where: {
-                    ...(status ? { status } : {}),
-                    ...(categorySlug ? { category: { slug: categorySlug } } : {}),
-                    ...assigneeWhere,
-                },
-                orderBy: { lastActivityAt: 'desc' },
-                take: 100,
-                include: {
-                    category: { select: { slug: true, labelI18n: true } },
-                    user: { select: { id: true, displayName: true, email: true } },
-                    assignee: { select: { id: true, displayName: true, email: true } },
-                },
+            const items = await usecaseFactory.createInquiryRepository().listAdmin({
+                status,
+                categorySlug,
+                assigneeFilterMode:
+                    assigneeFilter === 'me' ? 'me' : assigneeFilter === 'unassigned' ? 'unassigned' : 'all',
+                assigneeUserId: operatorUserId ?? null,
             })
 
             res.status(200).json({
@@ -440,21 +206,9 @@ export const adminInquiryController = {
                     lastActivityAt: it.lastActivityAt.toISOString(),
                     createdAt: it.createdAt.toISOString(),
                     category: { slug: it.category.slug, labelI18n: it.category.labelI18n },
-                    user: it.user
-                        ? {
-                            id: it.user.id,
-                            displayName: it.user.displayName,
-                            email: it.user.email,
-                        }
-                        : null,
+                    user: it.user,
                     contactEmail: it.contactEmail,
-                    assignee: it.assignee
-                        ? {
-                            id: it.assignee.id,
-                            displayName: it.assignee.displayName,
-                            email: it.assignee.email,
-                        }
-                        : null,
+                    assignee: it.assignee,
                 })),
             })
         } catch (err) {
@@ -466,18 +220,7 @@ export const adminInquiryController = {
     async findById(req: Request, res: Response, next: NextFunction) {
         try {
             const { id } = req.params
-            const inq = await prisma.inquiry.findUnique({
-                where: { id },
-                include: {
-                    category: true,
-                    user: { select: { id: true, displayName: true, email: true } },
-                    assignee: { select: { id: true, displayName: true, email: true } },
-                    messages: {
-                        include: { attachments: true },
-                        orderBy: { createdAt: 'asc' },
-                    },
-                },
-            })
+            const inq = await usecaseFactory.createInquiryRepository().findByIdAdmin(id)
             if (!inq) {
                 res.status(404).json({ code: 'NOT_FOUND', message: 'Not Found' })
                 return
@@ -486,13 +229,7 @@ export const adminInquiryController = {
                 ...serializeInquiry(inq),
                 user: inq.user,
                 contactEmail: inq.contactEmail,
-                assignee: inq.assignee
-                    ? {
-                        id: inq.assignee.id,
-                        displayName: inq.assignee.displayName,
-                        email: inq.assignee.email,
-                    }
-                    : null,
+                assignee: inq.assignee,
             })
         } catch (err) {
             next(err)
@@ -508,15 +245,7 @@ export const adminInquiryController = {
             })
             const { status } = schema.parse(req.body)
 
-            const updated = await prisma.inquiry.update({
-                where: { id },
-                data: {
-                    status,
-                    resolvedAt: status === 'RESOLVED' ? new Date() : undefined,
-                    lastActivityAt: new Date(),
-                },
-                select: { id: true, status: true, resolvedAt: true },
-            })
+            const updated = await usecaseFactory.createInquiryRepository().updateStatus(id, status)
             res.status(200).json(updated)
         } catch (err) {
             next(err)
@@ -530,42 +259,18 @@ export const adminInquiryController = {
             const { id } = req.params
             const input = addMessageSchema.parse(req.body)
 
-            const inq = await prisma.inquiry.findUnique({
-                where: { id },
-                select: { id: true, userId: true, status: true, title: true },
-            })
+            const inquiryRepo = usecaseFactory.createInquiryRepository()
+            const inq = await inquiryRepo.findCoreById(id)
             if (!inq) {
                 res.status(404).json({ code: 'NOT_FOUND', message: 'Not Found' })
                 return
             }
 
-            const message = await prisma.inquiryMessage.create({
-                data: {
-                    inquiryId: id,
-                    authorType: 'OPERATOR',
-                    authorUserId: operatorUserId,
-                    body: input.body,
-                    attachments: {
-                        create: input.attachmentKeys.map((a) => ({
-                            storageKey: a.storageKey,
-                            fileName: a.fileName,
-                            mimeType: a.mimeType,
-                            sizeBytes: a.sizeBytes,
-                            scanStatus: 'PENDING',
-                        })),
-                    },
-                },
-                include: { attachments: true },
-            })
-
-            // OPEN → IN_PROGRESS に自動遷移
-            const newStatus = inq.status === 'OPEN' ? 'IN_PROGRESS' : inq.status
-            await prisma.inquiry.update({
-                where: { id },
-                data: {
-                    lastActivityAt: new Date(),
-                    status: newStatus,
-                },
+            const { message } = await inquiryRepo.addOperatorMessage({
+                inquiryId: id,
+                operatorUserId,
+                body: input.body,
+                attachments: input.attachmentKeys,
             })
 
             // 副作用: ユーザーへのアプリ内通知
@@ -608,10 +313,7 @@ export const adminInquiryController = {
 
             // 設定する場合は SystemAdmin (OPERATOR / SUPER_ADMIN) であることを検証
             if (assigneeUserId !== null) {
-                const target = await prisma.user.findUnique({
-                    where: { id: assigneeUserId },
-                    select: { id: true, systemRole: true, deletedAt: true },
-                })
+                const target = await usecaseFactory.createUserRepository().findSystemAdminForAssignee(assigneeUserId)
                 if (!target || target.deletedAt || (target.systemRole !== 'OPERATOR' && target.systemRole !== 'SUPER_ADMIN')) {
                     res.status(400).json({
                         code: 'INVALID_ASSIGNEE',
@@ -621,23 +323,8 @@ export const adminInquiryController = {
                 }
             }
 
-            const updated = await prisma.inquiry.update({
-                where: { id },
-                data: { assigneeUserId, lastActivityAt: new Date() },
-                include: {
-                    assignee: { select: { id: true, displayName: true, email: true } },
-                },
-            })
-            res.status(200).json({
-                id: updated.id,
-                assignee: updated.assignee
-                    ? {
-                        id: updated.assignee.id,
-                        displayName: updated.assignee.displayName,
-                        email: updated.assignee.email,
-                    }
-                    : null,
-            })
+            const updated = await usecaseFactory.createInquiryRepository().updateAssignee(id, assigneeUserId)
+            res.status(200).json(updated)
         } catch (err) {
             next(err)
         }
@@ -646,14 +333,7 @@ export const adminInquiryController = {
     /** GET /v1/admin/system-admins — SystemAdmin ユーザー一覧（担当プルダウン用） */
     async listSystemAdmins(_req: Request, res: Response, next: NextFunction) {
         try {
-            const users = await prisma.user.findMany({
-                where: {
-                    systemRole: { in: ['OPERATOR', 'SUPER_ADMIN'] },
-                    deletedAt: null,
-                },
-                select: { id: true, displayName: true, email: true, systemRole: true },
-                orderBy: [{ systemRole: 'asc' }, { displayName: 'asc' }],
-            })
+            const users = await usecaseFactory.createUserRepository().listSystemAdmins()
             res.status(200).json({ users })
         } catch (err) {
             next(err)

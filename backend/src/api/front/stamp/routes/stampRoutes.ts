@@ -1,4 +1,4 @@
-import { prisma } from '@/_sharedTech/db/client.js';
+import { usecaseFactory } from '@/api/_usecaseFactory.js';
 import { authMiddleware } from '@/api/middleware/authMiddleware.js';
 import { requireFeature, requireLimit } from '@/api/middleware/featureGateMiddleware.js';
 import { validateBody } from '@/api/middleware/validateBody.js';
@@ -18,7 +18,7 @@ router.post(
     authMiddleware,
     requireFeature(UserFeature.CUSTOM_STAMP),
     requireLimit(UserLimitKey.MAX_CUSTOM_STAMPS, async (req) => {
-        return prisma.stamp.count({ where: { createdByUserId: req.user!.userId } });
+        return usecaseFactory.createStampRepository().countByUser(req.user!.userId);
     }),
     validateBody(createStampSchema),
     async (req: Request, res: Response, next: NextFunction) => {
@@ -35,12 +35,10 @@ router.post(
                 return;
             }
 
-            const stamp = await prisma.stamp.create({
-                data: {
-                    createdByUserId: userId,
-                    name,
-                    imageUrl,
-                },
+            const stamp = await usecaseFactory.createStampRepository().create({
+                createdByUserId: userId,
+                name,
+                imageUrl,
             });
 
             res.status(201).json(stamp);
@@ -57,10 +55,7 @@ router.get('/v1/stamps', authMiddleware, async (req: Request, res: Response, nex
     try {
         const userId = req.user!.userId;
 
-        const stamps = await prisma.stamp.findMany({
-            where: { createdByUserId: userId },
-            orderBy: { createdAt: 'desc' },
-        });
+        const stamps = await usecaseFactory.createStampRepository().listByUser(userId);
 
         res.json({ stamps });
     } catch (err) {
@@ -77,7 +72,8 @@ router.delete('/v1/stamps/:stampId', authMiddleware, async (req: Request, res: R
         const userId = req.user!.userId;
         const { stampId } = req.params;
 
-        const stamp = await prisma.stamp.findUnique({ where: { id: stampId } });
+        const stampRepo = usecaseFactory.createStampRepository();
+        const stamp = await stampRepo.findById(stampId);
         if (!stamp) {
             res.status(404).json({ code: 'NOT_FOUND', message: 'スタンプが見つかりません' });
             return;
@@ -88,10 +84,7 @@ router.delete('/v1/stamps/:stampId', authMiddleware, async (req: Request, res: R
         }
 
         // リアクション・関連もカスケード削除
-        await prisma.$transaction([
-            prisma.messageReaction.deleteMany({ where: { stampId } }),
-            prisma.stamp.delete({ where: { id: stampId } }),
-        ]);
+        await stampRepo.deleteWithReactions(stampId);
 
         res.status(204).end();
     } catch (err) {
@@ -119,40 +112,22 @@ router.post('/v1/messages/:messageId/reactions', authMiddleware, validateBody(ad
             return;
         }
 
-        const message = await prisma.message.findUnique({ where: { id: messageId } });
-        if (!message) {
-            res.status(404).json({ code: 'NOT_FOUND', message: 'メッセージが見つかりません' });
-            return;
-        }
-
-        let reaction;
-        if (stampId) {
-            reaction = await prisma.messageReaction.upsert({
-                where: {
-                    messageId_userId_stampId: { messageId, userId, stampId },
-                },
-                create: { messageId, userId, stampId },
-                update: {},
-            });
-        } else {
-            reaction = await prisma.messageReaction.upsert({
-                where: {
-                    messageId_userId_emoji: { messageId, userId, emoji: emoji! },
-                },
-                create: { messageId, userId, emoji },
-                update: {},
-            });
-        }
+        const result = await usecaseFactory.createAddReactionUseCase().execute({
+            messageId,
+            userId,
+            stampId,
+            emoji,
+        });
 
         // WebSocket 通知
         const io = req.app.get('io');
         if (io) {
-            io.to(`channel:${message.channelId}`).emit('reaction:updated', {
+            io.to(`channel:${result.channelId}`).emit('reaction:updated', {
                 messageId,
             });
         }
 
-        res.status(201).json(reaction);
+        res.status(201).json({ messageId, userId, stampId: stampId ?? null, emoji: emoji ?? null });
     } catch (err) {
         next(err);
     }
@@ -171,25 +146,25 @@ router.delete('/v1/messages/:messageId/reactions/:identifier', authMiddleware, a
         // UUID形式ならstampId、それ以外ならemoji
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
 
-        if (isUuid) {
-            await prisma.messageReaction.deleteMany({
-                where: { messageId, userId, stampId: identifier },
+        try {
+            const result = await usecaseFactory.createRemoveReactionUseCase().execute({
+                messageId,
+                userId,
+                stampId: isUuid ? identifier : undefined,
+                emoji: isUuid ? undefined : decodeURIComponent(identifier),
             });
-        } else {
-            await prisma.messageReaction.deleteMany({
-                where: { messageId, userId, emoji: decodeURIComponent(identifier) },
-            });
-        }
 
-        // WebSocket 通知
-        const message = await prisma.message.findUnique({ where: { id: messageId } });
-        if (message) {
+            // WebSocket 通知
             const io = req.app.get('io');
             if (io) {
-                io.to(`channel:${message.channelId}`).emit('reaction:updated', {
+                io.to(`channel:${result.channelId}`).emit('reaction:updated', {
                     messageId,
                 });
             }
+        } catch (e: unknown) {
+            // メッセージが見つからないと NOT_FOUND を投げるが、旧挙動（連携チャンネルへの emit スキップしつつ 204）に合わせて無視
+            const err = e as { code?: string };
+            if (err.code !== 'NOT_FOUND') throw e;
         }
 
         res.status(204).end();

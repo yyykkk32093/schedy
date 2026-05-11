@@ -151,6 +151,7 @@ export class SignInPasswordUserUseCase {
             // 4️⃣ 認証成功 → JWT発行
             const generatedAccessToken = this.jwtTokenService.generate(
                 user.getId().getValue(),
+                // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain -- TODO(Phase 2): Email は必須なので型を NonNullable にすべき
                 user.getEmail()?.getValue()!
             )
 

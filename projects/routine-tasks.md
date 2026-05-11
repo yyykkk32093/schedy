@@ -154,11 +154,11 @@ projects/{project-name}/backlog/phase-N-progress.md
 
 ```bash
 # テストデータ投入
-cd backend && PGPASSWORD=app_password psql -h localhost -p 5432 -U app_user -d reserve_manage \
+cd backend && PGPASSWORD=app_password psql -h localhost -p 5432 -U app_user -d tsunaca \
   -f infra/database/seeds/testdata/e2e-seed-data.sql
 
 # テストデータ削除（ファイル末尾の DELETE 文をコメント解除して実行、または直接）
-cd backend && PGPASSWORD=app_password psql -h localhost -p 5432 -U app_user -d reserve_manage \
+cd backend && PGPASSWORD=app_password psql -h localhost -p 5432 -U app_user -d tsunaca \
   -c "DELETE FROM \"AnnouncementRead\" WHERE \"id\" LIKE 'test-%'; ..."
 ```
 

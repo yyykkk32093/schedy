@@ -7,6 +7,11 @@ import { IntegrationHandler } from './IntegrationHandler.js';
 /**
  * PushNotificationIntegrationHandler
  *
+ * ⚠️ Phase 1 [202603_08]: 凍結中
+ * DeviceToken テーブルに登録経路（フロントからの POST /v1/device-tokens）が無く、
+ * このハンドラは常に "No device tokens" で skip する。
+ * ネイティブアプリ実装 or PWA Web Push 実装後に解凍する。
+ *
  * OutboxWorker から routingKey = 'notification.push' で dispatch されるハンドラ。
  * 対象ユーザーの全 DeviceToken を取得し、firebase-admin で FCM 送信する。
  *

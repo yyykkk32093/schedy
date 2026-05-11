@@ -13,4 +13,6 @@ export interface IParticipationRepository {
     deleteById(id: string): Promise<void>
     /** W3-13b: コミュニティ内で過去使われたビジター名を重複なしで取得 */
     findDistinctVisitorNamesByCommunityId(communityId: string): Promise<string[]>
+    /** Phase 2 [202603_08]: featureGateMiddleware 用 — 紐づくコミュニティの grade を取得。 */
+    findCommunityGrade(participationId: string): Promise<{ grade: string } | null>
 }

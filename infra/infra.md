@@ -43,12 +43,12 @@ pnpm infra:reset
 | -------- | ---------------- |
 | Host     | `localhost`      |
 | Port     | `5432`           |
-| Database | `reserve_manage` |
+| Database | `tsunaca` |
 | User     | `app_user`       |
 | Password | `app_password`   |
 
 ```
-DATABASE_URL="postgresql://app_user:app_password@localhost:5432/reserve_manage?schema=public"
+DATABASE_URL="postgresql://app_user:app_password@localhost:5432/tsunaca?schema=public"
 ```
 
 ### DBeaver 等の GUI ツールから接続

@@ -8,7 +8,7 @@ import type {
     CreateCommunityLocationInput,
     ICommunityLocationRepository,
     UpdateCommunityLocationInput,
-} from '@/domains/community/repository/ICommunityLocationRepository.js'
+} from '@/domains/community/domain/repository/ICommunityLocationRepository.js'
 import type { Prisma, PrismaClient } from '@prisma/client'
 
 export class CommunityLocationRepositoryImpl implements ICommunityLocationRepository {

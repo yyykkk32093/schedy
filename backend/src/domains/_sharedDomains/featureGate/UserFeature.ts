@@ -1,6 +1,6 @@
 /**
  * ユーザープラン別 機能ON/OFF 制限 — Feature enum
- * DB テーブル: UserFeatureRestriction.feature に対応
+ * DB テーブル: PlanFeaturePolicy.feature に対応
  */
 export const UserFeature = {
     /** DM新規開始 */
@@ -25,7 +25,7 @@ export type UserFeatureType = (typeof UserFeature)[keyof typeof UserFeature]
 
 /**
  * ユーザープラン別 数量上限 — LimitKey enum
- * DB テーブル: UserLimitRestriction.limitKey に対応
+ * DB テーブル: PlanLimitPolicy.limitKey に対応
  */
 export const UserLimitKey = {
     /** 参加コミュニティ数上限 */

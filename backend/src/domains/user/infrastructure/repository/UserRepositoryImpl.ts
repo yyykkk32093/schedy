@@ -2,7 +2,7 @@ import { prisma } from '@/_sharedTech/db/client.js'
 import type { Prisma, PrismaClient } from '@prisma/client'
 
 import { User } from '../../domain/model/entity/User.js'
-import { IUserRepository } from '../../domain/repository/IUserRepository.js'
+import { AuthMeView, IUserRepository, SystemAuthorizationView, UserPlanView } from '../../domain/repository/IUserRepository.js'
 
 export class UserRepositoryImpl implements IUserRepository {
 
@@ -37,6 +37,90 @@ export class UserRepositoryImpl implements IUserRepository {
             where: { id: { in: ids } },
         })
         return records.map((r) => this.toDomain(r))
+    }
+
+    async findSystemAuthorization(id: string): Promise<SystemAuthorizationView | null> {
+        const record = await this.db.user.findUnique({
+            where: { id },
+            select: { systemRole: true, deletedAt: true },
+        })
+        if (!record) return null
+        return {
+            systemRole: record.systemRole,
+            isDeleted: record.deletedAt !== null,
+        }
+    }
+
+    async findPlan(id: string): Promise<UserPlanView | null> {
+        const record = await this.db.user.findUnique({
+            where: { id },
+            select: { plan: true },
+        })
+        if (!record) return null
+        return { plan: record.plan }
+    }
+
+    async findAuthMeView(id: string): Promise<AuthMeView | null> {
+        const record = await this.db.user.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                plan: true,
+                displayName: true,
+                email: true,
+                avatarUrl: true,
+                systemRole: true,
+            },
+        })
+        if (!record) return null
+        return {
+            id: record.id,
+            plan: record.plan,
+            displayName: record.displayName,
+            email: record.email,
+            avatarUrl: record.avatarUrl,
+            systemRole: record.systemRole,
+        }
+    }
+
+    async findLocale(id: string): Promise<{ locale: string | null } | null> {
+        const record = await this.db.user.findUnique({
+            where: { id },
+            select: { locale: true },
+        })
+        if (!record) return null
+        return { locale: record.locale }
+    }
+
+    async updateLocale(id: string, locale: string | null): Promise<void> {
+        await this.db.user.update({ where: { id }, data: { locale } })
+    }
+
+    async findChatSenderProfile(id: string): Promise<{ displayName: string | null; avatarUrl: string | null } | null> {
+        const record = await this.db.user.findUnique({
+            where: { id },
+            select: { displayName: true, avatarUrl: true },
+        })
+        if (!record) return null
+        return { displayName: record.displayName, avatarUrl: record.avatarUrl }
+    }
+
+    async findSystemAdminForAssignee(id: string): Promise<{ id: string; systemRole: string; deletedAt: Date | null } | null> {
+        return this.db.user.findUnique({
+            where: { id },
+            select: { id: true, systemRole: true, deletedAt: true },
+        })
+    }
+
+    async listSystemAdmins(): Promise<Array<{ id: string; displayName: string | null; email: string | null; systemRole: string }>> {
+        return this.db.user.findMany({
+            where: {
+                systemRole: { in: ['OPERATOR', 'SUPER_ADMIN'] },
+                deletedAt: null,
+            },
+            select: { id: true, displayName: true, email: true, systemRole: true },
+            orderBy: [{ systemRole: 'asc' }, { displayName: 'asc' }],
+        })
     }
 
     // ============================================================
