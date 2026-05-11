@@ -9,10 +9,9 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "baseUrl": "src",
     "paths": {
       "@/*": [
-        "*"
+        "./src/*"
       ]
     },
     "sourceMap": true

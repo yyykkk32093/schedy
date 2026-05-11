@@ -4,6 +4,8 @@ import { AdBanner } from '@/features/ads/components/AdBanner'
 import { chatApi } from '@/features/chat/api/chatApi'
 import { useMyRole } from '@/features/community/hooks/useCommunityQueries'
 import { useMembers } from '@/features/community/hooks/useMemberQueries'
+import { formatLevelWith, useParticipationLevelLabels } from '@/features/master/hooks/useParticipationLevels'
+import { useMatchingResult, useUpdateVisitorLevel } from '@/features/matching/hooks/useMatchingQueries'
 import { BulkConfirmDialog } from '@/features/participation/components/BulkConfirmDialog'
 import { ParticipationActionButton } from '@/features/participation/components/ParticipationActionButton'
 import { RefundPendingSection } from '@/features/participation/components/RefundPendingSection'
@@ -21,7 +23,7 @@ import { Separator } from '@/shared/components/ui/separator'
 import { useRedirectOnNotFound } from '@/shared/hooks/useRedirectOnNotFound'
 import type { Member, ParticipantItem, ScheduleListItem } from '@/shared/types/api'
 import { formatDateLabel } from '@/shared/utils/dateGroup'
-import { ArrowLeftRight, Banknote, Calendar, ClipboardCheck, Edit, ExternalLink, MapPin, Repeat, Settings, Trash2, User, UserMinus, UserPlus } from 'lucide-react'
+import { ArrowLeftRight, Banknote, Calendar, ClipboardCheck, Edit, ExternalLink, MapPin, Repeat, Settings, Shuffle, Trash2, User, UserMinus, UserPlus } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
@@ -66,6 +68,7 @@ export function ActivityDetailPage() {
     }, [schedules, scheduleIdParam])
 
     const activeIndex = activeSchedule ? schedules.findIndex((s) => s.id === activeSchedule.id) : -1
+    const { data: matchingResult } = useMatchingResult(activeSchedule?.id ?? '')
 
     const switchSchedule = (idx: number) => {
         const s = schedules[idx]
@@ -180,23 +183,24 @@ export function ActivityDetailPage() {
                         </button>
                     </div>
                 )}
-                {activity.defaultLocation && activity.defaultLocation !== 'オンライン' && (
+                {!activity.isOnline && (activity.defaultPlace?.name || activity.defaultLocationCustom) && (
                     <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
-                        <span>開催場所：{activity.defaultLocation}</span>
-                    </div>
-                )}
-                {activity.defaultAddress && (
-                    <div className="flex items-center gap-2 ml-6">
-                        <a
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.defaultAddress)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline inline-flex items-center gap-1"
-                        >
-                            Googleマップで開く
-                            <ExternalLink className="w-3 h-3" />
-                        </a>
+                        {activity.defaultPlace ? (
+                            <span>
+                                開催場所：
+                                <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${activity.defaultPlace.lat},${activity.defaultPlace.lng}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:underline"
+                                >
+                                    {activity.defaultPlace.name}
+                                </a>
+                            </span>
+                        ) : (
+                            <span>開催場所：{activity.defaultLocationCustom}</span>
+                        )}
                     </div>
                 )}
                 {activeSchedule ? (
@@ -296,6 +300,18 @@ export function ActivityDetailPage() {
 
             <Separator />
 
+            {activeSchedule && matchingResult && !isAdminOrAbove && (
+                <div className="rounded-lg border border-gray-200 bg-white p-3">
+                    <button
+                        type="button"
+                        onClick={() => navigate(`/communities/${activity.communityId}/schedules/${activeSchedule.id}/matching`)}
+                        className="w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-black"
+                    >
+                        組み合わせを見る
+                    </button>
+                </div>
+            )}
+
             {/* ── スケジュール ── */}
             <div>
                 {isSchedulesLoading ? (
@@ -323,6 +339,8 @@ export function ActivityDetailPage() {
                         paypayId={activity.communityPaymentSettings?.paypayId}
                         isAdminOrAbove={isAdminOrAbove}
                         currentUserRole={currentUserRole ?? undefined}
+                        onMatchingClick={() => navigate(`/communities/${activity.communityId}/schedules/${activeSchedule.id}/matching`)}
+                        hasMatchingResult={!!matchingResult}
                     />
                 )}
             </div>
@@ -471,13 +489,14 @@ export function ActivityDetailPage() {
 
 // ─── スケジュール単位の参加セクション ────────────────────
 
-function ScheduleSection({ schedule, communityId, enabledPaymentMethods, paypayId, isAdminOrAbove, currentUserRole }: { schedule: ScheduleListItem; communityId: string; enabledPaymentMethods?: string[]; paypayId?: string | null; isAdminOrAbove?: boolean; currentUserRole?: string }) {
+function ScheduleSection({ schedule, communityId, enabledPaymentMethods, paypayId, isAdminOrAbove, currentUserRole, onMatchingClick, hasMatchingResult }: { schedule: ScheduleListItem; communityId: string; enabledPaymentMethods?: string[]; paypayId?: string | null; isAdminOrAbove?: boolean; currentUserRole?: string; onMatchingClick?: () => void; hasMatchingResult?: boolean }) {
     const { user } = useAuth()
     const currentUserId = user?.userId
     const { data: participantsData } = useParticipants(schedule.id)
     const { data: waitlistData } = useWaitlistEntries(schedule.id)
     const confirmPaymentMutation = useConfirmPayment(schedule.id)
     const addVisitorMutation = useAddVisitor(schedule.id)
+    const updateVisitorLevelMutation = useUpdateVisitorLevel(schedule.id)
     const updateVisitorPaymentMutation = useUpdateVisitorPayment(schedule.id)
     const removeParticipationMutation = useRemoveParticipation(schedule.id)
     // 個別スケジュールAPIで myStatus / attendingCount / waitlistCount を取得
@@ -563,16 +582,28 @@ function ScheduleSection({ schedule, communityId, enabledPaymentMethods, paypayI
                     <h3 className="text-xs font-semibold text-gray-600">
                         参加者一覧（{remaining != null ? `残り: ${remaining}/${schedule.capacity}` : `${participants.length}名`}）
                     </h3>
-                    {!isCancelled && !isExpired && (
-                        <button
-                            type="button"
-                            onClick={() => setShowAddVisitor(true)}
-                            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
-                        >
-                            <UserPlus className="w-3.5 h-3.5" />
-                            ビジター追加
-                        </button>
-                    )}
+                    <div className="flex items-center gap-3">
+                        {onMatchingClick && isAdminOrAbove && !isCancelled && (
+                            <button
+                                type="button"
+                                onClick={onMatchingClick}
+                                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+                            >
+                                <Shuffle className="w-3.5 h-3.5" />
+                                {hasMatchingResult ? '組み合わせを見る' : '組み合わせ生成'}
+                            </button>
+                        )}
+                        {!isCancelled && !isExpired && (
+                            <button
+                                type="button"
+                                onClick={() => setShowAddVisitor(true)}
+                                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+                            >
+                                <UserPlus className="w-3.5 h-3.5" />
+                                ビジター追加
+                            </button>
+                        )}
+                    </div>
                 </div>
                 <div className="border rounded overflow-hidden">
                     <div className="max-h-[331px] overflow-auto">
@@ -923,11 +954,18 @@ function ScheduleSection({ schedule, communityId, enabledPaymentMethods, paypayI
                 open={showAddVisitor}
                 onOpenChange={setShowAddVisitor}
                 communityId={communityId}
-                onSubmit={async (visitorName) => {
-                    await addVisitorMutation.mutateAsync({ visitorName })
+                onSubmit={async ({ visitorName, level }) => {
+                    const res = await addVisitorMutation.mutateAsync({ visitorName })
+                    if (level !== null && res?.participationId) {
+                        try {
+                            await updateVisitorLevelMutation.mutateAsync({ participationId: res.participationId, level })
+                        } catch {
+                            // レベル設定失敗は無視（追加自体は成功）
+                        }
+                    }
                     setShowAddVisitor(false)
                 }}
-                isPending={addVisitorMutation.isPending}
+                isPending={addVisitorMutation.isPending || updateVisitorLevelMutation.isPending}
             />
         </div>
     )
@@ -945,26 +983,37 @@ function AddVisitorDialog({
     open: boolean
     onOpenChange: (open: boolean) => void
     communityId: string
-    onSubmit: (visitorName: string) => Promise<void>
+    onSubmit: (input: { visitorName: string; level: number | null }) => Promise<void>
     isPending: boolean
 }) {
     const [name, setName] = useState('')
+    const [level, setLevel] = useState<number>(4)
     const [showSuggestions, setShowSuggestions] = useState(false)
     const { data: suggestionsData } = useVisitorNameSuggestions(communityId)
     const suggestions = suggestionsData?.names ?? []
+    const levelLabels = useParticipationLevelLabels()
+
+    // ダイアログを開き直したら初期化
+    useEffect(() => {
+        if (open) {
+            setName('')
+            setLevel(4)
+            setShowSuggestions(false)
+        }
+    }, [open])
 
     const filteredSuggestions = useMemo(() => {
-        if (!name.trim()) return suggestions.slice(0, 8)
-        const q = name.trim().toLowerCase()
-        return suggestions.filter((s) => s.toLowerCase().includes(q)).slice(0, 8)
+        const trimmed = name.trim()
+        if (!trimmed) return []
+        const q = trimmed.toLowerCase()
+        return suggestions.filter((s) => s.toLowerCase().includes(q)).slice(0, 5)
     }, [suggestions, name])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!name.trim()) return
         setShowSuggestions(false)
-        await onSubmit(name.trim())
-        setName('')
+        await onSubmit({ visitorName: name.trim(), level })
     }
 
     return (
@@ -985,7 +1034,9 @@ function AddVisitorDialog({
                                 setName(e.target.value)
                                 setShowSuggestions(true)
                             }}
-                            onFocus={() => setShowSuggestions(true)}
+                            onFocus={() => {
+                                if (name.trim()) setShowSuggestions(true)
+                            }}
                             placeholder="名前を入力（最大50文字）"
                             maxLength={50}
                             autoComplete="off"
@@ -1010,6 +1061,23 @@ function AddVisitorDialog({
                                 ))}
                             </ul>
                         )}
+                    </div>
+                    <div className="space-y-1.5">
+                        <label htmlFor="visitorLevel" className="text-sm font-medium text-gray-700">
+                            レベル
+                        </label>
+                        <select
+                            id="visitorLevel"
+                            value={level}
+                            onChange={(e) => setLevel(Number(e.target.value))}
+                            className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 bg-white"
+                        >
+                            {Array.from({ length: 9 }, (_, i) => i).map((lv) => (
+                                <option key={lv} value={lv}>
+                                    {formatLevelWith(levelLabels, lv)}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                     <p className="text-xs text-gray-500">
                         ビジター参加者を追加します。支払い管理はあなたが行います。
