@@ -22,7 +22,7 @@ export function AnnouncementDetailPage() {
     const bookmarkMutation = useToggleAnnouncementBookmark()
     const markedRef = useRef(false)
 
-    // #7: 詳細画面開封時に既読を自動付与（冪等API）
+    // #7: 詳細画面開封時に既読を自動付与（POST /reads・冪等）
     useEffect(() => {
         if (!id || markedRef.current) return
         markedRef.current = true

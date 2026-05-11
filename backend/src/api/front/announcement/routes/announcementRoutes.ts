@@ -16,7 +16,7 @@ router.post('/v1/communities/:communityId/announcements', authMiddleware, valida
 router.get('/v1/communities/:communityId/announcements', authMiddleware, announcementController.list)
 
 router.get('/v1/announcements/:id', authMiddleware, announcementController.findById)
-router.patch('/v1/announcements/:id/read', authMiddleware, announcementController.markAsRead)
+router.post('/v1/announcements/:id/reads', authMiddleware, announcementController.markAsRead)
 router.patch('/v1/announcements/:id', authMiddleware, validateBody(updateAnnouncementSchema), announcementController.update)
 router.delete('/v1/announcements/:id', authMiddleware, announcementController.softDelete)
 

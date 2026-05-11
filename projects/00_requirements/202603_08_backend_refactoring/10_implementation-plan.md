@@ -335,7 +335,7 @@ model InquiryMessage {
 - [ ] Phase 0: 規約整備 + 防御線
 - [ ] Phase 1: 不要 API・モデル削除
 - [ ] Phase 2: DDD 違反解消
-- [ ] Phase 3: REST API 再設計 — **本体実装完了 (2026-05-11)**。zod-to-openapi / read 系統一はバックログへ
+- [ ] Phase 3: REST API 再設計 — **本体実装完了 (2026-05-11)**。read 系 API 統一（`POST /v1/announcements/:id/reads`）対応済み。zod-to-openapi はバックログ継続
 - [ ] Phase 4: スキーマ・命名統一
 - [ ] Phase 5: Index 補強
 - [ ] Phase 6: DB 名変更

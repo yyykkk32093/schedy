@@ -1,5 +1,5 @@
-import type { IAnnouncementBookmarkRepository } from '@/domains/announcement/domain/repository/IAnnouncementBookmarkRepository.js'
-import type { IAnnouncementRepository } from '@/domains/announcement/domain/repository/IAnnouncementRepository.js'
+import type { IAnnouncementBookmarkRepository } from '@/domains/announcement/domain/repository/IAnnouncementBookmarkRepository.js';
+import type { IAnnouncementRepository } from '@/domains/announcement/domain/repository/IAnnouncementRepository.js';
 
 /**
  * お知らせブックマーク削除（冪等）。

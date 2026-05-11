@@ -33,7 +33,7 @@ export const announcementApi = {
         http<void>(`/v1/announcements/${id}`, { method: 'DELETE' }),
 
     markAsRead: (id: string) =>
-        http<void>(`/v1/announcements/${id}/read`, { method: 'PATCH' }),
+        http<void>(`/v1/announcements/${id}/reads`, { method: 'POST' }),
 
     // ── UBL-1: いいね (Phase 3 REST 再設計でリソース化: /likes) ──
     like: (announcementId: string) =>

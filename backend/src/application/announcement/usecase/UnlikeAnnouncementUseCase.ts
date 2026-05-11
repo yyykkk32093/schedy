@@ -1,5 +1,5 @@
-import type { IAnnouncementLikeRepository } from '@/domains/announcement/domain/repository/IAnnouncementLikeRepository.js'
-import type { IAnnouncementRepository } from '@/domains/announcement/domain/repository/IAnnouncementRepository.js'
+import type { IAnnouncementLikeRepository } from '@/domains/announcement/domain/repository/IAnnouncementLikeRepository.js';
+import type { IAnnouncementRepository } from '@/domains/announcement/domain/repository/IAnnouncementRepository.js';
 
 /**
  * いいね削除 UseCase（冪等）。

@@ -110,7 +110,7 @@ describeE2E('Announcement E2E', () => {
 
         // 既読にする
         await request(app)
-            .patch(`/v1/announcements/${createRes.body.announcementId}/read`)
+            .post(`/v1/announcements/${createRes.body.announcementId}/reads`)
             .set('Authorization', bearerToken(memberId, memberEmail))
 
         // 既読
@@ -153,20 +153,20 @@ describeE2E('Announcement E2E', () => {
         expect(after!.deletedAt).not.toBeNull()
     })
 
-    it('PATCH /v1/announcements/:id/read → 既読マーク（冪等）', async () => {
+    it('POST /v1/announcements/:id/reads → 既読マーク（冪等）', async () => {
         const createRes = await request(app)
             .post(`/v1/communities/${communityId}/announcements`)
             .set('Authorization', bearerToken(ownerId, ownerEmail))
             .send({ title: '既読テスト', content: '内容' })
 
         const readRes1 = await request(app)
-            .patch(`/v1/announcements/${createRes.body.announcementId}/read`)
+            .post(`/v1/announcements/${createRes.body.announcementId}/reads`)
             .set('Authorization', bearerToken(memberId, memberEmail))
         expect(readRes1.status).toBe(204)
 
         // 2回目も冪等に成功
         const readRes2 = await request(app)
-            .patch(`/v1/announcements/${createRes.body.announcementId}/read`)
+            .post(`/v1/announcements/${createRes.body.announcementId}/reads`)
             .set('Authorization', bearerToken(memberId, memberEmail))
         expect(readRes2.status).toBe(204)
 
