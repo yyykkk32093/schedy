@@ -2,6 +2,7 @@ import { http, HttpError, type ApiError } from '@/shared/lib/apiClient'
 import type {
     ChatChannel,
     CommunityChannelTreeResponse,
+    ListDmChannelsResponse,
     ListMessagesResponse,
     MessageAttachment,
     MyChannelsResponse,
@@ -15,6 +16,9 @@ const baseURL: string = import.meta.env.VITE_API_BASE_URL || ''
 export const chatApi = {
     /** 自分が参加する全チャンネル一覧 */
     getMyChannels: () => http<MyChannelsResponse>('/v1/channels'),
+
+    /** DM チャンネル一覧 */
+    listDmChannels: () => http<ListDmChannelsResponse>('/v1/dm/channels'),
 
     /** W5-25: コミュニティツリー+未読数 */
     getCommunityChannelTree: () => http<CommunityChannelTreeResponse>('/v1/channels/community-tree'),

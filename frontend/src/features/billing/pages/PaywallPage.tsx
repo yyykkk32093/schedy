@@ -9,19 +9,10 @@ import { useAuth } from '@/app/providers/AuthProvider'
 import { Button } from '@/shared/components/ui/button'
 import { http } from '@/shared/lib/apiClient'
 import { getOrConfigurePurchases, isRevenueCatConfigured } from '@/shared/lib/revenuecat'
+import type { ListPlansResponse, PlanMasterDTO } from '@/shared/types/api'
 import type { Offering, Purchases, Package as RCPackage } from '@revenuecat/purchases-js'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
-
-/** API から返るプラン情報 */
-interface PlanMasterDTO {
-    id: string
-    displayName: string
-    description: string | null
-    monthlyPrice: number | null
-    oneTimePrice: number | null
-    sortOrder: number
-}
 
 /** プランごとの静的 UI 情報（APIで取得できない部分を補完） */
 const planUIConfig: Record<string, {
@@ -95,7 +86,7 @@ export function PaywallPage() {
     // プラン一覧を API から取得
     const { data: plansData } = useQuery({
         queryKey: ['plans'],
-        queryFn: () => http<{ plans: PlanMasterDTO[] }>('/v1/plans'),
+        queryFn: () => http<ListPlansResponse>('/v1/plans'),
     })
     const plans = plansData?.plans ?? []
 

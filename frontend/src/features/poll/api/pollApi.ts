@@ -1,28 +1,7 @@
 import { http } from '@/shared/lib/apiClient'
+import type { ListPollsResponse, PollOptionResult, PollResult } from '@/shared/types/api'
 
-// ─── 型定義 ──────────────────────────────────────────────
-
-export interface PollOptionResult {
-    id: string
-    text: string
-    sortOrder: number
-    voteCount: number
-    voters: Array<{ userId: string; displayName: string | null; avatarUrl: string | null }>
-}
-
-export interface PollResult {
-    id: string
-    communityId: string
-    announcementId: string | null
-    question: string
-    isMultipleChoice: boolean
-    deadline: string | null
-    createdBy: string
-    createdAt: string
-    options: PollOptionResult[]
-    totalVotes: number
-    myVotedOptionIds: string[]
-}
+export type { PollOptionResult, PollResult }
 
 export interface CreatePollRequest {
     question: string
@@ -43,7 +22,7 @@ export const pollApi = {
         http<{ pollId: string }>(`/v1/communities/${communityId}/polls`, { method: 'POST', json: data }),
 
     list: (communityId: string) =>
-        http<PollResult[]>(`/v1/communities/${communityId}/polls`),
+        http<ListPollsResponse>(`/v1/communities/${communityId}/polls`),
 
     getResult: (pollId: string) =>
         http<PollResult>(`/v1/polls/${pollId}`),

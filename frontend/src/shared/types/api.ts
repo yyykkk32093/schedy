@@ -1339,3 +1339,284 @@ export interface UpdateExpenseCategoryRequest {
     name: string
 }
 
+// ============================================================
+// Matching
+// ============================================================
+
+export type MatchingMode = 'RANDOM' | 'MIXED_LEVEL' | 'SAME_LEVEL'
+
+export type MatchingParticipant = {
+    participationId: string
+    userId: string | null
+    displayName: string
+    level: number
+    isVisitor: boolean
+}
+
+export type MatchingRound = {
+    roundNo: number
+    looped?: boolean
+    courts: Array<{
+        courtNo: number
+        /** このコートの「同一の参加者の組み合わせ」が初出したラウンド番号。初出ラウンドでは undefined */
+        duplicatedFromRoundNo?: number
+        groups: Array<{
+            groupNo: number
+            participants: MatchingParticipant[]
+        }>
+    }>
+}
+
+export interface MatchingResult {
+    id: string
+    scheduleId: string
+    mode: MatchingMode
+    params: {
+        rounds: number
+        courtCount: number
+        groupsPerCourt: number
+        playersPerGroup: number
+        categoryId?: string | null
+        categoryName?: string | null
+        formatName?: string | null
+        fixedPairs?: Array<[string, string]>
+    }
+    rounds: MatchingRound[]
+    createdBy: string
+    createdAt: string
+    updatedAt: string
+}
+
+export interface CategoryMatchFormat {
+    id: string
+    name: string
+    playersPerGroup: number
+    groupsPerCourt: number
+    sortOrder: number
+    isDefault: boolean
+}
+
+export interface CategoryWithMatchFormats {
+    id: string
+    name: string
+    nameEn: string
+    formats: CategoryMatchFormat[]
+}
+
+export interface ListCategoryMatchFormatsResponse {
+    categories: CategoryWithMatchFormats[]
+}
+
+export interface ListParticipantLevelsResponse {
+    participants: MatchingParticipant[]
+}
+
+// ============================================================
+// Webhook
+// ============================================================
+
+export interface WebhookConfig {
+    id: string
+    communityId: string
+    service: string
+    webhookUrl: string
+    enabled: boolean
+    createdBy: string
+    createdAt: string
+    updatedAt: string
+}
+
+export type ListWebhookConfigsResponse = WebhookConfig[]
+
+// ============================================================
+// Poll
+// ============================================================
+
+export interface PollOptionResult {
+    id: string
+    text: string
+    sortOrder: number
+    voteCount: number
+    voters: Array<{ userId: string; displayName: string | null; avatarUrl: string | null }>
+}
+
+export interface PollResult {
+    id: string
+    communityId: string
+    announcementId: string | null
+    question: string
+    isMultipleChoice: boolean
+    deadline: string | null
+    createdBy: string
+    createdAt: string
+    options: PollOptionResult[]
+    totalVotes: number
+    myVotedOptionIds: string[]
+}
+
+export type ListPollsResponse = PollResult[]
+
+// ============================================================
+// Inquiry
+// ============================================================
+
+export interface InquiryCategoryDto {
+    id: string
+    slug: string
+    labelI18n: Record<string, string>
+    relatedHelpCategorySlug: string | null
+    isAnonymousOnly: boolean
+}
+
+export interface InquiryAttachmentDto {
+    id: string
+    fileName: string
+    mimeType: string
+    sizeBytes: number
+    scanStatus: 'PENDING' | 'CLEAN' | 'INFECTED' | 'ERROR'
+}
+
+export interface InquiryMessageDto {
+    id: string
+    authorType: 'USER' | 'OPERATOR'
+    body: string
+    createdAt: string
+    attachments: InquiryAttachmentDto[]
+}
+
+export interface InquirySummaryDto {
+    id: string
+    title: string
+    status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'
+    lastActivityAt: string
+    createdAt: string
+    category: { slug: string; labelI18n: Record<string, string> }
+}
+
+export interface InquiryDetailDto extends InquirySummaryDto {
+    messages: InquiryMessageDto[]
+}
+
+export interface AdminInquirySummaryDto extends InquirySummaryDto {
+    user: { id: string; displayName: string | null; email: string | null } | null
+    contactEmail: string | null
+    assignee: { id: string; displayName: string | null; email: string | null } | null
+}
+
+export interface AdminInquiryDetailResponse extends InquiryDetailDto {
+    user: AdminInquirySummaryDto['user']
+    contactEmail: string | null
+    assignee: AdminInquirySummaryDto['assignee']
+}
+
+export interface SystemAdminUserDto {
+    id: string
+    displayName: string | null
+    email: string | null
+    systemRole: 'OPERATOR' | 'SUPER_ADMIN'
+}
+
+export interface ListInquiryCategoriesResponse {
+    categories: InquiryCategoryDto[]
+}
+
+export interface ListAdminInquiriesResponse {
+    inquiries: AdminInquirySummaryDto[]
+}
+
+export interface ListSystemAdminsResponse {
+    users: SystemAdminUserDto[]
+}
+
+// ============================================================
+// Bookmarks — Communities
+// ============================================================
+
+export interface BookmarkedCommunityItem {
+    id: string
+    name: string
+    description: string | null
+    logoUrl: string | null
+    coverUrl: string | null
+    joinMethod: string
+    isPublic: boolean
+}
+
+export interface BookmarkedCommunitiesResponse {
+    communities: BookmarkedCommunityItem[]
+}
+
+// ============================================================
+// Place Search
+// ============================================================
+
+export interface PlaceSearchResponse {
+    items: PlaceSearchItem[]
+}
+
+// ============================================================
+// Plans
+// ============================================================
+
+export interface PlanMasterDTO {
+    id: string
+    displayName: string
+    description: string | null
+    monthlyPrice: number | null
+    oneTimePrice: number | null
+    sortOrder: number
+}
+
+export interface ListPlansResponse {
+    plans: PlanMasterDTO[]
+}
+
+// ============================================================
+// Locale
+// ============================================================
+
+export interface UserLocaleResponse {
+    locale: string | null
+}
+
+// ============================================================
+// Community Masters (standalone responses)
+// ============================================================
+
+export interface ListCategoriesResponse {
+    categories: MasterItem[]
+}
+
+export interface ListParticipationLevelsResponse {
+    participationLevels: MasterItem[]
+}
+
+// ============================================================
+// Visitor Names
+// ============================================================
+
+export interface VisitorNamesResponse {
+    names: string[]
+}
+
+// ============================================================
+// DM Channels
+// ============================================================
+
+export interface DmLastMessage {
+    id: string
+    senderId: string
+    content: string
+    createdAt: string
+}
+
+export interface DmChannelItem {
+    channelId: string
+    participants: string[]
+    lastMessage: DmLastMessage | null
+}
+
+export interface ListDmChannelsResponse {
+    channels: DmChannelItem[]
+}
+

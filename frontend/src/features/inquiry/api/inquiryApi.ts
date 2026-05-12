@@ -1,54 +1,21 @@
 import { http } from '@/shared/lib/apiClient'
+import type {
+    AdminInquiryDetailResponse,
+    AdminInquirySummaryDto,
+    InquiryAttachmentDto,
+    InquiryCategoryDto,
+    InquiryDetailDto,
+    InquiryMessageDto,
+    InquirySummaryDto,
+    ListAdminInquiriesResponse,
+    ListInquiryCategoriesResponse,
+    ListSystemAdminsResponse,
+    SystemAdminUserDto,
+} from '@/shared/types/api'
 
-export interface InquiryCategoryDto {
-    id: string
-    slug: string
-    labelI18n: Record<string, string>
-    relatedHelpCategorySlug: string | null
-    isAnonymousOnly: boolean
-}
-
-export interface InquiryAttachmentDto {
-    id: string
-    fileName: string
-    mimeType: string
-    sizeBytes: number
-    scanStatus: 'PENDING' | 'CLEAN' | 'INFECTED' | 'ERROR'
-}
-
-export interface InquiryMessageDto {
-    id: string
-    authorType: 'USER' | 'OPERATOR'
-    body: string
-    createdAt: string
-    attachments: InquiryAttachmentDto[]
-}
-
-export interface InquirySummaryDto {
-    id: string
-    title: string
-    status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'
-    lastActivityAt: string
-    createdAt: string
-    category: { slug: string; labelI18n: Record<string, string> }
-}
-
-export interface InquiryDetailDto extends InquirySummaryDto {
-    messages: InquiryMessageDto[]
-}
-
-export interface AdminInquirySummaryDto extends InquirySummaryDto {
-    user: { id: string; displayName: string | null; email: string | null } | null
-    contactEmail: string | null
-    /** Wave6 Phase 9b-16: 担当オペレーター */
-    assignee: { id: string; displayName: string | null; email: string | null } | null
-}
-
-export interface SystemAdminUserDto {
-    id: string
-    displayName: string | null
-    email: string | null
-    systemRole: 'OPERATOR' | 'SUPER_ADMIN'
+export type {
+    AdminInquirySummaryDto, InquiryAttachmentDto, InquiryCategoryDto, InquiryDetailDto, InquiryMessageDto,
+    InquirySummaryDto, SystemAdminUserDto
 }
 
 export interface CreateInquiryInput {
@@ -70,7 +37,7 @@ export interface CreateAnonymousInquiryInput extends CreateInquiryInput {
 
 export const inquiryApi = {
     listCategories: (includeAnonymous = false) =>
-        http<{ categories: InquiryCategoryDto[] }>('/v1/inquiries/categories', {
+        http<ListInquiryCategoriesResponse>('/v1/inquiries/categories', {
             query: { includeAnonymous: includeAnonymous ? 'true' : undefined },
         }),
 
@@ -98,16 +65,12 @@ export const inquiryApi = {
     // ── 運営側 ──
     admin: {
         list: (filter?: { status?: string; category?: string; assignee?: 'me' | 'unassigned' }) =>
-            http<{ inquiries: AdminInquirySummaryDto[] }>('/v1/admin/inquiries', {
+            http<ListAdminInquiriesResponse>('/v1/admin/inquiries', {
                 query: filter as Record<string, string | undefined>,
             }),
 
         findById: (id: string) =>
-            http<InquiryDetailDto & {
-                user: AdminInquirySummaryDto['user']
-                contactEmail: string | null
-                assignee: AdminInquirySummaryDto['assignee']
-            }>(`/v1/admin/inquiries/${id}`),
+            http<AdminInquiryDetailResponse>(`/v1/admin/inquiries/${id}`),
 
         updateStatus: (id: string, status: InquirySummaryDto['status']) =>
             http<{ id: string; status: string; resolvedAt: string | null }>(
@@ -132,7 +95,7 @@ export const inquiryApi = {
             ),
 
         listSystemAdmins: () =>
-            http<{ users: SystemAdminUserDto[] }>('/v1/admin/system-admins'),
+            http<ListSystemAdminsResponse>('/v1/admin/system-admins'),
     },
 }
 

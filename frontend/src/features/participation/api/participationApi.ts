@@ -1,5 +1,5 @@
 import { http } from '@/shared/lib/apiClient';
-import type { AddVisitorRequest, AddVisitorResponse, AttendScheduleRequest, AttendScheduleResponse, CreateCreditCardPaymentIntentResponse, GetParticipationHistoryResponse, JoinWaitlistResponse, ListParticipantsResponse, ListPaymentHistoryResponse, ListRefundPendingResponse, ListWaitlistResponse, UpdateVisitorPaymentRequest } from '@/shared/types/api';
+import type { AddVisitorRequest, AddVisitorResponse, AttendScheduleRequest, AttendScheduleResponse, CreateCreditCardPaymentIntentResponse, GetParticipationHistoryResponse, JoinWaitlistResponse, ListParticipantsResponse, ListPaymentHistoryResponse, ListRefundPendingResponse, ListWaitlistResponse, UpdateVisitorPaymentRequest, VisitorNamesResponse } from '@/shared/types/api';
 
 export const participationApi = {
     list: (scheduleId: string) =>
@@ -90,7 +90,7 @@ export const participationApi = {
 
     /** W3-13b: ビジター名サジェスト */
     suggestVisitorNames: (communityId: string, query?: string) =>
-        http<{ names: string[] }>(`/v1/communities/${communityId}/visitor-names`, { query: query ? { q: query } : undefined }),
+        http<VisitorNamesResponse>(`/v1/communities/${communityId}/visitor-names`, { query: query ? { q: query } : undefined }),
 
     /** ビジター支払い更新（管理者） */
     updateVisitorPayment: (participationId: string, data: UpdateVisitorPaymentRequest) =>

@@ -1,17 +1,7 @@
 import { http } from '@/shared/lib/apiClient'
+import type { ListWebhookConfigsResponse, WebhookConfig } from '@/shared/types/api'
 
-// ─── 型定義 ──────────────────────────────────────────────
-
-export interface WebhookConfig {
-    id: string
-    communityId: string
-    service: string
-    webhookUrl: string
-    enabled: boolean
-    createdBy: string
-    createdAt: string
-    updatedAt: string
-}
+export type { WebhookConfig }
 
 export interface UpsertWebhookRequest {
     service: string
@@ -23,7 +13,7 @@ export interface UpsertWebhookRequest {
 
 export const webhookApi = {
     list: (communityId: string) =>
-        http<WebhookConfig[]>(`/v1/communities/${communityId}/webhooks`),
+        http<ListWebhookConfigsResponse>(`/v1/communities/${communityId}/webhooks`),
 
     upsert: (communityId: string, data: UpsertWebhookRequest) =>
         http<{ id: string }>(`/v1/communities/${communityId}/webhooks`, {

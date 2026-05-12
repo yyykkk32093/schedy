@@ -2,6 +2,7 @@ import { http } from '@/shared/lib/apiClient'
 import type {
     AcceptInviteResponse,
     AddMemberRequest,
+    BookmarkedCommunitiesResponse,
     ChangeMemberRoleRequest,
     CommunityDetail,
     CommunityMastersResponse,
@@ -13,8 +14,10 @@ import type {
     JoinRequestBody,
     JoinRequestResponse,
     ListAuditLogsResponse,
+    ListCategoriesResponse,
     ListCommunitiesResponse,
     ListMembersResponse,
+    ListParticipationLevelsResponse,
     ListSubCommunitiesResponse,
     SearchCommunitiesParams,
     SearchCommunitiesResponse,
@@ -78,8 +81,8 @@ export const communityApi = {
      */
     getAllMasters: async (): Promise<CommunityMastersResponse> => {
         const [categoriesRes, levelsRes] = await Promise.all([
-            http<{ categories: CommunityMastersResponse['categories'] }>('/v1/categories'),
-            http<{ participationLevels: CommunityMastersResponse['participationLevels'] }>(
+            http<ListCategoriesResponse>('/v1/categories'),
+            http<ListParticipationLevelsResponse>(
                 '/v1/participation-levels',
             ),
         ])
@@ -132,7 +135,7 @@ export const communityApi = {
     },
 
     listBookmarked: () =>
-        http<{ communities: Array<{ id: string; name: string; description: string | null; logoUrl: string | null; coverUrl: string | null; joinMethod: string; isPublic: boolean }> }>('/v1/bookmarks/communities'),
+        http<BookmarkedCommunitiesResponse>('/v1/bookmarks/communities'),
 
     // ---- Locations ----
     getLocations: (communityId: string) =>

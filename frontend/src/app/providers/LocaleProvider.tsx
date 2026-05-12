@@ -14,6 +14,7 @@ import {
     writeStoredLocale,
 } from '@/features/help/lib/localeService'
 import { http } from '@/shared/lib/apiClient'
+import type { UserLocaleResponse } from '@/shared/types/api'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 interface LocaleContextValue {
@@ -49,7 +50,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
         let cancelled = false
         async function syncFromUser() {
             try {
-                const r = await http<{ locale: string | null }>('/v1/users/me/locale')
+                const r = await http<UserLocaleResponse>('/v1/users/me/locale')
                 if (cancelled) return
                 if (isSupportedLocale(r.locale)) {
                     setLocaleState(r.locale)
